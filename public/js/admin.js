@@ -84,7 +84,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Realtime Listeners
   SpiceClient.on('order_created', (data) => {
-    SpiceClient.showToast(`New Order #${data.order?.order_number || ''} received from Table ${data.order?.table_number || ''}!`);
+    SpiceClient.showPopup({
+      title: 'New Order Received',
+      message: `Order #${data.order?.order_number || ''} received from Table ${data.order?.table_number || ''}!`,
+      type: 'category',
+      icon: '🔔',
+      duration: 4000
+    });
     if (activeTab === 'dashboard') loadDashboardData();
     if (activeTab === 'orders') loadOrdersData();
   });
@@ -397,7 +403,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           if (newCategoryGroup) newCategoryGroup.style.display = 'none';
           newCategoryName.value = '';
-          SpiceClient.showToast(`Category "${newCat.name}" created!`);
+          SpiceClient.showPopup({
+            title: 'Category Created',
+            message: `New category "${newCat.name}" is now ready for menu items.`,
+            type: 'category',
+            icon: '🏷️',
+            duration: 4000
+          });
         } else {
           throw new Error(json.error || 'Failed to create category.');
         }
@@ -464,7 +476,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (json.success) {
         menuItemModal.classList.remove('active');
-        SpiceClient.showToast(isNew ? 'Item added to menu!' : 'Item updated successfully!');
+        SpiceClient.showPopup({
+          title: isNew ? 'Item Added to Menu' : 'Menu Item Updated',
+          message: isNew ? `"${payload.name}" has been added to the menu.` : `"${payload.name}" changes saved successfully.`,
+          type: 'success',
+          icon: isNew ? '✅' : '✏️',
+          duration: 4000
+        });
         loadMenuData();
       } else {
         throw new Error(json.error || 'Save failed.');
@@ -628,7 +646,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ is_available: isAvail })
           });
-          SpiceClient.showToast(`${item.name} marked ${isAvail ? 'AVAILABLE' : 'UNAVAILABLE'}`);
+          SpiceClient.showPopup({
+            title: isAvail ? 'Item Available' : 'Item Unavailable',
+            message: `"${item.name}" is now marked ${isAvail ? 'AVAILABLE' : 'UNAVAILABLE'}.`,
+            type: isAvail ? 'success' : 'warning',
+            icon: isAvail ? '✅' : '⏸️',
+            duration: 3500
+          });
           filterAndRenderMenu(); // Re-sort so unavailable items remain at top
         } catch (err) {
           alert('Failed to update availability.');
@@ -650,7 +674,13 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (confirm(`Archive "${item.name}"? It will be hidden from the menu but preserved in order history.`)) {
             try {
               await fetch(`/api/admin/menu/${item.id}`, { method: 'DELETE' });
-              SpiceClient.showToast(`Archived "${item.name}"`);
+              SpiceClient.showPopup({
+                title: 'Item Archived',
+                message: `"${item.name}" is now archived and hidden from active customer menus.`,
+                type: 'warning',
+                icon: '📦',
+                duration: 4000
+              });
               loadMenuData();
             } catch (err) {
               alert('Failed to archive item.');
@@ -665,7 +695,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         restoreBtn.addEventListener('click', async () => {
           try {
             await fetch(`/api/admin/menu/${item.id}/restore`, { method: 'POST' });
-            SpiceClient.showToast(`Restored "${item.name}"`);
+            SpiceClient.showPopup({
+              title: 'Item Restored',
+              message: `"${item.name}" has been restored to the active menu.`,
+              type: 'restore',
+              icon: '♻️',
+              duration: 4000
+            });
             loadMenuData();
           } catch (err) {
             alert('Failed to restore item.');
@@ -682,7 +718,13 @@ document.addEventListener('DOMContentLoaded', async () => {
               const res = await fetch(`/api/admin/menu/${item.id}/permanent`, { method: 'DELETE' });
               const json = await res.json();
               if (json.success) {
-                SpiceClient.showToast(`Permanently deleted "${item.name}"`);
+                SpiceClient.showPopup({
+                  title: 'Item Permanently Deleted',
+                  message: `"${item.name}" has been permanently deleted from the database.`,
+                  type: 'danger',
+                  icon: '🗑️',
+                  duration: 4000
+                });
                 loadMenuData();
               } else {
                 alert(json.error || 'Failed to permanently delete item.');

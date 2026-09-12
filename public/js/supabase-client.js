@@ -255,19 +255,195 @@ window.SpiceClient = (function () {
     }
   }
 
-  function showToast(message, duration = 3000) {
-    let toast = document.getElementById('spiceToast');
-    if (!toast) {
-      toast = document.createElement('div');
-      toast.id = 'spiceToast';
-      toast.className = 'realtime-toast';
-      document.body.appendChild(toast);
+  let activePopupCleanup = null;
+
+  /**
+   * Prominently displays a self-destructing popup modal for actions/changes.
+   * Auto-destructs in 3 to 5 seconds with a visual progress bar and countdown.
+   *
+   * @param {string|object} options - Message string or options object:
+   *   { title, message, type: 'danger'|'warning'|'restore'|'success'|'category'|'info', icon, duration: 4000 }
+   * @param {number} [legacyDuration=4000]
+   */
+  function showPopup(options, legacyDuration = 4000) {
+    // If an existing popup is currently active, immediately clean it up
+    if (activePopupCleanup) {
+      activePopupCleanup();
+      activePopupCleanup = null;
     }
-    toast.innerHTML = `<span>✨</span><span>${message}</span>`;
-    toast.classList.add('show');
-    setTimeout(() => {
-      toast.classList.remove('show');
-    }, duration);
+
+    let config = {
+      title: 'Action Completed',
+      message: '',
+      type: 'info',
+      icon: '⚡',
+      duration: 4000
+    };
+
+    if (typeof options === 'string') {
+      config.message = options;
+      config.duration = typeof legacyDuration === 'number' ? legacyDuration : 4000;
+
+      // Smart inference based on message text
+      const lower = options.toLowerCase();
+      if (lower.includes('permanently deleted') || lower.includes('deleted')) {
+        config.type = 'danger';
+        config.title = 'Item Permanently Deleted';
+        config.icon = '🗑️';
+      } else if (lower.includes('archived')) {
+        config.type = 'warning';
+        config.title = 'Item Archived';
+        config.icon = '📦';
+      } else if (lower.includes('restored')) {
+        config.type = 'restore';
+        config.title = 'Item Restored';
+        config.icon = '♻️';
+      } else if (lower.includes('category') && (lower.includes('created') || lower.includes('added'))) {
+        config.type = 'category';
+        config.title = 'Category Created';
+        config.icon = '🏷️';
+      } else if (lower.includes('added to menu') || lower.includes('item added')) {
+        config.type = 'success';
+        config.title = 'Item Added to Menu';
+        config.icon = '✅';
+      } else if (lower.includes('updated successfully') || lower.includes('item updated')) {
+        config.type = 'category';
+        config.title = 'Menu Item Updated';
+        config.icon = '✏️';
+      } else if (lower.includes('marked available') || lower.includes('marked unavailable')) {
+        config.type = lower.includes('available') && !lower.includes('unavailable') ? 'success' : 'warning';
+        config.title = 'Availability Updated';
+        config.icon = lower.includes('unavailable') ? '⏸️' : '✅';
+      } else if (lower.includes('order')) {
+        config.type = 'category';
+        config.title = 'Order Notification';
+        config.icon = '🔔';
+      }
+    } else if (options && typeof options === 'object') {
+      config = { ...config, ...options };
+      if (!options.duration && legacyDuration) {
+        config.duration = legacyDuration;
+      }
+    }
+
+    // Clamp duration strictly between 3000ms and 5000ms (default 4000ms)
+    let totalMs = Math.max(3000, Math.min(5000, Number(config.duration) || 4000));
+    let remainingMs = totalMs;
+
+    // Build DOM structure
+    const overlay = document.createElement('div');
+    overlay.className = 'spice-popup-overlay';
+
+    // Highlight any quoted names in message
+    const formattedMsg = (config.message || '')
+      .replace(/"([^"]+)"/g, '<strong>"$1"</strong>');
+
+    overlay.innerHTML = `
+      <div class="spice-popup-card" role="dialog" aria-modal="true" aria-labelledby="spicePopupTitle">
+        <div class="spice-popup-header">
+          <div class="spice-popup-badge-wrap">
+            <div class="spice-popup-icon-badge type-${config.type}">
+              <span>${config.icon}</span>
+            </div>
+            <h3 class="spice-popup-title" id="spicePopupTitle">${config.title}</h3>
+          </div>
+          <button type="button" class="spice-popup-close-btn" aria-label="Close popup">&times;</button>
+        </div>
+        <div class="spice-popup-body">
+          ${formattedMsg}
+        </div>
+        <div class="spice-popup-footer">
+          <div class="spice-popup-timer-text">
+            <span>⏱️ Self-destructing in</span>
+            <span class="spice-popup-timer-badge">${Math.ceil(remainingMs / 1000)}s</span>
+          </div>
+          <button type="button" class="spice-popup-dismiss-btn">Dismiss</button>
+        </div>
+        <div class="spice-popup-progress-track">
+          <div class="spice-popup-progress-bar type-${config.type}" style="width: 100%;"></div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // Force reflow and activate transition
+    requestAnimationFrame(() => {
+      overlay.classList.add('active');
+    });
+
+    const timerBadge = overlay.querySelector('.spice-popup-timer-badge');
+    const progressBar = overlay.querySelector('.spice-popup-progress-bar');
+    const closeBtn = overlay.querySelector('.spice-popup-close-btn');
+    const dismissBtn = overlay.querySelector('.spice-popup-dismiss-btn');
+
+    let isDestroyed = false;
+    let intervalId = null;
+
+    function destroyPopup() {
+      if (isDestroyed) return;
+      isDestroyed = true;
+
+      if (intervalId) clearInterval(intervalId);
+      window.removeEventListener('keydown', handleKeydown);
+
+      overlay.classList.remove('active');
+      setTimeout(() => {
+        if (overlay && overlay.parentNode) {
+          overlay.parentNode.removeChild(overlay);
+        }
+      }, 280);
+
+      activePopupCleanup = null;
+    }
+
+    activePopupCleanup = destroyPopup;
+
+    function handleKeydown(e) {
+      if (e.key === 'Escape') {
+        destroyPopup();
+      }
+    }
+
+    window.addEventListener('keydown', handleKeydown);
+
+    if (closeBtn) closeBtn.addEventListener('click', destroyPopup);
+    if (dismissBtn) dismissBtn.addEventListener('click', destroyPopup);
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        destroyPopup();
+      }
+    });
+
+    // Countdown and progress bar updates (every 50ms for buttery smooth bar drain)
+    const startTime = Date.now();
+    intervalId = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      remainingMs = Math.max(0, totalMs - elapsed);
+
+      const percent = (remainingMs / totalMs) * 100;
+      if (progressBar) {
+        progressBar.style.width = `${percent.toFixed(1)}%`;
+      }
+
+      const secondsLeft = Math.max(1, Math.ceil(remainingMs / 1000));
+      if (timerBadge) {
+        timerBadge.textContent = `${secondsLeft}s`;
+      }
+
+      if (remainingMs <= 0) {
+        clearInterval(intervalId);
+        destroyPopup();
+      }
+    }, 50);
+
+    return { destroy: destroyPopup };
+  }
+
+  function showToast(message, duration = 4000) {
+    // Direct all toast notifications to the self-destructing popup
+    return showPopup(message, duration);
   }
 
   function printReceipt(receiptElement) {
@@ -413,6 +589,7 @@ window.SpiceClient = (function () {
     formatCurrency,
     formatDateTimeIST,
     showToast,
+    showPopup,
     printReceipt,
     getSupabase: () => supabaseClient
   };

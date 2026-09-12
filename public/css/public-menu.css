@@ -445,32 +445,6 @@
   }
 }
 
-/* Realtime live update toast notification */
-.realtime-toast {
-  position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%) translateY(100px);
-  background: #ffffff;
-  border: 1px solid var(--spice-terracotta);
-  color: var(--text-primary);
-  padding: 11px 22px;
-  border-radius: var(--radius-full);
-  box-shadow: var(--shadow-lg);
-  font-size: 0.88rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  z-index: 9999;
-  opacity: 0;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.realtime-toast.show {
-  transform: translateX(-50%) translateY(0);
-  opacity: 1;
-}
 
 /* Footer & Restaurant Details */
 .menu-footer {
