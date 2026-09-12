@@ -69,8 +69,19 @@ module.exports = {
 
       const { data, error } = await query;
       if (!error && data && data.length > 0) {
-        localStore.syncWithRemote({ items: data });
-        return data;
+        const normalized = data.map(item => {
+          const isNoteAnImage = item.verification_note && (item.verification_note.startsWith('http') || item.verification_note.startsWith('/images/'));
+          const img = (item.image_url && String(item.image_url).trim().length > 0)
+            ? item.image_url
+            : (isNoteAnImage ? item.verification_note : null);
+          return {
+            ...item,
+            image_url: img,
+            verification_note: isNoteAnImage ? null : item.verification_note
+          };
+        });
+        localStore.syncWithRemote({ items: normalized });
+        return normalized;
       }
       if (error) console.error('Supabase getMenuItems error:', error.message);
     }
@@ -235,44 +246,54 @@ module.exports = {
   // Update Menu Item
   async updateMenuItem(id, updates) {
     if (isConfigured) {
-      try {
-        const { data: rpcData, error: rpcError } = await supabase.rpc('admin_update_menu_item', {
-          p_item_id: id,
-          p_name: updates.name || null,
-          p_price: updates.price !== undefined ? Number(updates.price) : null,
-          p_description: updates.description || null,
-          p_category_id: updates.category_id || null,
-          p_food_type: updates.food_type || null,
-          p_is_available: updates.is_available !== undefined ? Boolean(updates.is_available) : null,
-          p_is_active: updates.is_active !== undefined ? Boolean(updates.is_active) : null,
-          p_verification_note: updates.verification_note || null
-        });
-        if (!rpcError && rpcData) {
-          try {
-            localStore.updateMenuItem(id, updates);
-          } catch (e) {}
-          return rpcData;
+      const supabaseUpdates = {
+        ...updates,
+        updated_at: new Date().toISOString()
+      };
+
+      // Persist image_url into verification_note if no explicit note text is given
+      if (updates.image_url !== undefined) {
+        if (!updates.verification_note || updates.verification_note.startsWith('http') || updates.verification_note.startsWith('/images/')) {
+          supabaseUpdates.verification_note = updates.image_url || null;
         }
-      } catch (e) {
-        // RPC might not be deployed yet
       }
 
-      const { data, error } = await supabase
+      // Try update with image_url column
+      let res = await supabase
         .from('menu_items')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString()
-        })
+        .update(supabaseUpdates)
         .eq('id', id)
         .select();
 
-      if (!error && data && data.length > 0) {
-        try {
-          localStore.updateMenuItem(id, updates);
-        } catch (e) {}
-        return data[0];
+      // If Supabase schema cache does not have image_url column, strip and update with verification_note
+      if (res.error && res.error.message && res.error.message.includes("'image_url'")) {
+        delete supabaseUpdates.image_url;
+        res = await supabase
+          .from('menu_items')
+          .update(supabaseUpdates)
+          .eq('id', id)
+          .select();
       }
-      if (error) console.error('Supabase updateMenuItem error:', error.message);
+
+      if (!res.error && res.data && res.data.length > 0) {
+        const row = res.data[0];
+        const isNoteAnImage = row.verification_note && (row.verification_note.startsWith('http') || row.verification_note.startsWith('/images/'));
+        const finalImg = (updates.image_url !== undefined)
+          ? updates.image_url
+          : ((row.image_url && String(row.image_url).trim().length > 0) ? row.image_url : (isNoteAnImage ? row.verification_note : null));
+
+        const updatedItem = {
+          ...row,
+          image_url: finalImg,
+          verification_note: isNoteAnImage ? null : row.verification_note
+        };
+
+        try {
+          localStore.updateMenuItem(id, { ...updates, image_url: finalImg });
+        } catch (e) {}
+        return updatedItem;
+      }
+      if (res.error) console.error('Supabase updateMenuItem error:', res.error.message);
     }
     return localStore.updateMenuItem(id, updates);
   },
@@ -280,28 +301,55 @@ module.exports = {
   // Add Menu Item
   async addMenuItem(itemData) {
     if (isConfigured) {
-      const { data, error } = await supabase
+      const isNoteAnImage = itemData.verification_note && (itemData.verification_note.startsWith('http') || itemData.verification_note.startsWith('/images/'));
+      const noteToSave = (!isNoteAnImage && itemData.verification_note)
+        ? itemData.verification_note
+        : (itemData.image_url || null);
+
+      const insertPayload = {
+        category_id: itemData.category_id,
+        name: itemData.name,
+        description: itemData.description || '',
+        price: Number(itemData.price) || 0,
+        food_type: itemData.food_type || 'VEG',
+        image_url: itemData.image_url || null,
+        is_available: true,
+        is_active: true,
+        verification_note: noteToSave
+      };
+
+      let res = await supabase
         .from('menu_items')
-        .insert([{
-          category_id: itemData.category_id,
-          name: itemData.name,
-          description: itemData.description || '',
-          price: Number(itemData.price) || 0,
-          food_type: itemData.food_type || 'VEG',
-          image_url: itemData.image_url || null,
-          is_available: true,
-          is_active: true,
-          verification_note: itemData.verification_note || null
-        }])
+        .insert([insertPayload])
         .select()
         .single();
-      if (!error && data) {
-        try {
-          localStore.addMenuItem(data);
-        } catch (e) {}
-        return data;
+
+      if (res.error && res.error.message && res.error.message.includes("'image_url'")) {
+        delete insertPayload.image_url;
+        res = await supabase
+          .from('menu_items')
+          .insert([insertPayload])
+          .select()
+          .single();
       }
-      if (error) console.error('Supabase addMenuItem error:', error.message);
+
+      if (!res.error && res.data) {
+        const row = res.data;
+        const noteIsImg = row.verification_note && (row.verification_note.startsWith('http') || row.verification_note.startsWith('/images/'));
+        const finalImg = itemData.image_url || (row.image_url && String(row.image_url).trim().length > 0 ? row.image_url : (noteIsImg ? row.verification_note : null));
+
+        const createdItem = {
+          ...row,
+          image_url: finalImg,
+          verification_note: noteIsImg ? null : row.verification_note
+        };
+
+        try {
+          localStore.addMenuItem(createdItem);
+        } catch (e) {}
+        return createdItem;
+      }
+      if (res.error) console.error('Supabase addMenuItem error:', res.error.message);
     }
     return localStore.addMenuItem(itemData);
   },

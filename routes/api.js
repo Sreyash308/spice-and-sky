@@ -366,6 +366,7 @@ router.post('/admin/menu/upload-image', async (req, res) => {
 router.post('/admin/menu', async (req, res) => {
   try {
     const item = await dbService.addMenuItem(req.body);
+    broadcastEvent('MENU_UPDATED', { type: 'INSERT', item });
     res.status(201).json({ success: true, data: item });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
@@ -376,6 +377,7 @@ router.post('/admin/menu', async (req, res) => {
 router.patch('/admin/menu/:id', async (req, res) => {
   try {
     const updated = await dbService.updateMenuItem(req.params.id, req.body);
+    broadcastEvent('MENU_UPDATED', { type: 'UPDATE', item: updated });
     res.json({ success: true, data: updated });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
@@ -387,9 +389,11 @@ router.delete('/admin/menu/:id', async (req, res) => {
   try {
     if (req.query.permanent === 'true') {
       const deleted = await dbService.deleteMenuItem(req.params.id);
+      broadcastEvent('MENU_UPDATED', { type: 'DELETE', id: req.params.id });
       return res.json({ success: true, data: deleted, message: 'Item permanently deleted from database.' });
     }
     const archived = await dbService.archiveMenuItem(req.params.id);
+    broadcastEvent('MENU_UPDATED', { type: 'ARCHIVE', item: archived });
     res.json({ success: true, data: archived, message: 'Item archived successfully.' });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
@@ -400,6 +404,7 @@ router.delete('/admin/menu/:id', async (req, res) => {
 router.delete('/admin/menu/:id/permanent', async (req, res) => {
   try {
     const deleted = await dbService.deleteMenuItem(req.params.id);
+    broadcastEvent('MENU_UPDATED', { type: 'DELETE', id: req.params.id });
     res.json({ success: true, data: deleted, message: 'Item permanently deleted from database.' });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
@@ -410,6 +415,7 @@ router.delete('/admin/menu/:id/permanent', async (req, res) => {
 router.post('/admin/menu/:id/restore', async (req, res) => {
   try {
     const restored = await dbService.restoreMenuItem(req.params.id);
+    broadcastEvent('MENU_UPDATED', { type: 'RESTORE', item: restored });
     res.json({ success: true, data: restored, message: 'Item restored successfully.' });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });

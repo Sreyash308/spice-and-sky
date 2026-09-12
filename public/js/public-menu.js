@@ -33,7 +33,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Listen to Realtime Menu Updates
   SpiceClient.on('menu_updated', (payload) => {
     console.log('⚡ Realtime menu update received:', payload);
-    SpiceClient.showToast('Menu updated in real time');
     loadMenuData(false); // Silent re-render
   });
 

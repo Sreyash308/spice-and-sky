@@ -735,17 +735,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         dietLabel = 'CONFIRM';
       }
 
+      const catName = cat ? cat.name : '';
+      const tableImgUrl = (window.SpiceSkyImages && window.SpiceSkyImages.getMenuItemImageUrl)
+        ? window.SpiceSkyImages.getMenuItemImageUrl(item, catName)
+        : (item.image_url || '/images/menu/fallbacks/food.webp');
+
       tr.innerHTML = `
         <td>
           <div style="display: flex; align-items: center; gap: 10px;">
-            <img src="${item.image_url || '/images/menu/fallbacks/food.webp'}" alt="${item.name}" style="width: 38px; height: 38px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border-subtle); flex-shrink: 0; background: #faf8f5;" onerror="this.src='/images/menu/fallbacks/food.webp'">
+            <img src="${tableImgUrl}" alt="${item.name}" style="width: 38px; height: 38px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border-subtle); flex-shrink: 0; background: #faf8f5;" onerror="this.src='/images/menu/fallbacks/food.webp'">
             <div>
               <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                 <span class="badge-diet ${dietClass}"></span>
                 <strong>${item.name}</strong>
                 ${!item.is_available ? `<span class="pill pill-unavailable" style="font-size: 0.72rem; padding: 2px 6px;">UNAVAILABLE</span>` : ''}
               </div>
-              ${item.verification_note ? `<div class="verification-alert">⚠️ ${item.verification_note}</div>` : ''}
+              ${item.verification_note && !item.verification_note.startsWith('http') && !item.verification_note.startsWith('/images/') ? `<div class="verification-alert">⚠️ ${item.verification_note}</div>` : ''}
               ${!item.is_active ? `<span class="pill pill-unavailable" style="margin-top: 4px;">ARCHIVED</span>` : ''}
             </div>
           </div>
@@ -871,12 +876,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       modalItemPrice.value = item.price;
       modalItemType.value = item.food_type;
       modalItemDesc.value = item.description || '';
-      modalVerificationNote.value = item.verification_note || '';
+      modalVerificationNote.value = (item.verification_note && !item.verification_note.startsWith('http') && !item.verification_note.startsWith('/images/')) ? item.verification_note : '';
 
-      if (item.image_url && item.image_url.trim().length > 0) {
-        setModalImagePreview(item.image_url, 'Current photo');
+      const cat = categories.find(c => c.id === item.category_id);
+      const catName = cat ? cat.name : '';
+      const resolvedImg = (item.image_url && item.image_url.trim().length > 0)
+        ? item.image_url
+        : ((window.SpiceSkyImages && window.SpiceSkyImages.getMenuItemImageUrl)
+            ? window.SpiceSkyImages.getMenuItemImageUrl(item, catName)
+            : null);
+
+      if (resolvedImg && resolvedImg !== '/images/menu/fallbacks/food.webp') {
+        const isCustom = resolvedImg.startsWith('http') || resolvedImg.includes('/storage/');
+        setModalImagePreview(resolvedImg, isCustom ? 'Custom uploaded photo' : 'Current menu photo');
         if (modalItemImageUrl) {
-          modalItemImageUrl.value = item.image_url.startsWith('http') ? item.image_url : '';
+          modalItemImageUrl.value = resolvedImg.startsWith('http') ? resolvedImg : '';
         }
       } else {
         setModalImagePreview(null);
