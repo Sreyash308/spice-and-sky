@@ -282,6 +282,59 @@ runTest('Archived Items Disappear from Active Menu but Preserve Historical Order
   store.restoreMenuItem(item.id);
 });
 
+runTest('Archived Item Can Be Permanently Deleted While Preserving Historical Order Snapshots', () => {
+  // 1. Add a temporary test menu item
+  const tempItem = store.addMenuItem({
+    category_id: store.getCategories()[0].id,
+    name: 'Temporary Test Sizzler',
+    price: 350,
+    food_type: 'VEG'
+  });
+
+  // 2. Order the item
+  const order = store.createOrderAtomic({
+    table_number: 8,
+    items: [{ menu_item_id: tempItem.id, quantity: 2 }]
+  });
+
+  // 3. Archive the item
+  store.archiveMenuItem(tempItem.id);
+  let allItems = store.getMenuItems(true);
+  const archived = allItems.find(i => i.id === tempItem.id);
+  assert(archived && archived.is_active === false, 'Item should be archived');
+
+  // 4. Permanently delete the archived item
+  const deleteResult = store.deleteMenuItem(tempItem.id);
+  assert(deleteResult && deleteResult.deleted === true);
+
+  // 5. Verify it is permanently removed from the database
+  allItems = store.getMenuItems(true);
+  assert(!allItems.some(i => i.id === tempItem.id), 'Deleted item must not exist in any menu items query');
+
+  // 6. Verify historical order items preserve snapshots and have nullified menu_item_id
+  const retrievedOrder = store.getOrderById(order.id);
+  assert(retrievedOrder, 'Order should still exist');
+  const orderedItem = retrievedOrder.items.find(oi => oi.item_name_snapshot === 'Temporary Test Sizzler');
+  assert(orderedItem, 'Order item snapshot must still exist');
+  assert.strictEqual(orderedItem.menu_item_id, null, 'menu_item_id should be nullified per ON DELETE SET NULL');
+  assert.strictEqual(orderedItem.unit_price_snapshot, 350, 'Price snapshot must be intact');
+  assert.strictEqual(orderedItem.line_total, 700, 'Line total must be intact');
+});
+
+runTest('Dynamic Category Creation Generates Valid Slug and Display Order', () => {
+  const initialCount = store.getCategories().length;
+  const newCat = store.createCategory({ name: 'Seasonal Specials' });
+  assert(newCat.id, 'New category must have an id');
+  assert.strictEqual(newCat.name, 'Seasonal Specials');
+  assert.strictEqual(newCat.slug, 'seasonal-specials');
+  assert(newCat.display_order > 0, 'New category must have positive display order');
+  assert.strictEqual(store.getCategories().length, initialCount + 1);
+
+  // Clean up
+  const catIdx = store.categories.findIndex(c => c.id === newCat.id);
+  if (catIdx !== -1) store.categories.splice(catIdx, 1);
+});
+
 // TEST SUITE 5: ANALYTICS & CANCELLED ORDER EXCLUSION
 console.log('\n--- Test Suite 5: Analytics & Revenue Calculations ---');
 

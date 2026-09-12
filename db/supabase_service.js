@@ -248,7 +248,9 @@ module.exports = {
           p_verification_note: updates.verification_note || null
         });
         if (!rpcError && rpcData) {
-          localStore.updateMenuItem(id, updates);
+          try {
+            localStore.updateMenuItem(id, updates);
+          } catch (e) {}
           return rpcData;
         }
       } catch (e) {
@@ -265,9 +267,12 @@ module.exports = {
         .select();
 
       if (!error && data && data.length > 0) {
-        localStore.updateMenuItem(id, updates);
+        try {
+          localStore.updateMenuItem(id, updates);
+        } catch (e) {}
         return data[0];
       }
+      if (error) console.error('Supabase updateMenuItem error:', error.message);
     }
     return localStore.updateMenuItem(id, updates);
   },
@@ -290,7 +295,9 @@ module.exports = {
         .select()
         .single();
       if (!error && data) {
-        localStore.addMenuItem(itemData);
+        try {
+          localStore.addMenuItem(data);
+        } catch (e) {}
         return data;
       }
       if (error) console.error('Supabase addMenuItem error:', error.message);
@@ -306,6 +313,69 @@ module.exports = {
   // Restore Menu Item
   async restoreMenuItem(id) {
     return this.updateMenuItem(id, { is_active: true });
+  },
+
+  // Permanent Delete Menu Item
+  async deleteMenuItem(id) {
+    if (isConfigured) {
+      const { data, error } = await supabase
+        .from('menu_items')
+        .delete()
+        .eq('id', id)
+        .select();
+      if (error) {
+        console.error('Supabase deleteMenuItem error:', error.message);
+        throw new Error(error.message);
+      }
+      try {
+        localStore.deleteMenuItem(id);
+      } catch (e) {
+        // Ignored if already removed locally
+      }
+      return data && data.length > 0 ? data[0] : { id, deleted: true };
+    }
+    return localStore.deleteMenuItem(id);
+  },
+
+  // Create Category
+  async createCategory({ name, slug, display_order }) {
+    if (isConfigured) {
+      const cleanName = (name || '').trim();
+      if (!cleanName) throw new Error('Category name is required');
+
+      let cleanSlug = slug || cleanName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
+      let order = display_order;
+      if (typeof order !== 'number') {
+        const { data: existingCats } = await supabase
+          .from('menu_categories')
+          .select('display_order')
+          .order('display_order', { ascending: false })
+          .limit(1);
+        order = (existingCats && existingCats.length > 0 ? (existingCats[0].display_order || 0) : 0) + 1;
+      }
+
+      const { data, error } = await supabase
+        .from('menu_categories')
+        .insert([{ name: cleanName, slug: cleanSlug, display_order: order }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase createCategory error:', error.message);
+        throw new Error(error.message);
+      }
+      try {
+        localStore.createCategory(data);
+      } catch (e) {
+        // Ignored if already added locally
+      }
+      return data;
+    }
+    return localStore.createCategory({ name, slug, display_order });
   },
 
   // Toggle Availability

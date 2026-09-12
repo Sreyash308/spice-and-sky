@@ -265,7 +265,7 @@
           <input type="text" id="modalItemName" class="form-input" placeholder="e.g. Hazelnut Cappuccino" required>
         </div>
 
-        <div class="admin-grid-2" style="margin-bottom: 16px;">
+        <div class="admin-grid-2" style="margin-bottom: 12px;">
           <div>
             <label class="form-label" for="modalItemCategory">Category</label>
             <select id="modalItemCategory" class="form-select" required>
@@ -275,6 +275,15 @@
           <div>
             <label class="form-label" for="modalItemPrice">Price (₹)</label>
             <input type="number" id="modalItemPrice" class="form-input" min="0" step="1" placeholder="e.g. 219" required>
+          </div>
+        </div>
+
+        <!-- Inline New Category Creator (Visible when "+ Create New Category..." is selected) -->
+        <div id="newCategoryGroup" style="display: none; margin-bottom: 16px; padding: 12px 14px; border-radius: var(--radius-md); background: rgba(224, 86, 36, 0.05); border: 1px dashed var(--spice-terracotta);">
+          <label class="form-label" for="newCategoryName" style="font-size: 0.8rem; color: var(--spice-terracotta); font-weight: 700; margin-bottom: 6px; display: block;">➕ Enter New Category Name</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="newCategoryName" class="form-input" placeholder="e.g. Sizzlers, Desserts, Mocktails...">
+            <button type="button" class="btn btn-primary" id="confirmCreateCategoryBtn" style="white-space: nowrap; padding: 6px 14px; font-size: 0.85rem;">Add</button>
           </div>
         </div>
 

@@ -349,11 +349,25 @@ router.patch('/admin/menu/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/admin/menu/:id - Admin archive menu item (soft delete)
+// DELETE /api/admin/menu/:id - Admin archive menu item (soft delete) or permanent delete
 router.delete('/admin/menu/:id', async (req, res) => {
   try {
+    if (req.query.permanent === 'true') {
+      const deleted = await dbService.deleteMenuItem(req.params.id);
+      return res.json({ success: true, data: deleted, message: 'Item permanently deleted from database.' });
+    }
     const archived = await dbService.archiveMenuItem(req.params.id);
     res.json({ success: true, data: archived, message: 'Item archived successfully.' });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/admin/menu/:id/permanent - Admin permanent delete menu item
+router.delete('/admin/menu/:id/permanent', async (req, res) => {
+  try {
+    const deleted = await dbService.deleteMenuItem(req.params.id);
+    res.json({ success: true, data: deleted, message: 'Item permanently deleted from database.' });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
   }
@@ -364,6 +378,20 @@ router.post('/admin/menu/:id/restore', async (req, res) => {
   try {
     const restored = await dbService.restoreMenuItem(req.params.id);
     res.json({ success: true, data: restored, message: 'Item restored successfully.' });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/admin/categories - Admin create new menu category
+router.post('/admin/categories', async (req, res) => {
+  try {
+    const { name, slug, display_order } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, error: 'Category name is required.' });
+    }
+    const newCat = await dbService.createCategory({ name, slug, display_order });
+    res.status(201).json({ success: true, data: newCat, message: 'Category created successfully.' });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
   }

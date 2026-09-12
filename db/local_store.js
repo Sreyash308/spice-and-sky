@@ -509,20 +509,20 @@ class CafeStore extends EventEmitter {
   }
 
   addMenuItem(itemData) {
-    const id = crypto.randomUUID();
+    const id = itemData.id || crypto.randomUUID();
     const item = {
       id,
       category_id: itemData.category_id,
-      name: itemData.name.trim(),
+      name: (itemData.name || '').trim(),
       description: itemData.description ? itemData.description.trim() : '',
       price: Number(itemData.price) || 0,
       food_type: itemData.food_type || 'VEG',
-      is_available: true,
-      is_active: true,
-      display_order: this.menuItems.length + 1,
+      is_available: itemData.is_available !== undefined ? Boolean(itemData.is_available) : true,
+      is_active: itemData.is_active !== undefined ? Boolean(itemData.is_active) : true,
+      display_order: itemData.display_order !== undefined ? itemData.display_order : (this.menuItems.length + 1),
       verification_note: itemData.verification_note || null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      created_at: itemData.created_at || new Date().toISOString(),
+      updated_at: itemData.updated_at || new Date().toISOString()
     };
     this.menuItems.push(item);
     this.emit('menu_updated', { type: 'INSERT', item });
@@ -535,6 +535,59 @@ class CafeStore extends EventEmitter {
 
   restoreMenuItem(id) {
     return this.updateMenuItem(id, { is_active: true });
+  }
+
+  deleteMenuItem(id) {
+    const idx = this.menuItems.findIndex(i => i.id === id);
+    if (idx === -1) {
+      throw new Error('Menu item not found');
+    }
+    const deletedItem = this.menuItems[idx];
+    this.menuItems.splice(idx, 1);
+
+    // Cascade delete variants
+    this.variants = this.variants.filter(v => v.menu_item_id !== id);
+
+    // Nullify menu_item_id in historical order items (matching ON DELETE SET NULL)
+    this.orderItems.forEach(oi => {
+      if (oi.menu_item_id === id) {
+        oi.menu_item_id = null;
+      }
+    });
+
+    this.emit('menu_updated', { type: 'delete', id });
+    return { id, deleted: true, name: deletedItem.name };
+  }
+
+  createCategory({ name, slug, display_order }) {
+    if (!name || !name.trim()) {
+      throw new Error('Category name is required');
+    }
+    const cleanName = name.trim();
+    let cleanSlug = slug || cleanName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    if (this.categories.some(c => c.slug === cleanSlug)) {
+      cleanSlug = `${cleanSlug}-${Date.now().toString().slice(-4)}`;
+    }
+
+    const order = typeof display_order === 'number'
+      ? display_order
+      : Math.max(...this.categories.map(c => c.display_order || 0), 0) + 1;
+
+    const newCategory = {
+      id: crypto.randomUUID(),
+      name: cleanName,
+      slug: cleanSlug,
+      display_order: order,
+      created_at: new Date().toISOString()
+    };
+
+    this.categories.push(newCategory);
+    this.emit('menu_updated', { type: 'category_created', category: newCategory });
+    return newCategory;
   }
 
   toggleAvailability(id, is_available) {

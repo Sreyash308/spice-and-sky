@@ -324,6 +324,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const modalVerificationNote = document.getElementById('modalVerificationNote');
   const closeMenuModalBtn = document.getElementById('closeMenuModalBtn');
 
+  const newCategoryGroup = document.getElementById('newCategoryGroup');
+  const newCategoryName = document.getElementById('newCategoryName');
+  const confirmCreateCategoryBtn = document.getElementById('confirmCreateCategoryBtn');
+
   adminMenuSearch.addEventListener('input', () => filterAndRenderMenu());
   adminMenuCatFilter.addEventListener('change', () => filterAndRenderMenu());
   adminMenuDietFilter.addEventListener('change', () => filterAndRenderMenu());
@@ -336,14 +340,111 @@ document.addEventListener('DOMContentLoaded', async () => {
     menuItemModal.classList.remove('active');
   });
 
+  // Toggle inline new category input when dropdown choice changes
+  modalItemCategory.addEventListener('change', () => {
+    if (modalItemCategory.value === '__NEW_CATEGORY__') {
+      if (newCategoryGroup) {
+        newCategoryGroup.style.display = 'block';
+        if (newCategoryName) newCategoryName.focus();
+      }
+    } else {
+      if (newCategoryGroup) newCategoryGroup.style.display = 'none';
+    }
+  });
+
+  // Dedicated button to create new category immediately
+  if (confirmCreateCategoryBtn) {
+    confirmCreateCategoryBtn.addEventListener('click', async () => {
+      const name = (newCategoryName.value || '').trim();
+      if (!name) {
+        alert('Please enter a name for the new category.');
+        newCategoryName.focus();
+        return;
+      }
+
+      try {
+        confirmCreateCategoryBtn.disabled = true;
+        confirmCreateCategoryBtn.textContent = 'Adding...';
+
+        const res = await fetch('/api/admin/categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name })
+        });
+        const json = await res.json();
+
+        if (json.success && json.data) {
+          const newCat = json.data;
+          categories.push(newCat);
+
+          // Add option to modal category dropdown right before '__NEW_CATEGORY__'
+          const opt = document.createElement('option');
+          opt.value = newCat.id;
+          opt.textContent = newCat.name;
+          const createOption = modalItemCategory.querySelector('option[value="__NEW_CATEGORY__"]');
+          if (createOption) {
+            modalItemCategory.insertBefore(opt, createOption);
+          } else {
+            modalItemCategory.appendChild(opt);
+          }
+          modalItemCategory.value = newCat.id;
+
+          // Add to admin filter dropdown
+          const filterOpt = document.createElement('option');
+          filterOpt.value = newCat.id;
+          filterOpt.textContent = newCat.name;
+          adminMenuCatFilter.appendChild(filterOpt);
+
+          if (newCategoryGroup) newCategoryGroup.style.display = 'none';
+          newCategoryName.value = '';
+          SpiceClient.showToast(`Category "${newCat.name}" created!`);
+        } else {
+          throw new Error(json.error || 'Failed to create category.');
+        }
+      } catch (err) {
+        alert(`Error creating category: ${err.message}`);
+      } finally {
+        confirmCreateCategoryBtn.disabled = false;
+        confirmCreateCategoryBtn.textContent = 'Add';
+      }
+    });
+  }
+
   menuItemForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = modalItemId.value;
     const isNew = !id;
 
+    let categoryId = modalItemCategory.value;
+
+    // If user left dropdown on '__NEW_CATEGORY__', create it on submit
+    if (categoryId === '__NEW_CATEGORY__') {
+      const newCatName = (newCategoryName.value || '').trim();
+      if (!newCatName) {
+        alert('Please enter a category name or select an existing category.');
+        if (newCategoryName) newCategoryName.focus();
+        return;
+      }
+
+      try {
+        const catRes = await fetch('/api/admin/categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newCatName })
+        });
+        const catJson = await catRes.json();
+        if (!catJson.success) throw new Error(catJson.error || 'Failed to create category.');
+        categoryId = catJson.data.id;
+        categories.push(catJson.data);
+      } catch (err) {
+        alert(`Failed to create category: ${err.message}`);
+        return;
+      }
+    }
+
     const payload = {
       name: modalItemName.value.trim(),
-      category_id: modalItemCategory.value,
+      category_id: categoryId,
       price: Number(modalItemPrice.value),
       food_type: modalItemType.value,
       description: modalItemDesc.value.trim(),
@@ -395,6 +496,14 @@ document.addEventListener('DOMContentLoaded', async () => {
           opt2.textContent = cat.name;
           modalItemCategory.appendChild(opt2);
         });
+
+        // Append "+ Create New Category..." option to item modal
+        const newCatOpt = document.createElement('option');
+        newCatOpt.value = '__NEW_CATEGORY__';
+        newCatOpt.textContent = '➕ Create New Category...';
+        newCatOpt.style.fontWeight = 'bold';
+        newCatOpt.style.color = 'var(--spice-terracotta)';
+        modalItemCategory.appendChild(newCatOpt);
 
         filterAndRenderMenu();
       }
@@ -493,11 +602,14 @@ document.addEventListener('DOMContentLoaded', async () => {
           </label>
         </td>
         <td>
-          <div style="display: flex; gap: 6px;">
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
             <button type="button" class="btn btn-secondary edit-item-btn" style="padding: 4px 8px; font-size: 0.8rem;">Edit</button>
             ${item.is_active
               ? `<button type="button" class="btn btn-danger archive-item-btn" style="padding: 4px 8px; font-size: 0.8rem;">Archive</button>`
-              : `<button type="button" class="btn btn-primary restore-item-btn" style="padding: 4px 8px; font-size: 0.8rem;">Restore</button>`
+              : `
+                <button type="button" class="btn btn-primary restore-item-btn" style="padding: 4px 8px; font-size: 0.8rem;">Restore</button>
+                <button type="button" class="btn btn-danger delete-item-btn" style="padding: 4px 8px; font-size: 0.8rem; background: #dc2626; border-color: #dc2626;" title="Permanently delete from database">Delete</button>
+              `
             }
           </div>
         </td>
@@ -561,11 +673,39 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
       }
 
+      // Permanent Delete item (unlocked after archiving)
+      const deleteBtn = tr.querySelector('.delete-item-btn');
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', async () => {
+          if (confirm(`Permanently delete "${item.name}" from database?\n\nWARNING: This action cannot be undone. All variants will be deleted. Historical order summaries will remain preserved.`)) {
+            try {
+              const res = await fetch(`/api/admin/menu/${item.id}/permanent`, { method: 'DELETE' });
+              const json = await res.json();
+              if (json.success) {
+                SpiceClient.showToast(`Permanently deleted "${item.name}"`);
+                loadMenuData();
+              } else {
+                alert(json.error || 'Failed to permanently delete item.');
+              }
+            } catch (err) {
+              alert(`Error deleting item: ${err.message}`);
+            }
+          }
+        });
+      }
+
       adminMenuTbody.appendChild(tr);
     });
   }
 
   function openMenuModal(item = null) {
+    if (newCategoryGroup) {
+      newCategoryGroup.style.display = 'none';
+    }
+    if (newCategoryName) {
+      newCategoryName.value = '';
+    }
+
     if (item) {
       menuModalTitle.textContent = `Edit "${item.name}"`;
       modalItemId.value = item.id;
