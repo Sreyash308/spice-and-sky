@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spice &amp; Sky Rooftop Cafe | Digital Menu</title>
+  <meta name="description" content="Spice &amp; Sky Rooftop Cafe - Rooftop Vibes, Bold Flavors &amp; Cozy Brews. View our specialty coffees, rice bowls, artisanal pizzas, pastas, and coolers.">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+
+  <!-- Animation & Stylesheets -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css">
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/public-menu.css">
+  <link rel="stylesheet" href="/css/splash.css">
+
+  <!-- Supabase JS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="menu-page">
+  <!-- ==========================================
+       SPLASH SCREEN FOR MENU
+       ========================================== -->
+  <aside class="splash-screen" id="menuSplashScreen" aria-label="Loading Spice &amp; Sky Rooftop Menu">
+    <canvas class="splash-particles-canvas" id="splashParticlesCanvas"></canvas>
+    <div class="splash-ambient-glow"></div>
+    <div class="splash-ambient-glow-2"></div>
+
+    <div class="splash-card">
+      <div class="splash-emblem-wrap">
+        <div class="splash-halo"></div>
+        <div class="splash-emblem-disc">
+          <!-- Lottie-Web Animation Viewport -->
+          <div class="splash-lottie-container" id="splashLottieContainer"></div>
+          
+          <!-- High-Fidelity Animated SVG Fallback -->
+          <svg class="splash-svg-fallback" id="splashSvgFallback" viewBox="0 0 100 100" fill="none">
+            <!-- Rising Steam Whisps -->
+            <path class="steam-path" d="M38 32 C 34 22, 44 14, 40 4" stroke="#c25e1a" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.8" />
+            <path class="steam-path" d="M50 28 C 46 16, 58 8, 52 0" stroke="#d97706" stroke-width="3.5" stroke-linecap="round" fill="none" opacity="0.9" />
+            <path class="steam-path" d="M62 32 C 60 22, 68 14, 66 4" stroke="#c25e1a" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.75" />
+
+            <!-- Skyline Silhouette on Cup -->
+            <path d="M26 44 L26 36 L34 36 L34 30 L42 30 L42 40 L48 40 L48 26 L54 26 L54 34 L62 34 L62 28 L70 28 L70 44 Z" fill="#9a3412" opacity="0.85" />
+
+            <!-- Coffee Cup Body -->
+            <path d="M20 44 L76 44 C74 66, 64 78, 48 78 C32 78, 22 66, 20 44 Z" fill="url(#splashCupGrad)" />
+
+            <!-- Cup Handle -->
+            <path d="M72 50 C82 50, 84 62, 69 67" stroke="#c25e1a" stroke-width="4.5" stroke-linecap="round" fill="none" />
+
+            <!-- Saucer Base -->
+            <path d="M14 82 C32 85, 64 85, 82 82 C83 83, 79 87, 48 87 C17 87, 13 83, 14 82 Z" fill="#9a3412" />
+
+            <!-- Star Accent -->
+            <polygon class="star-twinkle" points="48,16 50,20 55,21 51,25 52,30 48,27 44,30 45,25 41,21 46,20" fill="#d97706" />
+
+            <defs>
+              <linearGradient id="splashCupGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#9a3412" />
+                <stop offset="50%" stop-color="#c25e1a" />
+                <stop offset="100%" stop-color="#d97706" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+      </div>
+
+      <h1 class="splash-brand-title">SPICE <span class="amp">&amp;</span> SKY</h1>
+      <div class="splash-brand-sub">ROOFTOP CAFE &bull; SPECIALTY BREWS</div>
+      <p class="splash-brand-tagline">"Rooftop Vibes, Bold Flavors &amp; Cozy Brews"</p>
+
+      <div class="splash-progress-wrap">
+        <div class="splash-progress-track">
+          <div class="splash-progress-fill" id="splashProgressFill"></div>
+        </div>
+        <div class="splash-status-text" id="splashStatusText">Brewing handcrafted coffees &amp; teas...</div>
+      </div>
+
+      <div class="splash-skip-hint">
+        <span>Tap anywhere to explore</span>
+        <span>&rarr;</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Hero Header Section -->
+  <header class="hero-header">
+    <div class="brand-logo-wrap">
+      <img src="/assets/logo.svg" alt="Spice &amp; Sky Rooftop Cafe" class="brand-logo-img">
+    </div>
+    <div class="cafe-tagline">"Rooftop Vibes, Bold Flavors &amp; Cozy Brews"</div>
+
+    <div class="cafe-meta-pills">
+      <span class="meta-item">
+        <span>🕒</span> 1:00 PM – 02:00 AM (All Days)
+      </span>
+      <span class="meta-item">
+        <span>📞</span> <a href="tel:+918522880017">+91 85228 80017</a>
+      </span>
+      <span class="meta-item">
+        <span>📸</span> <a href="https://www.instagram.com/spicensky" target="_blank" rel="noopener">@spicensky</a>
+      </span>
+      <span class="meta-item">
+        <span>📍</span> <a href="https://maps.app.goo.gl/mBJKxafpcMmyCyCb8" target="_blank" rel="noopener">Google Maps</a>
+      </span>
+    </div>
+  </header>
+
+  <!-- Sticky Controls: Search & Category Navigation -->
+  <div class="sticky-menu-controls">
+    <div class="search-filter-row">
+      <div class="search-input-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="search" id="menuSearchInput" placeholder="Search coffee, pizza, pasta, rice bowls..." autocomplete="off">
+      </div>
+    </div>
+
+    <!-- Dietary Filter Chips -->
+    <div class="diet-filter-chips">
+      <button class="filter-chip active" data-diet="ALL">All Items</button>
+      <button class="filter-chip" data-diet="VEG"><span class="badge-diet veg"></span> Veg</button>
+      <button class="filter-chip" data-diet="NON_VEG"><span class="badge-diet non-veg"></span> Non-Veg</button>
+      <button class="filter-chip" data-diet="DRINK"><span class="badge-diet drink"></span> Brews &amp; Drinks</button>
+    </div>
+
+    <!-- Category Nav Pills -->
+    <nav class="category-nav-scroll" id="categoryNavScroll" aria-label="Menu Categories">
+      <!-- Injected via JavaScript -->
+    </nav>
+  </div>
+
+  <!-- Main Menu Catalog Container -->
+  <main class="menu-catalog-container" id="menuCatalog">
+    <!-- Category Sections and Menu Cards Injected dynamically via JS -->
+    <div class="empty-state" id="loadingState">
+      <h3>Loading rooftop menu...</h3>
+      <p>Fetching fresh items and current prices...</p>
+    </div>
+  </main>
+
+  <!-- Public Menu Footer -->
+  <footer class="menu-footer">
+    <div class="footer-inner">
+      <div class="footer-title">SPICE &amp; SKY ROOFTOP CAFE</div>
+      <div class="footer-tagline">"Rooftop Vibes, Bold Flavors &amp; Cozy Brews"</div>
+
+      <div class="footer-info-block">
+        Open: 1:00 PM – 02:00 AM &bull; All Days<br>
+        Phone: +91 85228 80017 &bull; +91 63090 80400<br>
+        Email: support@spiceandskycafe.com
+      </div>
+
+      <div class="footer-links">
+        <a href="https://maps.app.goo.gl/mBJKxafpcMmyCyCb8" target="_blank" rel="noopener" class="btn-maps">
+          <span>📍</span> View on Google Maps
+        </a>
+        <a href="https://www.instagram.com/spicensky" target="_blank" rel="noopener" class="btn-insta">
+          <span>📸</span> Follow @spicensky on Instagram
+        </a>
+      </div>
+
+      <div class="footer-disclaimer">
+        * All prices are exclusive of taxes. The restaurant does not add GST, service charge, or convenience fees to table bills.
+      </div>
+
+      <div style="margin-top: 14px; text-align: center;">
+        <button type="button" class="btn-replay-splash" onclick="window.replaySplashScreen()">
+          ✨ Replay Rooftop Intro
+        </button>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Animation Libraries & Client JavaScript -->
+  <script src="https://cdn.jsdelivr.net/npm/lottie-web@5.12.2/build/player/lottie.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+  <script src="/js/splash.js"></script>
+  <script src="/js/supabase-client.js"></script>
+  <script src="/js/menu-images.js"></script>
+  <script src="/js/public-menu.js"></script>
+</body>
+</html>

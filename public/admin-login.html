@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Owner &amp; Admin Login | Spice &amp; Sky Rooftop Cafe</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="stylesheet" href="/css/design-system.css">
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+      background: radial-gradient(circle at 50% 25%, #fffbeb 0%, #fdf6ec 50%, #f4f0e6 100%);
+    }
+    .admin-login-box {
+      background: #ffffff;
+      border: 1.5px solid var(--border-medium);
+      border-radius: var(--radius-xl);
+      padding: 38px 32px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: var(--shadow-lg);
+      text-align: center;
+    }
+    .admin-login-logo {
+      height: 54px;
+      margin-bottom: 18px;
+    }
+    .admin-login-title {
+      font-family: var(--font-heading);
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+    .admin-login-sub {
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+    .error-banner {
+      display: none;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #dc2626;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+      text-align: left;
+    }
+    .admin-demo-hint {
+      margin-top: 22px;
+      padding: 14px;
+      background: var(--bg-secondary);
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      text-align: left;
+      line-height: 1.55;
+      border: 1px solid var(--border-subtle);
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <div class="admin-login-box">
+    <img src="/assets/logo.svg" alt="Spice &amp; Sky" class="admin-login-logo">
+    <h1 class="admin-login-title">Owner / Admin Portal</h1>
+    <p class="admin-login-sub">Access real-time sales, analytics &amp; menu controls</p>
+
+    <div class="error-banner" id="adminErrorBanner"></div>
+
+    <form id="adminLoginForm">
+      <div class="form-group" style="text-align: left;">
+        <label class="form-label" for="adminEmail">Owner / Admin Username / Email</label>
+        <input type="text" id="adminEmail" class="form-input" placeholder="owner, admin, or admin@spiceandsky.com" required autocomplete="username">
+      </div>
+
+      <div class="form-group" style="text-align: left;">
+        <label class="form-label" for="adminPassword">Password</label>
+        <input type="password" id="adminPassword" class="form-input" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+
+      <button type="submit" class="btn btn-primary" id="adminLoginBtn" style="width: 100%; margin-top: 10px;">
+        Open Admin Dashboard &rarr;
+      </button>
+    </form>
+
+    <div class="admin-demo-hint">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <strong style="color: var(--text-primary);">Owner / Admin Credentials:</strong>
+        <button type="button" id="fillAdminBtn" style="background: none; border: none; color: var(--spice-orange); font-weight: 700; cursor: pointer; text-decoration: underline; font-size: 0.78rem;">Auto-Fill</button>
+      </div>
+      <div>Email: <code style="background: rgba(194, 94, 26, 0.1); padding: 2px 6px; border-radius: 4px; font-weight: 600;">admin@spiceandsky.com</code></div>
+      <div style="margin-top: 4px;">Password: <code style="background: rgba(194, 94, 26, 0.1); padding: 2px 6px; border-radius: 4px; font-weight: 600;">SpiceSkyAdmin2026!</code></div>
+    </div>
+  </div>
+
+  <script src="/js/supabase-client.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      await SpiceClient.init();
+
+      // If already logged in as ADMIN, redirect to /admin
+      const user = SpiceClient.getStoredUser();
+      if (user && user.role === 'ADMIN') {
+        window.location.href = '/admin';
+        return;
+      }
+
+      const fillBtn = document.getElementById('fillAdminBtn');
+      if (fillBtn) {
+        fillBtn.addEventListener('click', () => {
+          document.getElementById('adminEmail').value = 'admin@spiceandsky.com';
+          document.getElementById('adminPassword').value = 'SpiceSkyAdmin2026!';
+        });
+      }
+
+      const form = document.getElementById('adminLoginForm');
+      const errBanner = document.getElementById('adminErrorBanner');
+      const loginBtn = document.getElementById('adminLoginBtn');
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        errBanner.style.display = 'none';
+        loginBtn.disabled = true;
+        loginBtn.textContent = 'Verifying authorization...';
+
+        const email = document.getElementById('adminEmail').value;
+        const password = document.getElementById('adminPassword').value;
+
+        try {
+          const res = await SpiceClient.signIn(email, password);
+          if (res.success && res.user.role === 'ADMIN') {
+            window.location.href = '/admin';
+          } else {
+            throw new Error('Access denied. This account does not have Owner/Admin privileges.');
+          }
+        } catch (err) {
+          errBanner.textContent = err.message || 'Invalid administrator credentials.';
+          errBanner.style.display = 'block';
+          loginBtn.disabled = false;
+          loginBtn.textContent = 'Open Admin Dashboard →';
+        }
+      });
+    });
+  </script>
+</body>
+</html>

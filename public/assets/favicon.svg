@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect width="64" height="64" rx="14" fill="#0f172a"/>
+  <defs>
+    <linearGradient id="favSpice" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#b45309" />
+      <stop offset="50%" stop-color="#d97706" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+  </defs>
+  <!-- Skyline inside cup -->
+  <path d="M18 28 L18 22 L24 22 L24 18 L30 18 L30 24 L34 24 L34 16 L38 16 L38 21 L44 21 L44 17 L48 17 L48 28 Z" fill="url(#favSpice)" opacity="0.85"/>
+  <!-- Cup -->
+  <path d="M14 28 L50 28 C48 42, 42 50, 32 50 C22 50, 16 42, 14 28 Z" fill="url(#favSpice)"/>
+  <!-- Handle -->
+  <path d="M47 32 C54 32, 55 42, 45 44" stroke="url(#favSpice)" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <!-- Base -->
+  <rect x="18" y="52" width="28" height="3" rx="1.5" fill="#b45309"/>
+</svg>

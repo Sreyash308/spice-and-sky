@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Waiter POS Login | Spice &amp; Sky Rooftop Cafe</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="stylesheet" href="/css/design-system.css">
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+      background: radial-gradient(circle at 50% 25%, #fffbeb 0%, #fdf6ec 50%, #f4f0e6 100%);
+    }
+    .login-card {
+      background: #ffffff;
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-xl);
+      padding: 36px 30px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: var(--shadow-lg);
+      text-align: center;
+    }
+    .login-logo {
+      height: 52px;
+      margin-bottom: 16px;
+    }
+    .login-title {
+      font-family: var(--font-heading);
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+    .login-sub {
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+    .error-banner {
+      display: none;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #dc2626;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+      text-align: left;
+    }
+    .demo-hint {
+      margin-top: 20px;
+      padding: 12px;
+      background: var(--bg-secondary);
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      text-align: left;
+      line-height: 1.5;
+      border: 1px solid var(--border-subtle);
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <div class="login-card">
+    <img src="/assets/logo.svg" alt="Spice &amp; Sky" class="login-logo">
+    <h1 class="login-title">Waiter POS Terminal</h1>
+    <p class="login-sub">Sign in to take orders for Tables 1 to 9</p>
+
+    <div class="error-banner" id="errorBanner"></div>
+
+    <div id="adminSessionBox" style="display: none; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 14px; margin-bottom: 20px; text-align: left;">
+      <div style="font-weight: 700; color: #c2410c; font-size: 0.9rem; margin-bottom: 4px;">👑 Logged in as Owner Admin</div>
+      <div style="font-size: 0.8rem; color: #7c2d12; margin-bottom: 12px; line-height: 1.4;">You are currently signed in with admin privileges. You can continue to the Waiter POS in supervisor mode, or sign in directly as a staff waiter.</div>
+      <div style="display: flex; gap: 8px;">
+        <a href="/waiter" class="btn btn-primary" style="flex: 1; text-align: center; font-size: 0.8rem; padding: 8px; text-decoration: none;">Continue as Admin &rarr;</a>
+        <button type="button" id="switchAsWaiterBtn" class="btn btn-secondary" style="flex: 1; font-size: 0.8rem; padding: 8px;">Sign in as Waiter</button>
+      </div>
+    </div>
+
+    <form id="waiterLoginForm">
+      <div class="form-group" style="text-align: left;">
+        <label class="form-label" for="staffEmail">Staff Username / Email</label>
+        <input type="text" id="staffEmail" class="form-input" placeholder="waiter or waiter@spiceandsky.com" required autocomplete="username">
+      </div>
+
+      <div class="form-group" style="text-align: left;">
+        <label class="form-label" for="staffPassword">Password</label>
+        <input type="password" id="staffPassword" class="form-input" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+
+      <button type="submit" class="btn btn-primary" id="loginBtn" style="width: 100%; margin-top: 8px;">
+        Open Waiter Terminal &rarr;
+      </button>
+    </form>
+
+    <div class="demo-hint">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <strong style="color: var(--text-primary);">Staff / Waiter Credentials:</strong>
+        <button type="button" id="fillWaiterBtn" style="background: none; border: none; color: var(--spice-orange); font-weight: 700; cursor: pointer; text-decoration: underline; font-size: 0.78rem;">Auto-Fill</button>
+      </div>
+      <div>Email: <code style="background: rgba(194, 94, 26, 0.1); padding: 2px 6px; border-radius: 4px; font-weight: 600;">waiter@spiceandsky.com</code></div>
+      <div style="margin-top: 4px;">Password: <code style="background: rgba(194, 94, 26, 0.1); padding: 2px 6px; border-radius: 4px; font-weight: 600;">SpiceSkyWaiter2026!</code></div>
+    </div>
+  </div>
+
+  <script src="/js/supabase-client.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      await SpiceClient.init();
+
+      const form = document.getElementById('waiterLoginForm');
+      const errBanner = document.getElementById('errorBanner');
+      const loginBtn = document.getElementById('loginBtn');
+      const adminSessionBox = document.getElementById('adminSessionBox');
+      const switchAsWaiterBtn = document.getElementById('switchAsWaiterBtn');
+
+      // If already logged in as WAITER, redirect directly to /waiter
+      const existingUser = SpiceClient.getStoredUser();
+      if (existingUser && existingUser.role === 'WAITER') {
+        window.location.href = '/waiter';
+        return;
+      }
+
+      // If logged in as ADMIN, show choice card rather than trapping
+      if (existingUser && existingUser.role === 'ADMIN') {
+        if (adminSessionBox) adminSessionBox.style.display = 'block';
+      }
+
+      if (switchAsWaiterBtn) {
+        switchAsWaiterBtn.addEventListener('click', async () => {
+          await SpiceClient.signOut();
+          if (adminSessionBox) adminSessionBox.style.display = 'none';
+          document.getElementById('staffEmail').value = 'waiter@spiceandsky.com';
+          document.getElementById('staffPassword').value = 'SpiceSkyWaiter2026!';
+          loginBtn.focus();
+        });
+      }
+
+      const fillBtn = document.getElementById('fillWaiterBtn');
+      if (fillBtn) {
+        fillBtn.addEventListener('click', () => {
+          document.getElementById('staffEmail').value = 'waiter@spiceandsky.com';
+          document.getElementById('staffPassword').value = 'SpiceSkyWaiter2026!';
+        });
+      }
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        errBanner.style.display = 'none';
+        loginBtn.disabled = true;
+        loginBtn.textContent = 'Authenticating...';
+
+        const email = document.getElementById('staffEmail').value;
+        const password = document.getElementById('staffPassword').value;
+
+        try {
+          const res = await SpiceClient.signIn(email, password);
+          if (res.success) {
+            window.location.href = '/waiter';
+          } else {
+            throw new Error(res.error || 'Authentication failed.');
+          }
+        } catch (err) {
+          errBanner.textContent = err.message || 'Invalid staff credentials.';
+          errBanner.style.display = 'block';
+          loginBtn.disabled = false;
+          loginBtn.textContent = 'Open Waiter Terminal →';
+        }
+      });
+    });
+  </script>
+</body>
+</html>

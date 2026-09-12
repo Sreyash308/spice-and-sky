@@ -1,0 +1,348 @@
+/* ============================================================
+   SPICE & SKY ROOFTOP CAFE - SPLASH SCREEN STYLES
+   Aesthetics: Bright, Warm, Sunlit Rooftop Terrace / Minimalist Specialty Cafe
+   ============================================================ */
+
+/* Fullscreen Splash Screen Overlay */
+.splash-screen {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 35%, #fffdf9 0%, #fdf6ec 45%, #f7efe1 80%, #eee3cf 100%);
+  overflow: hidden;
+  user-select: none;
+  cursor: pointer;
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1), transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.splash-screen.splash-hidden {
+  opacity: 0 !important;
+  transform: scale(1.04) !important;
+  pointer-events: none !important;
+}
+
+/* Ambient Particles Canvas */
+.splash-particles-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Decorative Ambient Light Orbs */
+.splash-ambient-glow {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(217, 119, 6, 0.18) 0%, rgba(194, 94, 26, 0.08) 45%, transparent 70%);
+  filter: blur(50px);
+  pointer-events: none;
+  z-index: 2;
+  animation: ambientFloat 8s ease-in-out infinite alternate;
+}
+
+.splash-ambient-glow-2 {
+  position: absolute;
+  width: 380px;
+  height: 380px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.15) 0%, rgba(220, 38, 38, 0.05) 50%, transparent 75%);
+  filter: blur(40px);
+  pointer-events: none;
+  z-index: 2;
+  animation: ambientFloat2 10s ease-in-out infinite alternate;
+}
+
+@keyframes ambientFloat {
+  0% { transform: translate(-30px, -20px) scale(0.95); }
+  100% { transform: translate(30px, 25px) scale(1.08); }
+}
+
+@keyframes ambientFloat2 {
+  0% { transform: translate(40px, 30px) scale(1.05); }
+  100% { transform: translate(-35px, -25px) scale(0.9); }
+}
+
+/* Main Center Container */
+.splash-card {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 38px 32px;
+  width: 90%;
+  max-width: 440px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1.5px solid rgba(217, 119, 6, 0.22);
+  border-radius: 32px;
+  box-shadow:
+    0 20px 45px -10px rgba(154, 52, 18, 0.14),
+    0 8px 20px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  animation: splashCardIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes splashCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Emblem & Lottie Container */
+.splash-emblem-wrap {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Rotating Pulsing Halo */
+.splash-halo {
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(194, 94, 26, 0.3), rgba(217, 119, 6, 0.6), rgba(254, 243, 199, 0.7), rgba(194, 94, 26, 0.3));
+  filter: blur(14px);
+  opacity: 0.75;
+  animation: haloRotate 6s linear infinite, haloPulse 3s ease-in-out infinite alternate;
+  z-index: 1;
+}
+
+@keyframes haloRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes haloPulse {
+  0% { transform: scale(0.92); opacity: 0.55; }
+  100% { transform: scale(1.08); opacity: 0.85; }
+}
+
+/* Emblem Disc */
+.splash-emblem-disc {
+  position: relative;
+  z-index: 2;
+  width: 124px;
+  height: 124px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #ffffff, #faf5eb);
+  border: 2px solid rgba(217, 119, 6, 0.28);
+  box-shadow:
+    0 10px 24px rgba(194, 94, 26, 0.16),
+    inset 0 2px 4px rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Lottie Player Viewport */
+.splash-lottie-container {
+  width: 110px;
+  height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Fallback Animated SVG Cup */
+.splash-svg-fallback {
+  width: 96px;
+  height: 96px;
+}
+
+.steam-path {
+  animation: steamDrift 2.4s ease-in-out infinite alternate;
+  transform-origin: bottom center;
+}
+.steam-path:nth-child(2) {
+  animation-delay: 0.5s;
+  animation-duration: 2.8s;
+}
+.steam-path:nth-child(3) {
+  animation-delay: 0.9s;
+  animation-duration: 2.1s;
+}
+
+@keyframes steamDrift {
+  0% { transform: translateY(0) scaleX(0.95); opacity: 0.45; }
+  50% { transform: translateY(-8px) scaleX(1.1); opacity: 0.9; }
+  100% { transform: translateY(-16px) scaleX(0.85); opacity: 0.15; }
+}
+
+/* Star Twinkle */
+.star-twinkle {
+  animation: starTwinkle 2s ease-in-out infinite alternate;
+  transform-origin: center;
+}
+
+@keyframes starTwinkle {
+  0% { transform: scale(0.8) rotate(0deg); opacity: 0.5; }
+  100% { transform: scale(1.25) rotate(90deg); opacity: 1; }
+}
+
+/* Brand Typography */
+.splash-brand-title {
+  font-family: var(--font-heading);
+  font-size: 2.15rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--text-primary);
+  margin: 0 0 4px 0;
+  line-height: 1.15;
+}
+
+.splash-brand-title .amp {
+  background: linear-gradient(135deg, var(--spice-terracotta), var(--spice-gold));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.splash-brand-sub {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 5px;
+  color: var(--spice-terracotta);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.splash-brand-tagline {
+  font-family: var(--font-script);
+  font-size: 1.35rem;
+  color: var(--text-secondary);
+  margin: 0 0 22px 0;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* Progress Section */
+.splash-progress-wrap {
+  width: 100%;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.splash-progress-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(194, 94, 26, 0.12);
+  border-radius: 9999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.splash-progress-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #9a3412 0%, #c25e1a 50%, #d97706 100%);
+  box-shadow: 0 0 10px rgba(217, 119, 6, 0.5);
+  transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.splash-status-text {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-height: 20px;
+  letter-spacing: 0.2px;
+  transition: opacity 0.25s ease;
+}
+
+/* Skip & Hint Prompt */
+.splash-skip-hint {
+  margin-top: 18px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #9ca3af;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.75;
+  transition: opacity 0.2s ease;
+}
+
+.splash-screen:hover .splash-skip-hint {
+  opacity: 1;
+  color: var(--spice-terracotta);
+}
+
+/* Replay Button in Menu Footer or Nav */
+.btn-replay-splash {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(194, 94, 26, 0.08);
+  border: 1px solid rgba(194, 94, 26, 0.2);
+  color: var(--spice-terracotta);
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 14px;
+}
+
+.btn-replay-splash:hover {
+  background: var(--spice-terracotta);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(194, 94, 26, 0.25);
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 480px) {
+  .splash-card {
+    padding: 30px 22px;
+    border-radius: 26px;
+  }
+  .splash-emblem-wrap {
+    width: 120px;
+    height: 120px;
+  }
+  .splash-emblem-disc {
+    width: 108px;
+    height: 108px;
+  }
+  .splash-brand-title {
+    font-size: 1.85rem;
+  }
+  .splash-brand-sub {
+    font-size: 0.7rem;
+    letter-spacing: 4px;
+  }
+  .splash-brand-tagline {
+    font-size: 1.2rem;
+  }
+}

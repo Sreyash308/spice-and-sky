@@ -1,0 +1,33 @@
+{
+  "name": "spice-and-sky-rooftop-cafe",
+  "version": "1.0.0",
+  "description": "Spice & Sky Rooftop Cafe - Digital Menu, Waiter POS & Admin Analytics System",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "db:migrate": "node scripts/seed_supabase.js --migrate",
+    "db:seed": "node scripts/seed_supabase.js --seed",
+    "test": "node tests/run_all_tests.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "helmet": "^8.3.0",
+    "pg": "^8.13.1"
+  },
+  "keywords": [
+    "spice-and-sky",
+    "rooftop-cafe",
+    "digital-menu",
+    "waiter-pos",
+    "admin-dashboard",
+    "supabase",
+    "realtime"
+  ],
+  "author": "Spice & Sky Rooftop Cafe",
+  "license": "ISC"
+}

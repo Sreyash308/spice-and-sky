@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Waiter POS Terminal | Spice &amp; Sky Rooftop Cafe</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/waiter.css">
+  <link rel="stylesheet" href="/css/print.css" media="print">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="waiter-app">
+
+  <!-- Waiter Navigation Bar -->
+  <header class="waiter-navbar">
+    <div class="waiter-navbar-inner">
+      <div class="waiter-nav-brand">
+        <img src="/assets/logo.svg" alt="Spice &amp; Sky" class="waiter-nav-logo">
+      </div>
+      <div class="waiter-profile-chip">
+        <span class="staff-name-badge" id="waiterRoleBadge">
+          <span id="waiterIcon">👔</span>
+          <span id="waiterNameDisplay">Waiter</span>
+        </span>
+        <button class="btn-signout" id="waiterSignOutBtn" title="Sign Out">Sign Out</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Table Selector Grid (EXACTLY 9 TABLES) -->
+  <section class="table-selector-section">
+    <div class="table-selector-inner">
+      <div class="section-label-row">
+        <span class="section-label">Select Table (1 - 9)</span>
+        <span class="active-table-callout" id="activeTableCallout">Table 1 Selected</span>
+      </div>
+      <div class="tables-grid" id="tablesGrid">
+        <button class="table-btn active" data-table="1">T1</button>
+        <button class="table-btn" data-table="2">T2</button>
+        <button class="table-btn" data-table="3">T3</button>
+        <button class="table-btn" data-table="4">T4</button>
+        <button class="table-btn" data-table="5">T5</button>
+        <button class="table-btn" data-table="6">T6</button>
+        <button class="table-btn" data-table="7">T7</button>
+        <button class="table-btn" data-table="8">T8</button>
+        <button class="table-btn" data-table="9">T9</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Search & Category Filters -->
+  <div class="waiter-search-bar">
+    <div class="waiter-search-inner">
+      <input type="search" id="waiterSearchInput" placeholder="Search menu for quick order..." autocomplete="off">
+    </div>
+  </div>
+
+  <nav class="waiter-categories-nav" id="waiterCategoriesNav">
+    <button class="waiter-cat-pill active" data-cat="ALL">All Categories</button>
+    <!-- Categories injected via JS -->
+  </nav>
+
+  <!-- Menu Item Selection Catalog -->
+  <main class="waiter-catalog" id="waiterCatalog">
+    <!-- Item cards injected via JS -->
+  </main>
+
+  <!-- Sticky Bottom Order Summary & Generate Bill Bar -->
+  <aside class="waiter-bottom-bar">
+    <div class="bottom-bar-inner">
+      <div class="order-summary-peek" id="orderPeekTrigger">
+        <span class="peek-table-line" id="peekTableLine">Table 1 Order</span>
+        <span class="peek-total-line" id="peekTotalLine">₹0</span>
+        <span class="peek-items-count" id="peekCountLine">0 items &bull; Tap to review</span>
+      </div>
+
+      <button type="button" class="btn-generate-bill" id="generateBillBtn" disabled>
+        <span>⚡ Generate Bill</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Order Review Drawer / Modal -->
+  <div class="order-drawer" id="orderDrawer">
+    <div class="order-drawer-content">
+      <div class="drawer-header">
+        <h3 class="drawer-title" id="drawerTitle">Table 1 Order Review</h3>
+        <button type="button" class="btn btn-secondary" id="closeDrawerBtn" style="padding: 6px 12px;">Close</button>
+      </div>
+
+      <div class="drawer-items-list" id="drawerItemsList">
+        <!-- Order items list injected via JS -->
+      </div>
+
+      <div class="drawer-total-box">
+        <span class="drawer-total-label">Total (No GST / No Taxes)</span>
+        <span class="drawer-total-amount" id="drawerTotalAmount">₹0</span>
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        <button type="button" class="btn btn-danger" id="clearOrderBtn" style="flex: 1;">Clear Order</button>
+        <button type="button" class="btn btn-primary" id="drawerGenerateBtn" style="flex: 2;">Generate Bill</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Variant Selection Modal (e.g. Pizza Sizes) -->
+  <div class="modal-backdrop" id="variantModal">
+    <div class="modal-content" style="max-width: 400px;">
+      <h3 style="font-family: var(--font-heading); margin-bottom: 6px;" id="variantItemTitle">Select Size</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">Choose variant size for this order item:</p>
+      <div id="variantOptionsList" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;">
+        <!-- Variant buttons injected via JS -->
+      </div>
+      <button type="button" class="btn btn-secondary" id="cancelVariantBtn" style="width: 100%;">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Generated Bill / Receipt Presentation Modal -->
+  <div class="modal-backdrop" id="billModal">
+    <div class="modal-content" style="max-width: 460px;">
+      <!-- Thermal Printable Box -->
+      <div class="receipt-box" id="printableReceipt">
+        <div class="receipt-header">
+          <div class="receipt-cafe-name">SPICE &amp; SKY ROOFTOP CAFE</div>
+          <div class="receipt-tagline">"Rooftop Vibes, Bold Flavors &amp; Cozy Brews"</div>
+          <div style="font-size: 8pt; margin-top: 2px;">Phone: +91 85228 80017 &bull; Hyderabad</div>
+          <div class="receipt-meta">
+            <span id="billTableText">Table 1</span>
+            <span id="billOrderNumText">Order #1001</span>
+          </div>
+          <div class="receipt-meta">
+            <span id="billDateText">Date: --</span>
+            <span id="billTimeText">Time: --</span>
+          </div>
+          <div class="receipt-meta">
+            <span id="billWaiterText">Waiter: Staff</span>
+          </div>
+        </div>
+
+        <table class="receipt-items-table">
+          <thead>
+            <tr>
+              <th style="width: 55%;">Item</th>
+              <th style="width: 15%; text-align: center;">Qty</th>
+              <th style="width: 30%; text-align: right;">Amount</th>
+            </tr>
+          </thead>
+          <tbody id="billItemsTbody">
+            <!-- Items injected via JS -->
+          </tbody>
+          <tfoot>
+            <tr class="receipt-total-row">
+              <td colspan="2">TOTAL:</td>
+              <td style="text-align: right;" id="billTotalText">₹0</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <div class="receipt-notice">
+          NO GST &bull; NO TAX &bull; NO SERVICE CHARGE<br>
+          Thank you for dining at Spice &amp; Sky!
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display: flex; gap: 10px;" class="no-print">
+        <button type="button" class="btn btn-secondary" id="printBillBtn" style="flex: 1;">🖨️ Print Bill</button>
+        <button type="button" class="btn btn-primary" id="newOrderBtn" style="flex: 1;">New Order &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="/js/supabase-client.js"></script>
+  <script src="/js/waiter.js"></script>
+</body>
+</html>

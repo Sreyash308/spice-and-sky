@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Owner &amp; Admin Dashboard | Spice &amp; Sky Rooftop Cafe</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/admin.css">
+  <link rel="stylesheet" href="/css/print.css" media="print">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="admin-layout">
+
+  <!-- Sidebar Navigation -->
+  <aside class="admin-sidebar" id="adminSidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-brand">
+        <img src="/assets/logo.svg" alt="Spice &amp; Sky" class="sidebar-logo">
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button type="button" class="nav-link active" data-tab="dashboard">
+        <span class="nav-icon">📊</span> Dashboard
+      </button>
+      <button type="button" class="nav-link" data-tab="orders">
+        <span class="nav-icon">📋</span> Orders
+      </button>
+      <button type="button" class="nav-link" data-tab="menu">
+        <span class="nav-icon">🍽️</span> Menu Management
+      </button>
+      <button type="button" class="nav-link" data-tab="analytics">
+        <span class="nav-icon">📈</span> Analytics
+      </button>
+      <button type="button" class="nav-link" data-tab="settings">
+        <span class="nav-icon">⚙️</span> Settings
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button type="button" class="btn btn-secondary" id="adminLogoutBtn" style="width: 100%;">
+        Sign Out
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content Wrapper -->
+  <div class="admin-main">
+    <!-- Topbar -->
+    <header class="admin-topbar">
+      <div class="topbar-left">
+        <button type="button" class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
+        <h1 class="page-title" id="pageTitle">Dashboard Overview</h1>
+      </div>
+      <div class="topbar-right">
+        <span class="supabase-badge" id="supabaseLiveBadge">Checking Supabase...</span>
+        <span class="time-badge" id="kolkataTimeBadge">Asia/Kolkata: --:--</span>
+        <span class="admin-badge" id="adminBadge">Owner / Admin</span>
+      </div>
+    </header>
+
+    <!-- TAB 1: DASHBOARD OVERVIEW -->
+    <section class="tab-panel active" id="tab-dashboard">
+      <!-- KPI Metric Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <span class="kpi-label">Today's Revenue</span>
+          <span class="kpi-value" id="kpiTodayRev">₹0</span>
+          <span class="kpi-sub" id="kpiTodayOrders">0 orders today</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Today's Average Bill</span>
+          <span class="kpi-value" id="kpiAvgBill">₹0</span>
+          <span class="kpi-sub">Per completed table</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Weekly Revenue</span>
+          <span class="kpi-value" id="kpiWeekRev">₹0</span>
+          <span class="kpi-sub" id="kpiWeekOrders">0 orders this week</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Monthly Revenue</span>
+          <span class="kpi-value" id="kpiMonthRev">₹0</span>
+          <span class="kpi-sub" id="kpiMonthOrders">0 orders this month</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">All-Time Revenue</span>
+          <span class="kpi-value" id="kpiAllTimeRev">₹0</span>
+          <span class="kpi-sub" id="kpiAllTimeOrders">0 total orders</span>
+        </div>
+      </div>
+
+      <!-- Recent Orders & Top Selling Grid -->
+      <div class="admin-grid-2">
+        <!-- Recent Orders Feed -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <h3 class="panel-title">Live Orders Feed (Realtime)</h3>
+            <button type="button" class="btn btn-secondary" id="refreshDashboardBtn" style="padding: 4px 10px; font-size: 0.8rem;">Refresh</button>
+          </div>
+          <div class="data-table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Order #</th>
+                  <th>Table</th>
+                  <th>Items</th>
+                  <th>Total</th>
+                  <th>Time</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="dashboardRecentOrdersTbody">
+                <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Loading orders...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Top Selling Items -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <h3 class="panel-title">Top Selling Items</h3>
+          </div>
+          <div id="dashboardTopSellingList" style="display: flex; flex-direction: column; gap: 10px;">
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Calculating popular items...</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: ORDERS MANAGEMENT -->
+    <section class="tab-panel" id="tab-orders">
+      <div class="panel-card" style="margin-bottom: 20px;">
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;">
+          <div style="display: flex; flex-wrap: wrap; gap: 10px; flex: 1;">
+            <input type="search" id="orderSearchInput" class="form-input" placeholder="Search Order # or Waiter..." style="max-width: 240px;">
+            <select id="orderTableFilter" class="form-select" style="max-width: 150px;">
+              <option value="">All Tables (1-9)</option>
+              <option value="1">Table 1</option>
+              <option value="2">Table 2</option>
+              <option value="3">Table 3</option>
+              <option value="4">Table 4</option>
+              <option value="5">Table 5</option>
+              <option value="6">Table 6</option>
+              <option value="7">Table 7</option>
+              <option value="8">Table 8</option>
+              <option value="9">Table 9</option>
+            </select>
+          </div>
+          <button type="button" class="btn btn-secondary" id="reloadOrdersBtn">Refresh Orders</button>
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <div class="data-table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Order #</th>
+                <th>Date &amp; Time (IST)</th>
+                <th>Table</th>
+                <th>Waiter</th>
+                <th>Items (Snapshot)</th>
+                <th>Total</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="ordersTableTbody">
+              <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Loading orders...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: MENU MANAGEMENT -->
+    <section class="tab-panel" id="tab-menu">
+      <div class="panel-card" style="margin-bottom: 20px;">
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;">
+          <div style="display: flex; flex-wrap: wrap; gap: 10px; flex: 1;">
+            <input type="search" id="adminMenuSearch" class="form-input" placeholder="Search menu items..." style="max-width: 240px;">
+            <select id="adminMenuCatFilter" class="form-select" style="max-width: 180px;">
+              <option value="ALL">All Categories</option>
+            </select>
+            <select id="adminMenuDietFilter" class="form-select" style="max-width: 150px;">
+              <option value="ALL">All Diet Types</option>
+              <option value="VEG">Veg Only</option>
+              <option value="NON_VEG">Non-Veg Only</option>
+              <option value="DRINK">Drinks Only</option>
+            </select>
+          </div>
+          <button type="button" class="btn btn-primary" id="openAddItemModalBtn">+ Add Menu Item</button>
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <div class="data-table-wrap">
+          <table class="data-table" id="adminMenuTable">
+            <thead>
+              <tr>
+                <th class="col-item-details">Item Details</th>
+                <th class="col-category">Category</th>
+                <th class="col-type">Type</th>
+                <th class="col-price">Base Price</th>
+                <th class="col-avail">Availability</th>
+                <th class="col-actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="adminMenuTbody">
+              <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Loading menu catalog...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: ANALYTICS -->
+    <section class="tab-panel" id="tab-analytics">
+      <div class="admin-grid-2">
+        <div class="panel-card">
+          <div class="panel-header">
+            <h3 class="panel-title">Top Revenue Generators</h3>
+          </div>
+          <div id="analyticsTopRevenue" style="display: flex; flex-direction: column; gap: 12px;">
+            <!-- Injected via JS -->
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <div class="panel-header">
+            <h3 class="panel-title">Sales by Table (1 - 9)</h3>
+          </div>
+          <div id="analyticsTableBreakdown" style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Injected via JS -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 6: SETTINGS -->
+    <section class="tab-panel" id="tab-settings">
+      <div class="panel-card" style="max-width: 600px;">
+        <h3 class="panel-title" style="margin-bottom: 16px;">Supabase Database &amp; System Info</h3>
+        <div id="supabaseSettingsStatus" style="padding: 16px; border-radius: var(--radius-md); background: var(--bg-secondary); border: 1px solid var(--border-subtle); font-size: 0.9rem; line-height: 1.6; margin-bottom: 16px;">
+          Checking connection...
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+          All data modifications perform authoritative validation. Billing operates under strict restaurant policy: <code>SUM(unit_price * quantity)</code> with zero tax, zero GST, and zero service charges.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <!-- Add / Edit Menu Item Modal -->
+  <div class="modal-backdrop" id="menuItemModal">
+    <div class="modal-content">
+      <h3 style="font-family: var(--font-heading); margin-bottom: 16px;" id="menuModalTitle">Add Menu Item</h3>
+      <form id="menuItemForm">
+        <input type="hidden" id="modalItemId">
+
+        <div class="form-group">
+          <label class="form-label" for="modalItemName">Item Name</label>
+          <input type="text" id="modalItemName" class="form-input" placeholder="e.g. Hazelnut Cappuccino" required>
+        </div>
+
+        <div class="admin-grid-2" style="margin-bottom: 16px;">
+          <div>
+            <label class="form-label" for="modalItemCategory">Category</label>
+            <select id="modalItemCategory" class="form-select" required>
+              <!-- Categories injected via JS -->
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="modalItemPrice">Price (₹)</label>
+            <input type="number" id="modalItemPrice" class="form-input" min="0" step="1" placeholder="e.g. 219" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="modalItemType">Food / Diet Type</label>
+          <select id="modalItemType" class="form-select" required>
+            <option value="VEG">VEG (Green Dot)</option>
+            <option value="NON_VEG">NON-VEG (Red Triangle)</option>
+            <option value="DRINK">DRINK (Blue Cup)</option>
+            <option value="NEEDS_CONFIRMATION">NEEDS CONFIRMATION (Amber Alert)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="modalItemDesc">Description (Optional)</label>
+          <textarea id="modalItemDesc" class="form-textarea" placeholder="Brief appetizing description..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="modalVerificationNote">Owner Verification Note (Optional)</label>
+          <input type="text" id="modalVerificationNote" class="form-input" placeholder="e.g. Flagged for review">
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 24px;">
+          <button type="button" class="btn btn-secondary" id="closeMenuModalBtn" style="flex: 1;">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveMenuItemBtn" style="flex: 1;">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Generated Bill Presentation Modal (Identical to Waiter POS Bill) -->
+  <div class="modal-backdrop" id="adminOrderModal">
+    <div class="modal-content" style="max-width: 460px;">
+      <!-- Thermal Printable Box -->
+      <div class="receipt-box" id="printableReceipt">
+        <div class="receipt-header">
+          <div class="receipt-cafe-name">SPICE &amp; SKY ROOFTOP CAFE</div>
+          <div class="receipt-tagline">"Rooftop Vibes, Bold Flavors &amp; Cozy Brews"</div>
+          <div style="font-size: 8pt; margin-top: 2px;">Phone: +91 85228 80017 &bull; Hyderabad</div>
+          <div class="receipt-meta">
+            <span id="adminModalTable">Table 1</span>
+            <span id="adminModalOrderNum">Order #1001</span>
+          </div>
+          <div class="receipt-meta">
+            <span id="adminModalDate">Date: --</span>
+            <span id="adminModalTime">Time: --</span>
+          </div>
+          <div class="receipt-meta">
+            <span id="adminModalWaiter">Waiter: Staff</span>
+          </div>
+        </div>
+
+        <table class="receipt-items-table">
+          <thead>
+            <tr>
+              <th style="width: 55%;">Item</th>
+              <th style="width: 15%; text-align: center;">Qty</th>
+              <th style="width: 30%; text-align: right;">Amount</th>
+            </tr>
+          </thead>
+          <tbody id="adminModalItemsTbody">
+            <!-- Items injected via JS -->
+          </tbody>
+          <tfoot>
+            <tr class="receipt-total-row">
+              <td colspan="2">TOTAL:</td>
+              <td style="text-align: right;" id="adminModalTotal">₹0</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <div class="receipt-notice">
+          NO GST &bull; NO TAX &bull; NO SERVICE CHARGE<br>
+          Thank you for dining at Spice &amp; Sky!
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display: flex; gap: 10px;" class="no-print">
+        <button type="button" class="btn btn-secondary" id="adminPrintBillBtn" style="flex: 1;">🖨️ Print Bill</button>
+        <button type="button" class="btn btn-primary" id="closeAdminOrderModalBtn" style="flex: 1;">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="/js/supabase-client.js"></script>
+  <script src="/js/admin.js"></script>
+</body>
+</html>

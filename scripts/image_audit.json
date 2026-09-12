@@ -1,0 +1,1052 @@
+[
+  {
+    "id": "e10d29ae-4c6e-44cb-bf63-ebbf6e8557b7",
+    "name": "Veg Fried Rice",
+    "category": "Rice Bowls",
+    "food_type": "VEG",
+    "slug": "veg-fried-rice",
+    "image_url": "/images/menu/veg-fried-rice.webp",
+    "file_size_kb": 55,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "88bfdc0e-1144-46fd-abf6-bdf8ff6c406b",
+    "name": "Veg Schezwan Fried Rice",
+    "category": "Rice Bowls",
+    "food_type": "VEG",
+    "slug": "veg-schezwan-fried-rice",
+    "image_url": "/images/menu/veg-schezwan-fried-rice.webp",
+    "file_size_kb": 56,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "e17a3a60-a436-4d04-b903-7cb57a536967",
+    "name": "Brown Garlic Fried Rice",
+    "category": "Rice Bowls",
+    "food_type": "VEG",
+    "slug": "brown-garlic-fried-rice",
+    "image_url": "/images/menu/brown-garlic-fried-rice.webp",
+    "file_size_kb": 73,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "6fe32194-c31e-4d52-8613-35bd9feac6b6",
+    "name": "Schezwan Veg Fried Rice",
+    "category": "Rice Bowls",
+    "food_type": "VEG",
+    "slug": "schezwan-veg-fried-rice",
+    "image_url": "/images/menu/schezwan-veg-fried-rice.webp",
+    "file_size_kb": 65,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "cf196038-548b-4aea-b039-69017379e1fe",
+    "name": "Egg Fried Rice",
+    "category": "Rice Bowls",
+    "food_type": "NON_VEG",
+    "slug": "egg-fried-rice",
+    "image_url": "/images/menu/egg-fried-rice.webp",
+    "file_size_kb": 53,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "54d164f8-3209-4fe4-9a46-98946935d1b4",
+    "name": "Chicken Fried Rice",
+    "category": "Rice Bowls",
+    "food_type": "NON_VEG",
+    "slug": "chicken-fried-rice",
+    "image_url": "/images/menu/chicken-fried-rice.webp",
+    "file_size_kb": 39,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "f528b05f-9853-456a-abe6-53d9b35fe66c",
+    "name": "Schezwan Egg Fried Rice",
+    "category": "Rice Bowls",
+    "food_type": "NON_VEG",
+    "slug": "schezwan-egg-fried-rice",
+    "image_url": "/images/menu/schezwan-egg-fried-rice.webp",
+    "file_size_kb": 42,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "850fb759-92a6-4f01-9b70-2a9c90603934",
+    "name": "Schezwan Chicken Fried Rice",
+    "category": "Rice Bowls",
+    "food_type": "NON_VEG",
+    "slug": "schezwan-chicken-fried-rice",
+    "image_url": "/images/menu/schezwan-chicken-fried-rice.webp",
+    "file_size_kb": 62,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "086d39af-e4a7-4004-bae7-3b6ff80de9d0",
+    "name": "Schezwan Mix Fried Rice",
+    "category": "Rice Bowls",
+    "food_type": "NON_VEG",
+    "slug": "schezwan-mix-fried-rice",
+    "image_url": "/images/menu/schezwan-mix-fried-rice.webp",
+    "file_size_kb": 74,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "c460f38a-02be-49dc-8a62-636402fc7ee0",
+    "name": "Chilli Potato",
+    "category": "Starters — Veg",
+    "food_type": "VEG",
+    "slug": "chilli-potato",
+    "image_url": "/images/menu/chilli-potato.webp",
+    "status": "VERIFIED",
+    "file_size_kb": 46
+  },
+  {
+    "id": "983ea92d-9473-4537-b71a-e8d120a11c0f",
+    "name": "Chilli Paneer",
+    "category": "Starters — Veg",
+    "food_type": "VEG",
+    "slug": "chilli-paneer",
+    "image_url": "/images/menu/chilli-paneer.webp",
+    "file_size_kb": 45,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "374f39c2-db4f-4d56-821f-cb707bbd5e27",
+    "name": "Jalapeño Stick",
+    "category": "Starters — Veg",
+    "food_type": "VEG",
+    "slug": "jalapeno-stick",
+    "image_url": "/images/menu/jalapeno-stick.webp",
+    "file_size_kb": 57,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "9049a4dc-3392-4f30-8025-a1851e309062",
+    "name": "Paneer Popcorn",
+    "category": "Starters — Veg",
+    "food_type": "VEG",
+    "slug": "paneer-popcorn",
+    "image_url": "/images/menu/paneer-popcorn.webp",
+    "file_size_kb": 46,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "b98d214f-3c27-4ba9-a4ce-42a3c08fc8ff",
+    "name": "Paneer 65",
+    "category": "Starters — Veg",
+    "food_type": "VEG",
+    "slug": "paneer-65",
+    "image_url": "/images/menu/paneer-65.webp",
+    "file_size_kb": 42,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "64fc08b5-cc41-4722-b882-057d8102e700",
+    "name": "Loaded Fries",
+    "category": "Starters — Veg",
+    "food_type": "VEG",
+    "slug": "loaded-fries-veg",
+    "image_url": "/images/menu/loaded-fries-veg.webp",
+    "file_size_kb": 27,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "aa589809-9afa-41da-93f8-f4a44a21f9e0",
+    "name": "Broccoli Cheesey Stick",
+    "category": "Starters — Veg",
+    "food_type": "VEG",
+    "slug": "broccoli-cheesey-stick",
+    "image_url": "/images/menu/broccoli-cheesey-stick.webp",
+    "file_size_kb": 91,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "7a256247-c035-467f-94ad-73775199859f",
+    "name": "Chilli Chicken",
+    "category": "Starters — Non-Veg",
+    "food_type": "NON_VEG",
+    "slug": "chilli-chicken",
+    "image_url": "/images/menu/chilli-chicken.webp",
+    "file_size_kb": 60,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "3541ce1f-ca00-4b0d-9b16-621f37e4ba39",
+    "name": "Lemon Garlic Chicken",
+    "category": "Starters — Non-Veg",
+    "food_type": "NON_VEG",
+    "slug": "lemon-garlic-chicken",
+    "image_url": "/images/menu/lemon-garlic-chicken.webp",
+    "file_size_kb": 84,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "f2c58908-6228-4ef6-ac15-1811fa133db5",
+    "name": "Honey Chicken",
+    "category": "Starters — Non-Veg",
+    "food_type": "NON_VEG",
+    "slug": "honey-chicken",
+    "image_url": "/images/menu/honey-chicken.webp",
+    "status": "VERIFIED",
+    "file_size_kb": 60
+  },
+  {
+    "id": "fff2bd68-39c0-499e-8637-2bd8b2511843",
+    "name": "Chicken Loaded Fries",
+    "category": "Starters — Non-Veg",
+    "food_type": "NON_VEG",
+    "slug": "chicken-loaded-fries",
+    "image_url": "/images/menu/chicken-loaded-fries.webp",
+    "file_size_kb": 36,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "1b072f47-a00e-4b06-b660-fabafa968108",
+    "name": "Spice & Sky Special Popcorn Chicken",
+    "category": "Starters — Non-Veg",
+    "food_type": "NON_VEG",
+    "slug": "spice-sky-special-popcorn-chicken",
+    "image_url": "/images/menu/spice-sky-special-popcorn-chicken.webp",
+    "file_size_kb": 51,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "9f852660-568d-470a-91f3-91e0852b97fa",
+    "name": "Chicken Popcorn",
+    "category": "Starters — Non-Veg",
+    "food_type": "NON_VEG",
+    "slug": "chicken-popcorn",
+    "image_url": "/images/menu/chicken-popcorn.webp",
+    "file_size_kb": 74,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "bb768e2e-2a91-4b43-bfa0-856bfd77d5b0",
+    "name": "Crispy Chicken",
+    "category": "Starters — Non-Veg",
+    "food_type": "NON_VEG",
+    "slug": "crispy-chicken",
+    "image_url": "/images/menu/crispy-chicken.webp",
+    "file_size_kb": 56,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "7ce274a4-bc09-408c-b0ae-6b2a095ff597",
+    "name": "Classic Pizza",
+    "category": "Pizzas — Veg",
+    "food_type": "VEG",
+    "slug": "classic-pizza",
+    "image_url": "/images/menu/classic-pizza.webp",
+    "file_size_kb": 79,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "ea6fc3c8-040b-4171-aa31-e1f4861614f1",
+    "name": "Basil Margherita",
+    "category": "Pizzas — Veg",
+    "food_type": "VEG",
+    "slug": "basil-margherita",
+    "image_url": "/images/menu/basil-margherita.webp",
+    "file_size_kb": 83,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "a43e49e2-ca9b-449e-bc43-24765d7ae227",
+    "name": "Vegetable Pizza",
+    "category": "Pizzas — Veg",
+    "food_type": "VEG",
+    "slug": "vegetable-pizza",
+    "image_url": "/images/menu/vegetable-pizza.webp",
+    "file_size_kb": 70,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "6f65a45e-d342-4bcb-8917-ea7f5413f6fb",
+    "name": "Paneer Pizza",
+    "category": "Pizzas — Veg",
+    "food_type": "VEG",
+    "slug": "paneer-pizza",
+    "image_url": "/images/menu/paneer-pizza.webp",
+    "file_size_kb": 86,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "56651237-73f6-4152-8ab3-b2b8be1d8f1a",
+    "name": "Mushroom Pizza",
+    "category": "Pizzas — Veg",
+    "food_type": "VEG",
+    "slug": "mushroom-pizza",
+    "image_url": "/images/menu/mushroom-pizza.webp",
+    "file_size_kb": 92,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "1b31a1dc-b118-47fb-9eb5-8e390c50b571",
+    "name": "Chicken Pepperoni Pizza",
+    "category": "Pizzas — Non-Veg",
+    "food_type": "NON_VEG",
+    "slug": "chicken-pepperoni-pizza",
+    "image_url": "/images/menu/chicken-pepperoni-pizza.webp",
+    "file_size_kb": 89,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "e05c866e-db1b-4f51-b0be-bbab94b4bdf9",
+    "name": "Smoked Chicken Pizza",
+    "category": "Pizzas — Non-Veg",
+    "food_type": "NON_VEG",
+    "slug": "smoked-chicken-pizza",
+    "image_url": "/images/menu/smoked-chicken-pizza.webp",
+    "file_size_kb": 56,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "9812b1d6-d306-4ba2-bd17-914979e2a7e7",
+    "name": "Chicken Tikka Pizza",
+    "category": "Pizzas — Non-Veg",
+    "food_type": "NON_VEG",
+    "slug": "chicken-tikka-pizza",
+    "image_url": "/images/menu/chicken-tikka-pizza.webp",
+    "file_size_kb": 83,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "cf3011b5-9478-4ff5-95ce-a0d335ca1e7b",
+    "name": "Barbecue Chicken Pizza",
+    "category": "Pizzas — Non-Veg",
+    "food_type": "NON_VEG",
+    "slug": "barbecue-chicken-pizza",
+    "image_url": "/images/menu/barbecue-chicken-pizza.webp",
+    "file_size_kb": 46,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "464840e8-fd79-4ed3-9c93-ffe15645a8ac",
+    "name": "Basil Chicken Pizza",
+    "category": "Pizzas — Non-Veg",
+    "food_type": "NON_VEG",
+    "slug": "basil-chicken-pizza",
+    "image_url": "/images/menu/basil-chicken-pizza.webp",
+    "file_size_kb": 68,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "f24ee38f-a7fe-4fa6-84ec-6b19a1db6d1c",
+    "name": "White Sauce Pasta",
+    "category": "Pastas — Veg",
+    "food_type": "VEG",
+    "slug": "white-sauce-pasta-veg",
+    "image_url": "/images/menu/white-sauce-pasta-veg.webp",
+    "file_size_kb": 32,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "2eb4c90e-b851-4ae9-a038-a73c1d457635",
+    "name": "Pesto Penne Pasta",
+    "category": "Pastas — Veg",
+    "food_type": "VEG",
+    "slug": "pesto-penne-pasta-veg",
+    "image_url": "/images/menu/pesto-penne-pasta-veg.webp",
+    "file_size_kb": 51,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "28e75db7-30ae-4e31-8ae4-07d0f4d38c11",
+    "name": "Pink Sauce Pasta",
+    "category": "Pastas — Veg",
+    "food_type": "VEG",
+    "slug": "pink-sauce-pasta-veg",
+    "image_url": "/images/menu/pink-sauce-pasta-veg.webp",
+    "status": "VERIFIED",
+    "file_size_kb": 43
+  },
+  {
+    "id": "53b0e27a-e97c-4eff-8977-bd355d374fb1",
+    "name": "Aglio-Olio Pasta",
+    "category": "Pastas — Veg",
+    "food_type": "VEG",
+    "slug": "aglio-olio-pasta-veg",
+    "image_url": "/images/menu/aglio-olio-pasta-veg.webp",
+    "file_size_kb": 71,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "0d075678-b118-47ee-9975-d16c90b0c678",
+    "name": "White Sauce Pasta",
+    "category": "Pastas — Non-Veg",
+    "food_type": "NON_VEG",
+    "slug": "white-sauce-pasta-nonveg",
+    "image_url": "/images/menu/white-sauce-pasta-nonveg.webp",
+    "status": "VERIFIED",
+    "file_size_kb": 32
+  },
+  {
+    "id": "a7620253-ab01-49e0-8263-8ef439c2c621",
+    "name": "Pesto Penne Pasta",
+    "category": "Pastas — Non-Veg",
+    "food_type": "NON_VEG",
+    "slug": "pesto-penne-pasta-nonveg",
+    "image_url": "/images/menu/pesto-penne-pasta-nonveg.webp",
+    "file_size_kb": 21,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "6c2438b4-8ae9-42b7-83eb-56832db44d18",
+    "name": "Pink Sauce Pasta",
+    "category": "Pastas — Non-Veg",
+    "food_type": "NON_VEG",
+    "slug": "pink-sauce-pasta-nonveg",
+    "image_url": "/images/menu/pink-sauce-pasta-nonveg.webp",
+    "file_size_kb": 88,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "db9a778b-e3e2-4766-8cda-b8ec8e4e2ffb",
+    "name": "Aglio-Olio Pasta",
+    "category": "Pastas — Non-Veg",
+    "food_type": "NON_VEG",
+    "slug": "aglio-olio-pasta-nonveg",
+    "image_url": "/images/menu/aglio-olio-pasta-nonveg.webp",
+    "file_size_kb": 73,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "6de3d910-859e-4d8f-984f-76979ed5ba37",
+    "name": "Butter Chicken Sauce Pasta",
+    "category": "Pastas — Non-Veg",
+    "food_type": "NON_VEG",
+    "slug": "butter-chicken-sauce-pasta",
+    "image_url": "/images/menu/butter-chicken-sauce-pasta.webp",
+    "file_size_kb": 42,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "73f0bc83-bc2a-4384-9ff9-01121d2345d1",
+    "name": "Veg Patty Burger",
+    "category": "Burgers — Veg",
+    "food_type": "VEG",
+    "slug": "veg-patty-burger",
+    "image_url": "/images/menu/veg-patty-burger.webp",
+    "file_size_kb": 92,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "0d54fa57-25e2-4fec-a3ae-94a211993478",
+    "name": "Crispy Paneer Burger",
+    "category": "Burgers — Veg",
+    "food_type": "VEG",
+    "slug": "crispy-paneer-burger",
+    "image_url": "/images/menu/crispy-paneer-burger.webp",
+    "file_size_kb": 47,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "3051bc73-d023-44bb-ba52-404f8615ef54",
+    "name": "Double Patty Burger",
+    "category": "Burgers — Veg",
+    "food_type": "VEG",
+    "slug": "double-patty-burger-veg",
+    "image_url": "/images/menu/double-patty-burger-veg.webp",
+    "file_size_kb": 37,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "0e2d53ef-1e24-4f01-92be-6c19a9dbd489",
+    "name": "Chicken Patty Burger",
+    "category": "Burgers — Non-Veg",
+    "food_type": "NON_VEG",
+    "slug": "chicken-patty-burger",
+    "image_url": "/images/menu/chicken-patty-burger.webp",
+    "file_size_kb": 37,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "f26c0683-bc2b-4573-b295-88a44d18ef62",
+    "name": "Crispy Chicken Burger",
+    "category": "Burgers — Non-Veg",
+    "food_type": "NON_VEG",
+    "slug": "crispy-chicken-burger",
+    "image_url": "/images/menu/crispy-chicken-burger.webp",
+    "file_size_kb": 38,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "b24479e0-ba32-47df-88c9-041d8e1763ef",
+    "name": "Double Patty Burger",
+    "category": "Burgers — Non-Veg",
+    "food_type": "NON_VEG",
+    "slug": "double-patty-burger-nonveg",
+    "image_url": "/images/menu/double-patty-burger-nonveg.webp",
+    "file_size_kb": 36,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "986ec3cb-a9af-4d5c-9c98-1e428df1234a",
+    "name": "Peri Peri Fries",
+    "category": "French Fries",
+    "food_type": "VEG",
+    "slug": "peri-peri-fries",
+    "image_url": "/images/menu/peri-peri-fries.webp",
+    "status": "VERIFIED",
+    "file_size_kb": 27
+  },
+  {
+    "id": "28e1d532-6a45-42bb-91a9-d6e401995874",
+    "name": "Classic Fries",
+    "category": "French Fries",
+    "food_type": "VEG",
+    "slug": "classic-fries",
+    "image_url": "/images/menu/classic-fries.webp",
+    "file_size_kb": 46,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "39487c06-da24-44b2-a42e-a5796df104d8",
+    "name": "Spice & Sky Special Fries",
+    "category": "French Fries",
+    "food_type": "VEG",
+    "slug": "spice-sky-special-fries",
+    "image_url": "/images/menu/spice-sky-special-fries.webp",
+    "file_size_kb": 35,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "80d3111c-46f8-4451-9f31-f80c0b3186b1",
+    "name": "Cheesy Fries",
+    "category": "French Fries",
+    "food_type": "VEG",
+    "slug": "cheesy-fries",
+    "image_url": "/images/menu/cheesy-fries.webp",
+    "file_size_kb": 27,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "ef1295b7-7e61-45a8-9289-4bc783c129e0",
+    "name": "Espresso",
+    "category": "Hot Coffee",
+    "food_type": "DRINK",
+    "slug": "espresso-hot",
+    "image_url": "/images/menu/espresso-hot.webp",
+    "file_size_kb": 27,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "46f82725-d918-4a99-b1d5-2e680a79cfc4",
+    "name": "Americano",
+    "category": "Hot Coffee",
+    "food_type": "DRINK",
+    "slug": "americano-hot",
+    "image_url": "/images/menu/americano-hot.webp",
+    "file_size_kb": 47,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "2f32a768-45ee-4613-bc70-49ec5dc1a498",
+    "name": "Long Black",
+    "category": "Hot Coffee",
+    "food_type": "DRINK",
+    "slug": "long-black-hot",
+    "image_url": "/images/menu/long-black-hot.webp",
+    "file_size_kb": 47,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "783e29eb-5c70-48f3-a286-8b3e51a93a41",
+    "name": "Cappuccino",
+    "category": "Hot Coffee",
+    "food_type": "DRINK",
+    "slug": "cappuccino-hot",
+    "image_url": "/images/menu/cappuccino-hot.webp",
+    "file_size_kb": 51,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "1b1f1d12-78a2-4af0-8294-e5fbc000f4e7",
+    "name": "Cortado",
+    "category": "Hot Coffee",
+    "food_type": "DRINK",
+    "slug": "cortado-hot",
+    "image_url": "/images/menu/cortado-hot.webp",
+    "file_size_kb": 24,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "706c0715-c224-47bb-b55f-32af9168142f",
+    "name": "Flat White",
+    "category": "Hot Coffee",
+    "food_type": "DRINK",
+    "slug": "flat-white-hot",
+    "image_url": "/images/menu/flat-white-hot.webp",
+    "file_size_kb": 33,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "5805654d-4289-4016-8d64-df70f0c17f35",
+    "name": "Latte",
+    "category": "Hot Coffee",
+    "food_type": "DRINK",
+    "slug": "latte-hot",
+    "image_url": "/images/menu/latte-hot.webp",
+    "file_size_kb": 32,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "9b5e5a8d-508b-4d8e-a7e0-8be9cc7a2904",
+    "name": "Spanish Latte",
+    "category": "Hot Coffee",
+    "food_type": "DRINK",
+    "slug": "spanish-latte-hot",
+    "image_url": "/images/menu/spanish-latte-hot.webp",
+    "file_size_kb": 24,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "69b10607-2821-4e82-b8f6-3452423ff625",
+    "name": "Vanilla Latte",
+    "category": "Hot Coffee",
+    "food_type": "DRINK",
+    "slug": "vanilla-latte-hot",
+    "image_url": "/images/menu/vanilla-latte-hot.webp",
+    "file_size_kb": 49,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "fedcc046-63f4-44a2-9c50-ce3b16407585",
+    "name": "Hazelnut Latte",
+    "category": "Hot Coffee",
+    "food_type": "DRINK",
+    "slug": "hazelnut-latte-hot",
+    "image_url": "/images/menu/hazelnut-latte-hot.webp",
+    "status": "VERIFIED",
+    "file_size_kb": 24
+  },
+  {
+    "id": "4efee9e1-bc1a-478c-a4b6-4188f709ad15",
+    "name": "Mocha",
+    "category": "Hot Coffee",
+    "food_type": "DRINK",
+    "slug": "mocha-hot",
+    "image_url": "/images/menu/mocha-hot.webp",
+    "file_size_kb": 29,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "5dfc5fa7-3bc0-484f-8362-c70be78c548a",
+    "name": "Vietnamese Latte",
+    "category": "Hot Coffee",
+    "food_type": "DRINK",
+    "slug": "vietnamese-latte-hot",
+    "image_url": "/images/menu/vietnamese-latte-hot.webp",
+    "file_size_kb": 28,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "4e963bc2-ef08-4171-8bc4-95d11823cd02",
+    "name": "Americano",
+    "category": "Iced Coffee",
+    "food_type": "DRINK",
+    "slug": "americano-iced",
+    "image_url": "/images/menu/americano-iced.webp",
+    "file_size_kb": 31,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "e10a7479-da01-4475-8025-a1c6a6de4df2",
+    "name": "Cappuccino",
+    "category": "Iced Coffee",
+    "food_type": "DRINK",
+    "slug": "cappuccino-iced",
+    "image_url": "/images/menu/cappuccino-iced.webp",
+    "file_size_kb": 19,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "6c20573e-3245-4c07-b3ab-1296c05d76d4",
+    "name": "Long Black",
+    "category": "Iced Coffee",
+    "food_type": "DRINK",
+    "slug": "long-black-iced",
+    "image_url": "/images/menu/long-black-iced.webp",
+    "status": "VERIFIED",
+    "file_size_kb": 28
+  },
+  {
+    "id": "32e8e354-b318-4ef9-9458-8d3d53096db0",
+    "name": "Latte",
+    "category": "Iced Coffee",
+    "food_type": "DRINK",
+    "slug": "latte-iced",
+    "image_url": "/images/menu/latte-iced.webp",
+    "file_size_kb": 28,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "73ce3f00-0ff0-4ec3-bd9d-902ca9d8a010",
+    "name": "Hazelnut Latte",
+    "category": "Iced Coffee",
+    "food_type": "DRINK",
+    "slug": "hazelnut-latte-iced",
+    "image_url": "/images/menu/hazelnut-latte-iced.webp",
+    "file_size_kb": 29,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "b9d58b12-1315-4f69-bbf5-5d30959cc845",
+    "name": "Vanilla Latte",
+    "category": "Iced Coffee",
+    "food_type": "DRINK",
+    "slug": "vanilla-latte-iced",
+    "image_url": "/images/menu/vanilla-latte-iced.webp",
+    "file_size_kb": 35,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "01173ce5-a553-4213-8f97-9a019c81e9f7",
+    "name": "Spanish Latte",
+    "category": "Iced Coffee",
+    "food_type": "DRINK",
+    "slug": "spanish-latte-iced",
+    "image_url": "/images/menu/spanish-latte-iced.webp",
+    "file_size_kb": 51,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "e33cceab-4157-49fe-bd0f-c1db8cef15a4",
+    "name": "Cranberry Espresso",
+    "category": "Iced Coffee",
+    "food_type": "DRINK",
+    "slug": "cranberry-espresso",
+    "image_url": "/images/menu/cranberry-espresso.webp",
+    "file_size_kb": 35,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "4ab16987-a980-4329-87db-9e2b9b238a13",
+    "name": "Classic Cold Coffee",
+    "category": "Iced Coffee",
+    "food_type": "DRINK",
+    "slug": "classic-cold-coffee",
+    "image_url": "/images/menu/classic-cold-coffee.webp",
+    "file_size_kb": 31,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "10cd7b59-e8f9-4f59-bd29-a39bcc14aeae",
+    "name": "Caramel Macchiato",
+    "category": "Iced Coffee",
+    "food_type": "DRINK",
+    "slug": "caramel-macchiato",
+    "image_url": "/images/menu/caramel-macchiato.webp",
+    "file_size_kb": 20,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "6962baf8-54c9-4e91-91db-5ea3d9712c7b",
+    "name": "Iced Latte",
+    "category": "Iced Coffee",
+    "food_type": "DRINK",
+    "slug": "iced-latte-drink",
+    "image_url": "/images/menu/iced-latte-drink.webp",
+    "file_size_kb": 15,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "b4da3fd5-99ba-42f8-8677-0d4f53fca3dc",
+    "name": "Mocha Coffee",
+    "category": "Iced Coffee",
+    "food_type": "DRINK",
+    "slug": "mocha-coffee-iced",
+    "image_url": "/images/menu/mocha-coffee-iced.webp",
+    "file_size_kb": 29,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "e994bd62-d104-49f6-a9bc-51cf6ed1185c",
+    "name": "Vietnamese Latte",
+    "category": "Iced Coffee",
+    "food_type": "DRINK",
+    "slug": "vietnamese-latte-iced",
+    "image_url": "/images/menu/vietnamese-latte-iced.webp",
+    "file_size_kb": 28,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "5fc58ccb-7a39-4786-b2f6-69cdb5f67fc5",
+    "name": "Orange Espresso",
+    "category": "Iced Coffee",
+    "food_type": "DRINK",
+    "slug": "orange-espresso",
+    "image_url": "/images/menu/orange-espresso.webp",
+    "file_size_kb": 36,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "9477b2af-d333-4aac-8c0e-21fdd0eb3257",
+    "name": "Pineapple Espresso",
+    "category": "Iced Coffee",
+    "food_type": "DRINK",
+    "slug": "pineapple-espresso",
+    "image_url": "/images/menu/pineapple-espresso.webp",
+    "file_size_kb": 35,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "04bc53cb-e80b-4171-8975-d148e6c406b2",
+    "name": "Salted Vietnamese Iced Coffee",
+    "category": "Signature Coffee Drinks",
+    "food_type": "DRINK",
+    "slug": "salted-vietnamese-iced-coffee",
+    "image_url": "/images/menu/salted-vietnamese-iced-coffee.webp",
+    "file_size_kb": 47,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "0a83cb2b-75e1-4560-84a2-1147a46de552",
+    "name": "Hazelnut Cream Iced Coffee",
+    "category": "Signature Coffee Drinks",
+    "food_type": "DRINK",
+    "slug": "hazelnut-cream-iced-coffee",
+    "image_url": "/images/menu/hazelnut-cream-iced-coffee.webp",
+    "file_size_kb": 19,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "46d0a79c-c045-42cb-b1b7-d1838634e402",
+    "name": "Biscoff Cream Iced Frappe",
+    "category": "Signature Coffee Drinks",
+    "food_type": "DRINK",
+    "slug": "biscoff-cream-iced-frappe",
+    "image_url": "/images/menu/biscoff-cream-iced-frappe.webp",
+    "file_size_kb": 37,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "c87a543b-31de-4416-a795-01e4db627192",
+    "name": "Mocha Cream Iced Coffee",
+    "category": "Signature Coffee Drinks",
+    "food_type": "DRINK",
+    "slug": "mocha-cream-iced-coffee",
+    "image_url": "/images/menu/mocha-cream-iced-coffee.webp",
+    "file_size_kb": 29,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "1cc0692d-4eae-440d-b37d-dc786a36ffb6",
+    "name": "Pistachio Cream Iced Coffee",
+    "category": "Signature Coffee Drinks",
+    "food_type": "DRINK",
+    "slug": "pistachio-cream-iced-coffee",
+    "image_url": "/images/menu/pistachio-cream-iced-coffee.webp",
+    "file_size_kb": 35,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "f7243478-adbc-4e70-b0fe-2da6daa56213",
+    "name": "Hot Chocolate",
+    "category": "Signature Coffee Drinks",
+    "food_type": "DRINK",
+    "slug": "hot-chocolate",
+    "image_url": "/images/menu/hot-chocolate.webp",
+    "file_size_kb": 24,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "d6a0149d-3c24-49ab-b565-d018ef62c415",
+    "name": "Oreo Shake",
+    "category": "Milkshakes",
+    "food_type": "DRINK",
+    "slug": "oreo-shake",
+    "image_url": "/images/menu/oreo-shake.webp",
+    "file_size_kb": 37,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "48206cd2-4e67-4632-9cb7-1428f53a4794",
+    "name": "Banana Shake",
+    "category": "Milkshakes",
+    "food_type": "DRINK",
+    "slug": "banana-shake",
+    "image_url": "/images/menu/banana-shake.webp",
+    "file_size_kb": 29,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "28e75db7-30ae-4e31-8ae4-07d0f4d38c12",
+    "name": "Hazelnut Shake",
+    "category": "Milkshakes",
+    "food_type": "DRINK",
+    "slug": "hazelnut-shake",
+    "image_url": "/images/menu/hazelnut-shake.webp",
+    "file_size_kb": 23,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "f0da6e5d-2c51-479a-bad8-ac76ffa924c7",
+    "name": "Pistachio Shake",
+    "category": "Milkshakes",
+    "food_type": "DRINK",
+    "slug": "pistachio-shake",
+    "image_url": "/images/menu/pistachio-shake.webp",
+    "status": "VERIFIED",
+    "file_size_kb": 37
+  },
+  {
+    "id": "1c28fa46-5b32-47d0-a892-e461a29cd678",
+    "name": "Blueberry Mojito",
+    "category": "Mojitos",
+    "food_type": "DRINK",
+    "slug": "blueberry-mojito",
+    "image_url": "/images/menu/blueberry-mojito.webp",
+    "file_size_kb": 36,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "3051b8c2-404f-4d32-9fb9-12e09ab43589",
+    "name": "Mint Mojito",
+    "category": "Mojitos",
+    "food_type": "DRINK",
+    "slug": "mint-mojito",
+    "image_url": "/images/menu/mint-mojito.webp",
+    "file_size_kb": 35,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "348c08db-4e1b-4171-8bc3-04a29cf65421",
+    "name": "Strawberry Mojito",
+    "category": "Mojitos",
+    "food_type": "DRINK",
+    "slug": "strawberry-mojito",
+    "image_url": "/images/menu/strawberry-mojito.webp",
+    "file_size_kb": 20,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "e8793f4a-dd42-45f0-a514-70516d9441f3",
+    "name": "Blue Curacao Mojito",
+    "category": "Mojitos",
+    "food_type": "DRINK",
+    "slug": "blue-curacao-mojito",
+    "image_url": "/images/menu/blue-curacao-mojito.webp",
+    "file_size_kb": 36,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "53eb49dc-3240-4c12-9c17-4ef853a12904",
+    "name": "Grilled Chicken with Brown Sauce",
+    "category": "Specials",
+    "food_type": "NON_VEG",
+    "slug": "grilled-chicken-with-brown-sauce",
+    "image_url": "/images/menu/grilled-chicken-with-brown-sauce.webp",
+    "file_size_kb": 64,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "d24cb5e0-38ae-41d3-a417-0e6945a27891",
+    "name": "Grilled Chicken with Lemon Butter Sauce",
+    "category": "Specials",
+    "food_type": "NON_VEG",
+    "slug": "grilled-chicken-with-lemon-butter-sauce",
+    "image_url": "/images/menu/grilled-chicken-with-lemon-butter-sauce.webp",
+    "file_size_kb": 84,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "89c0253b-e174-45fb-8263-8ef44199c432",
+    "name": "Lasagne",
+    "category": "Specials",
+    "food_type": "NON_VEG",
+    "slug": "lasagne",
+    "image_url": "/images/menu/lasagne.webp",
+    "file_size_kb": 67,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "049cb2e0-da01-4475-8025-a1851e309063",
+    "name": "Water Bottle",
+    "category": "Extras / Sides",
+    "food_type": "DRINK",
+    "slug": "water-bottle",
+    "image_url": "/images/menu/water-bottle.webp",
+    "file_size_kb": 22,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "1b08c4e0-7e61-45a8-9289-4bc783c129e1",
+    "name": "Cheddar Cheese Slices",
+    "category": "Extras / Sides",
+    "food_type": "VEG",
+    "slug": "cheddar-cheese-slices",
+    "image_url": "/images/menu/cheddar-cheese-slices.webp",
+    "file_size_kb": 35,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "7a256247-c035-467f-94ad-73775199859e",
+    "name": "Pasta Cheese Garlic Bread",
+    "category": "Extras / Sides",
+    "food_type": "VEG",
+    "slug": "pasta-cheese-garlic-bread",
+    "image_url": "/images/menu/pasta-cheese-garlic-bread.webp",
+    "file_size_kb": 26,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "f2c58908-6228-4ef6-ac15-1811fa133db6",
+    "name": "Tossed Avocado Toss",
+    "category": "Extras / Sides",
+    "food_type": "VEG",
+    "slug": "tossed-avocado-toss",
+    "image_url": "/images/menu/tossed-avocado-toss.webp",
+    "file_size_kb": 91,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "4e23e79b-8e6a-40f7-803e-ce9d9c29b3bf",
+    "name": "Avocado Mango Toss",
+    "category": "Extras / Sides",
+    "food_type": "VEG",
+    "slug": "avocado-mango-toss",
+    "image_url": "/images/menu/avocado-mango-toss.webp",
+    "file_size_kb": 42,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "376848b5-70a3-450e-8922-488d35cbbef5",
+    "name": "Avocado Strawberry Toss",
+    "category": "Extras / Sides",
+    "food_type": "VEG",
+    "slug": "avocado-strawberry-toss",
+    "image_url": "/images/menu/avocado-strawberry-toss.webp",
+    "file_size_kb": 74,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "374f39c2-db4f-4d56-821f-cb707bbd5e28",
+    "name": "Whipped Cream",
+    "category": "Coffee Extras",
+    "food_type": "OTHER",
+    "slug": "whipped-cream",
+    "image_url": "/images/menu/whipped-cream.webp",
+    "file_size_kb": 39,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "9049a4dc-3392-4f30-8025-a1851e309063",
+    "name": "Oat Milk",
+    "category": "Coffee Extras",
+    "food_type": "OTHER",
+    "slug": "oat-milk",
+    "image_url": "/images/menu/oat-milk.webp",
+    "file_size_kb": 24,
+    "status": "VERIFIED"
+  },
+  {
+    "id": "b98d214f-3c27-4ba9-a4ce-42a3c08fc8fe",
+    "name": "Almond Milk",
+    "category": "Coffee Extras",
+    "food_type": "OTHER",
+    "slug": "almond-milk",
+    "image_url": "/images/menu/almond-milk.webp",
+    "status": "VERIFIED",
+    "file_size_kb": 24
+  }
+]
