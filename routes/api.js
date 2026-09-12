@@ -329,6 +329,39 @@ router.patch('/orders/:id/status', async (req, res) => {
   }
 });
 
+// POST /api/admin/menu/upload-image - Upload menu item image
+router.post('/admin/menu/upload-image', async (req, res) => {
+  try {
+    const { image_data, filename, content_type } = req.body;
+    if (!image_data) {
+      return res.status(400).json({ success: false, error: 'No image data provided.' });
+    }
+
+    let buffer;
+    let mimeType = content_type || 'image/webp';
+
+    if (typeof image_data === 'string' && image_data.startsWith('data:')) {
+      const matches = image_data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      if (matches && matches.length === 3) {
+        mimeType = matches[1];
+        buffer = Buffer.from(matches[2], 'base64');
+      } else {
+        return res.status(400).json({ success: false, error: 'Invalid data URL format.' });
+      }
+    } else if (typeof image_data === 'string') {
+      buffer = Buffer.from(image_data, 'base64');
+    } else {
+      return res.status(400).json({ success: false, error: 'image_data must be base64 string or data URL.' });
+    }
+
+    const safeFilename = filename || `menu-item-${Date.now()}.${mimeType.split('/')[1] || 'webp'}`;
+    const result = await dbService.uploadMenuItemImage(safeFilename, buffer, mimeType);
+    res.json({ success: true, image_url: result.image_url });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // POST /api/admin/menu - Admin add menu item
 router.post('/admin/menu', async (req, res) => {
   try {

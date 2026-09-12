@@ -64,8 +64,8 @@ app.use(
 
 app.use(cors());
 app.use(cookieParser());
-app.use(express.json({ limit: '500kb' }));
-app.use(express.urlencoded({ extended: true, limit: '500kb' }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Static Assets
 app.use('/public', express.static(path.join(__dirname, 'public')));

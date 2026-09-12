@@ -327,6 +327,127 @@ document.addEventListener('DOMContentLoaded', async () => {
   const newCategoryName = document.getElementById('newCategoryName');
   const confirmCreateCategoryBtn = document.getElementById('confirmCreateCategoryBtn');
 
+  // Modal Image Upload & Preview Controls
+  const modalChooseImageBtn = document.getElementById('modalChooseImageBtn');
+  const modalItemImageFile = document.getElementById('modalItemImageFile');
+  const modalChooseImageText = document.getElementById('modalChooseImageText');
+  const modalRemoveImageBtn = document.getElementById('modalRemoveImageBtn');
+  const modalItemImageUrl = document.getElementById('modalItemImageUrl');
+  const modalItemImageValue = document.getElementById('modalItemImageValue');
+  const modalImagePreview = document.getElementById('modalImagePreview');
+  const modalImagePlaceholder = document.getElementById('modalImagePlaceholder');
+  const modalImageStatusBadge = document.getElementById('modalImageStatusBadge');
+  const saveMenuItemBtn = document.getElementById('saveMenuItemBtn');
+
+  let selectedImageBase64 = null;
+  let selectedImageFilename = null;
+  let selectedImageMime = 'image/webp';
+
+  function setModalImagePreview(url, statusText = 'Custom image', isNewUpload = false) {
+    if (url && url.trim().length > 0) {
+      modalImagePreview.src = url;
+      modalImagePreview.style.display = 'block';
+      modalImagePlaceholder.style.display = 'none';
+      modalItemImageValue.value = url;
+      if (modalChooseImageText) modalChooseImageText.textContent = 'Change Image';
+      if (modalRemoveImageBtn) modalRemoveImageBtn.style.display = 'inline-flex';
+      if (modalImageStatusBadge) {
+        modalImageStatusBadge.textContent = statusText;
+        modalImageStatusBadge.style.color = '#15803d';
+        modalImageStatusBadge.style.background = '#f0fdf4';
+      }
+    } else {
+      modalImagePreview.src = '';
+      modalImagePreview.style.display = 'none';
+      modalImagePlaceholder.style.display = 'block';
+      modalItemImageValue.value = '';
+      if (modalItemImageUrl) modalItemImageUrl.value = '';
+      if (modalItemImageFile) modalItemImageFile.value = '';
+      if (modalChooseImageText) modalChooseImageText.textContent = 'Upload Image';
+      if (modalRemoveImageBtn) modalRemoveImageBtn.style.display = 'none';
+      if (modalImageStatusBadge) {
+        modalImageStatusBadge.textContent = 'Default fallback';
+        modalImageStatusBadge.style.color = 'var(--text-muted)';
+        modalImageStatusBadge.style.background = 'rgba(0,0,0,0.04)';
+      }
+    }
+  }
+
+  function compressImage(dataUrl, maxWidth, maxHeight, quality, callback) {
+    const img = new Image();
+    img.onload = () => {
+      let width = img.width;
+      let height = img.height;
+
+      if (width > maxWidth || height > maxHeight) {
+        if (width > height) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        } else {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+
+      const mime = dataUrl.startsWith('data:image/png') ? 'image/png' : 'image/webp';
+      const output = canvas.toDataURL(mime, quality);
+      callback(output);
+    };
+    img.onerror = () => callback(dataUrl);
+    img.src = dataUrl;
+  }
+
+  if (modalChooseImageBtn && modalItemImageFile) {
+    modalChooseImageBtn.addEventListener('click', () => {
+      modalItemImageFile.click();
+    });
+
+    modalItemImageFile.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const rawDataUrl = event.target.result;
+        compressImage(rawDataUrl, 800, 800, 0.85, (compressed) => {
+          selectedImageBase64 = compressed;
+          selectedImageFilename = file.name;
+          selectedImageMime = file.type || 'image/webp';
+          setModalImagePreview(compressed, 'New image ready', true);
+          if (modalItemImageUrl) modalItemImageUrl.value = '';
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  if (modalItemImageUrl) {
+    modalItemImageUrl.addEventListener('input', () => {
+      const url = modalItemImageUrl.value.trim();
+      if (url) {
+        selectedImageBase64 = null;
+        selectedImageFilename = null;
+        setModalImagePreview(url, 'URL image linked');
+      } else if (!selectedImageBase64) {
+        setModalImagePreview(null);
+      }
+    });
+  }
+
+  if (modalRemoveImageBtn) {
+    modalRemoveImageBtn.addEventListener('click', () => {
+      selectedImageBase64 = null;
+      selectedImageFilename = null;
+      setModalImagePreview(null);
+    });
+  }
+
   adminMenuSearch.addEventListener('input', () => filterAndRenderMenu());
   adminMenuCatFilter.addEventListener('change', () => filterAndRenderMenu());
   adminMenuDietFilter.addEventListener('change', () => filterAndRenderMenu());
@@ -440,12 +561,47 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
+    // If a new image was selected from disk, upload it first
+    let finalImageUrl = modalItemImageValue.value ? modalItemImageValue.value.trim() : null;
+
+    if (selectedImageBase64) {
+      try {
+        if (saveMenuItemBtn) {
+          saveMenuItemBtn.disabled = true;
+          saveMenuItemBtn.textContent = 'Uploading Image...';
+        }
+        const uploadRes = await fetch('/api/admin/menu/upload-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            image_data: selectedImageBase64,
+            filename: selectedImageFilename || 'menu-item.webp',
+            content_type: selectedImageMime
+          })
+        });
+        const uploadJson = await uploadRes.json();
+        if (uploadJson.success && uploadJson.image_url) {
+          finalImageUrl = uploadJson.image_url;
+        } else {
+          console.warn('Image upload error:', uploadJson.error);
+        }
+      } catch (uploadErr) {
+        console.warn('Image upload exception:', uploadErr.message);
+      } finally {
+        if (saveMenuItemBtn) {
+          saveMenuItemBtn.disabled = false;
+          saveMenuItemBtn.textContent = 'Save Changes';
+        }
+      }
+    }
+
     const payload = {
       name: modalItemName.value.trim(),
       category_id: categoryId,
       price: Number(modalItemPrice.value),
       food_type: modalItemType.value,
       description: modalItemDesc.value.trim(),
+      image_url: finalImageUrl,
       verification_note: modalVerificationNote.value.trim() || null
     };
 
@@ -581,13 +737,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       tr.innerHTML = `
         <td>
-          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-            <span class="badge-diet ${dietClass}"></span>
-            <strong>${item.name}</strong>
-            ${!item.is_available ? `<span class="pill pill-unavailable" style="font-size: 0.72rem; padding: 2px 6px;">UNAVAILABLE</span>` : ''}
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <img src="${item.image_url || '/images/menu/fallbacks/food.webp'}" alt="${item.name}" style="width: 38px; height: 38px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border-subtle); flex-shrink: 0; background: #faf8f5;" onerror="this.src='/images/menu/fallbacks/food.webp'">
+            <div>
+              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <span class="badge-diet ${dietClass}"></span>
+                <strong>${item.name}</strong>
+                ${!item.is_available ? `<span class="pill pill-unavailable" style="font-size: 0.72rem; padding: 2px 6px;">UNAVAILABLE</span>` : ''}
+              </div>
+              ${item.verification_note ? `<div class="verification-alert">⚠️ ${item.verification_note}</div>` : ''}
+              ${!item.is_active ? `<span class="pill pill-unavailable" style="margin-top: 4px;">ARCHIVED</span>` : ''}
+            </div>
           </div>
-          ${item.verification_note ? `<div class="verification-alert">⚠️ ${item.verification_note}</div>` : ''}
-          ${!item.is_active ? `<span class="pill pill-unavailable" style="margin-top: 4px;">ARCHIVED</span>` : ''}
         </td>
         <td>${cat ? cat.name : '--'}</td>
         <td><span class="pill pill-${dietClass}">${dietLabel}</span></td>
@@ -699,6 +860,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       newCategoryName.value = '';
     }
 
+    selectedImageBase64 = null;
+    selectedImageFilename = null;
+
     if (item) {
       menuModalTitle.textContent = `Edit "${item.name}"`;
       modalItemId.value = item.id;
@@ -708,6 +872,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       modalItemType.value = item.food_type;
       modalItemDesc.value = item.description || '';
       modalVerificationNote.value = item.verification_note || '';
+
+      if (item.image_url && item.image_url.trim().length > 0) {
+        setModalImagePreview(item.image_url, 'Current photo');
+        if (modalItemImageUrl) {
+          modalItemImageUrl.value = item.image_url.startsWith('http') ? item.image_url : '';
+        }
+      } else {
+        setModalImagePreview(null);
+      }
     } else {
       menuModalTitle.textContent = 'Add New Menu Item';
       modalItemId.value = '';
@@ -717,6 +890,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       modalItemType.value = 'VEG';
       modalItemDesc.value = '';
       modalVerificationNote.value = '';
+      setModalImagePreview(null);
     }
     menuItemModal.classList.add('active');
   }

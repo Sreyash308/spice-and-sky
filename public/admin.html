@@ -302,6 +302,44 @@
           <textarea id="modalItemDesc" class="form-textarea" placeholder="Brief appetizing description..."></textarea>
         </div>
 
+        <!-- Item Image Upload & Update Section -->
+        <div class="form-group" style="background: var(--bg-card-subtle); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 16px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+            <label class="form-label" style="margin-bottom: 0; font-weight: 700;">Item Image</label>
+            <span id="modalImageStatusBadge" style="font-size: 0.76rem; color: var(--text-muted); background: rgba(0,0,0,0.04); padding: 2px 8px; border-radius: var(--radius-full);">Default category fallback</span>
+          </div>
+
+          <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+            <!-- Thumbnail Preview -->
+            <div id="modalImagePreviewBox" style="width: 84px; height: 84px; border-radius: var(--radius-sm); border: 1.5px dashed var(--border-medium); background: #ffffff; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; flex-shrink: 0; box-shadow: var(--shadow-sm);">
+              <img id="modalImagePreview" src="/images/menu/fallbacks/food.webp" alt="Preview" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+              <span id="modalImagePlaceholder" style="font-size: 1.8rem; color: #94a3b8;">📷</span>
+            </div>
+
+            <!-- Action buttons & controls -->
+            <div style="flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <input type="file" id="modalItemImageFile" accept="image/png, image/jpeg, image/webp, image/gif" style="display: none;">
+                <button type="button" class="btn btn-secondary" id="modalChooseImageBtn" style="padding: 6px 14px; font-size: 0.84rem; display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
+                  <span>📁</span> <span id="modalChooseImageText">Upload Image</span>
+                </button>
+                <button type="button" class="btn btn-secondary" id="modalRemoveImageBtn" style="padding: 6px 12px; font-size: 0.82rem; color: #dc2626; border-color: #fca5a5; display: none;">
+                  <span>✕</span> Remove
+                </button>
+              </div>
+
+              <!-- Direct URL input -->
+              <div>
+                <input type="url" id="modalItemImageUrl" class="form-input" placeholder="Or enter image URL (https://...)" style="font-size: 0.82rem; padding: 6px 10px;">
+              </div>
+              <span style="font-size: 0.72rem; color: var(--text-muted);">Supports PNG, JPG, WebP. Auto-optimized &amp; stored permanently.</span>
+            </div>
+          </div>
+
+          <!-- Hidden storage for final resolved image_url -->
+          <input type="hidden" id="modalItemImageValue" value="">
+        </div>
+
         <div class="form-group">
           <label class="form-label" for="modalVerificationNote">Owner Verification Note (Optional)</label>
           <input type="text" id="modalVerificationNote" class="form-input" placeholder="e.g. Flagged for review">

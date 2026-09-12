@@ -501,6 +501,7 @@ class CafeStore extends EventEmitter {
     if (updates.is_available !== undefined) item.is_available = Boolean(updates.is_available);
     if (updates.is_active !== undefined) item.is_active = Boolean(updates.is_active);
     if (updates.verification_note !== undefined) item.verification_note = updates.verification_note;
+    if (updates.image_url !== undefined) item.image_url = updates.image_url ? updates.image_url.trim() : null;
 
     item.updated_at = new Date().toISOString();
 
@@ -517,6 +518,7 @@ class CafeStore extends EventEmitter {
       description: itemData.description ? itemData.description.trim() : '',
       price: Number(itemData.price) || 0,
       food_type: itemData.food_type || 'VEG',
+      image_url: itemData.image_url ? itemData.image_url.trim() : null,
       is_available: itemData.is_available !== undefined ? Boolean(itemData.is_available) : true,
       is_active: itemData.is_active !== undefined ? Boolean(itemData.is_active) : true,
       display_order: itemData.display_order !== undefined ? itemData.display_order : (this.menuItems.length + 1),

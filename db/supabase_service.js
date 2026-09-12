@@ -288,6 +288,7 @@ module.exports = {
           description: itemData.description || '',
           price: Number(itemData.price) || 0,
           food_type: itemData.food_type || 'VEG',
+          image_url: itemData.image_url || null,
           is_available: true,
           is_active: true,
           verification_note: itemData.verification_note || null
@@ -457,6 +458,55 @@ module.exports = {
   // Get Analytics
   async getAnalytics() {
     return localStore.getAnalytics();
+  },
+
+  // Upload Menu Item Image to Supabase Storage with local filesystem fallback
+  async uploadMenuItemImage(filename, buffer, contentType = 'image/webp') {
+    if (isConfigured) {
+      try {
+        const cleanName = filename
+          .toLowerCase()
+          .replace(/[^a-z0-9.-]+/g, '-')
+          .replace(/^-+|-+$/g, '');
+        const storagePath = `uploads/${Date.now()}-${cleanName}`;
+
+        const { data, error } = await supabase.storage
+          .from('menu-items')
+          .upload(storagePath, buffer, {
+            contentType,
+            upsert: true
+          });
+
+        if (!error && data) {
+          const { data: publicData } = supabase.storage
+            .from('menu-items')
+            .getPublicUrl(storagePath);
+          return { success: true, image_url: publicData.publicUrl };
+        } else if (error) {
+          console.warn('Supabase storage upload error:', error.message);
+        }
+      } catch (err) {
+        console.warn('Supabase storage upload exception:', err.message);
+      }
+    }
+
+    // Local filesystem fallback
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const uploadDir = path.join(__dirname, '..', 'public', 'images', 'menu', 'uploads');
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      const cleanName = filename.toLowerCase().replace(/[^a-z0-9.-]+/g, '-');
+      const safeFilename = `${Date.now()}-${cleanName}`;
+      const fullPath = path.join(uploadDir, safeFilename);
+      fs.writeFileSync(fullPath, buffer);
+      return { success: true, image_url: `/images/menu/uploads/${safeFilename}` };
+    } catch (fsErr) {
+      console.error('Local image save error:', fsErr.message);
+      throw new Error(`Failed to upload image: ${fsErr.message}`);
+    }
   }
 };
 
