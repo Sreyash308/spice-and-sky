@@ -626,7 +626,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               ? `<button type="button" class="btn btn-danger archive-item-btn" style="padding: 4px 8px; font-size: 0.8rem;">Archive</button>`
               : `
                 <button type="button" class="btn btn-primary restore-item-btn" style="padding: 4px 8px; font-size: 0.8rem;">Restore</button>
-                <button type="button" class="btn btn-danger delete-item-btn" style="padding: 4px 8px; font-size: 0.8rem; background: #dc2626; border-color: #dc2626;" title="Permanently delete from database">Delete</button>
+                <button type="button" class="btn delete-item-btn" style="padding: 4px 10px; font-size: 0.8rem; background: #ef4444; color: #ffffff; border: 1px solid #dc2626; font-weight: 700;" title="Permanently delete from database">Delete</button>
               `
             }
           </div>

@@ -477,3 +477,26 @@ input:checked + .slider:before {
   margin-top: 5px;
   font-weight: 500;
 }
+
+/* Permanent Delete Button - Vibrant High-Visibility Red with Crisp White Text */
+.delete-item-btn {
+  background: #ef4444 !important;
+  color: #ffffff !important;
+  border: 1px solid #dc2626 !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.2px;
+  box-shadow: 0 1px 3px rgba(239, 68, 68, 0.25);
+  transition: all 0.15s ease;
+}
+
+.delete-item-btn:hover {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  border-color: #b91c1c !important;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.4);
+  transform: translateY(-1px);
+}
+
+.delete-item-btn:active {
+  transform: translateY(0);
+}
