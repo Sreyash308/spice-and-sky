@@ -3,9 +3,12 @@
   "rewrites": [
     { "source": "/", "destination": "/menu.html" },
     { "source": "/menu", "destination": "/menu.html" },
-    { "source": "/waiter", "destination": "/waiter.html" },
+    { "source": "/admin/login", "destination": "/admin-login.html" },
+    { "source": "/waiter/login", "destination": "/waiter-login.html" },
     { "source": "/admin/:path*", "destination": "/admin.html" },
     { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/waiter/:path*", "destination": "/waiter.html" },
+    { "source": "/waiter", "destination": "/waiter.html" },
     { "source": "/api/:path*", "destination": "/api/index.js" }
   ],
   "functions": {

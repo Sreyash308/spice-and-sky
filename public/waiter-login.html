@@ -124,7 +124,9 @@
       // If already logged in as WAITER, redirect directly to /waiter
       const existingUser = SpiceClient.getStoredUser();
       if (existingUser && existingUser.role === 'WAITER') {
-        window.location.href = '/waiter';
+        if (window.location.pathname !== '/waiter') {
+          window.location.href = '/waiter';
+        }
         return;
       }
 

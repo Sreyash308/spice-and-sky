@@ -217,11 +217,15 @@ window.SpiceClient = (function () {
   function requireRole(requiredRole, redirectPath) {
     const user = getStoredUser();
     if (!user) {
-      window.location.href = redirectPath;
+      if (window.location.pathname !== redirectPath) {
+        window.location.href = redirectPath;
+      }
       return null;
     }
     if (requiredRole === 'ADMIN' && user.role !== 'ADMIN') {
-      window.location.href = redirectPath;
+      if (window.location.pathname !== redirectPath) {
+        window.location.href = redirectPath;
+      }
       return null;
     }
     return user;

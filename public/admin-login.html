@@ -109,7 +109,9 @@
       // If already logged in as ADMIN, redirect to /admin
       const user = SpiceClient.getStoredUser();
       if (user && user.role === 'ADMIN') {
-        window.location.href = '/admin';
+        if (window.location.pathname !== '/admin') {
+          window.location.href = '/admin';
+        }
         return;
       }
 
