@@ -39,6 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const tablesGrid = document.getElementById('tablesGrid');
   const activeTableCallout = document.getElementById('activeTableCallout');
   const waiterSearchInput = document.getElementById('waiterSearchInput');
+  const clearSearchBtn = document.getElementById('clearSearchBtn');
   const waiterCategoriesNav = document.getElementById('waiterCategoriesNav');
   const waiterCatalog = document.getElementById('waiterCatalog');
 
@@ -109,10 +110,36 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Search & Filter Events
-  waiterSearchInput.addEventListener('input', (e) => {
-    searchQuery = e.target.value.trim().toLowerCase();
+  function handleSearch(val) {
+    searchQuery = (val || '').trim();
+    if (clearSearchBtn) {
+      clearSearchBtn.style.display = searchQuery ? 'flex' : 'none';
+    }
+    // When typing a search query, switch category view to ALL so search scans entire menu
+    if (searchQuery && currentCategory !== 'ALL') {
+      currentCategory = 'ALL';
+      document.querySelectorAll('.waiter-cat-pill').forEach(p => {
+        p.classList.toggle('active', p.getAttribute('data-cat') === 'ALL');
+      });
+    }
     renderCatalog();
+  }
+
+  waiterSearchInput.addEventListener('input', (e) => {
+    handleSearch(e.target.value);
   });
+
+  waiterSearchInput.addEventListener('search', (e) => {
+    handleSearch(e.target.value);
+  });
+
+  if (clearSearchBtn) {
+    clearSearchBtn.addEventListener('click', () => {
+      waiterSearchInput.value = '';
+      handleSearch('');
+      waiterSearchInput.focus();
+    });
+  }
 
   // Drawer Events
   orderPeekTrigger.addEventListener('click', () => openDrawer());
@@ -171,6 +198,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const allBtn = document.createElement('button');
     allBtn.className = `waiter-cat-pill ${currentCategory === 'ALL' ? 'active' : ''}`;
+    allBtn.setAttribute('data-cat', 'ALL');
     allBtn.textContent = 'All Categories';
     allBtn.addEventListener('click', () => {
       currentCategory = 'ALL';
@@ -183,6 +211,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     categories.forEach(cat => {
       const pill = document.createElement('button');
       pill.className = `waiter-cat-pill ${currentCategory === cat.id ? 'active' : ''}`;
+      pill.setAttribute('data-cat', cat.id);
       pill.textContent = cat.name;
       pill.addEventListener('click', () => {
         currentCategory = cat.id;
@@ -194,46 +223,184 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // --- Search Normalization & Fuzzy Token Matching ---
+  function normalizeText(str) {
+    if (!str) return '';
+    return str
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/&/g, 'and')
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function getCategoryName(catId) {
+    const cat = categories.find(c => c.id === catId);
+    return cat ? cat.name : '';
+  }
+
+  function getItemSearchIndex(item) {
+    if (item._searchIndex) return item._searchIndex;
+
+    const catName = getCategoryName(item.category_id);
+    const variants = (item.menu_item_variants || []).map(v => v.name).join(' ');
+
+    const aliases = [];
+    if (item.food_type === 'VEG') aliases.push('veg', 'vegetarian');
+    if (item.food_type === 'NON_VEG') aliases.push('non veg', 'nonveg', 'chicken', 'egg', 'meat');
+    if (item.food_type === 'DRINK') aliases.push('drink', 'beverage', 'cooler', 'coffee');
+
+    const catLower = catName.toLowerCase();
+    if (catLower.includes('hot')) aliases.push('hot');
+    if (catLower.includes('iced')) aliases.push('iced', 'cold');
+    if (catLower.includes('pizza')) aliases.push('pizza', 'pizzas');
+    if (catLower.includes('pasta')) aliases.push('pasta', 'pastas');
+    if (catLower.includes('burger')) aliases.push('burger', 'burgers');
+    if (catLower.includes('starter')) aliases.push('starter', 'starters', 'appetizer', 'snack');
+    if (catLower.includes('shake')) aliases.push('shake', 'milkshake', 'smoothie');
+    if (catLower.includes('mojito')) aliases.push('mojito', 'cooler', 'mocktail');
+    if (catLower.includes('rice')) aliases.push('rice', 'bowl', 'fried rice');
+    if (catLower.includes('fries')) aliases.push('fries', 'french fries', 'potato');
+
+    const rawCombined = [
+      item.name,
+      catName,
+      aliases.join(' '),
+      variants,
+      item.description || ''
+    ].join(' ');
+
+    item._searchIndex = {
+      normalizedName: normalizeText(item.name),
+      normalizedCat: normalizeText(catName),
+      normalizedCombined: normalizeText(rawCombined),
+      catName
+    };
+
+    return item._searchIndex;
+  }
+
+  function matchItem(item, query) {
+    if (!query) return { matches: true, score: 0 };
+
+    const normQuery = normalizeText(query);
+    if (!normQuery) return { matches: true, score: 0 };
+
+    const tokens = normQuery.split(' ').filter(Boolean);
+    if (tokens.length === 0) return { matches: true, score: 0 };
+
+    const idx = getItemSearchIndex(item);
+
+    // Every token must match somewhere in the combined index
+    for (const token of tokens) {
+      if (!idx.normalizedCombined.includes(token)) {
+        return { matches: false, score: 0 };
+      }
+    }
+
+    // Calculate relevance score
+    let score = 0;
+
+    // Exact full name match
+    if (idx.normalizedName === normQuery) {
+      score += 100;
+    } else if (idx.normalizedName.startsWith(normQuery)) {
+      score += 80;
+    } else if (idx.normalizedName.includes(normQuery)) {
+      score += 60;
+    }
+
+    // Token positions in name & category
+    const nameWords = idx.normalizedName.split(' ');
+    tokens.forEach(token => {
+      if (nameWords.includes(token)) score += 30;
+      else if (idx.normalizedName.includes(token)) score += 15;
+
+      if (idx.normalizedCat.includes(token)) score += 10;
+    });
+
+    return { matches: true, score };
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>"']/g, m => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    }[m]));
+  }
+
   function renderCatalog() {
     waiterCatalog.innerHTML = '';
 
     const currentOrder = tableOrders[activeTable] || [];
+    const hasSearch = Boolean(searchQuery && searchQuery.length > 0);
 
-    const filtered = menuItems.filter(item => {
-      if (currentCategory !== 'ALL' && item.category_id !== currentCategory) return false;
-      if (searchQuery) {
-        const matchName = item.name.toLowerCase().includes(searchQuery);
-        const matchDesc = (item.description || '').toLowerCase().includes(searchQuery);
-        if (!matchName && !matchDesc) return false;
+    const scored = [];
+    menuItems.forEach(item => {
+      if (currentCategory !== 'ALL' && item.category_id !== currentCategory) {
+        return;
       }
-      return true;
+
+      if (hasSearch) {
+        const { matches, score } = matchItem(item, searchQuery);
+        if (matches) {
+          scored.push({ item, score });
+        }
+      } else {
+        scored.push({ item, score: 0 });
+      }
     });
 
-    if (filtered.length === 0) {
+    if (scored.length === 0) {
       waiterCatalog.innerHTML = `
-        <div style="text-align: center; padding: 32px 16px; color: var(--text-muted);">
-          <p>No items found for this search or category.</p>
+        <div class="waiter-search-empty">
+          <div style="font-size: 2.2rem; margin-bottom: 8px;">🔍</div>
+          <h4>No dishes found ${hasSearch ? `matching "${escapeHtml(searchQuery)}"` : 'in this category'}</h4>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
+            ${hasSearch ? 'Try a shorter keyword like "rice", "pizza", "coffee", or "pasta".' : 'Select another category above.'}
+          </p>
+          ${hasSearch ? '<button type="button" class="btn btn-secondary btn-sm" id="emptyClearSearchBtn" style="margin-top: 14px; padding: 6px 16px;">Clear Search</button>' : ''}
         </div>`;
+
+      const emptyClearBtn = document.getElementById('emptyClearSearchBtn');
+      if (emptyClearBtn) {
+        emptyClearBtn.addEventListener('click', () => {
+          waiterSearchInput.value = '';
+          handleSearch('');
+          waiterSearchInput.focus();
+        });
+      }
       return;
     }
 
-    // Sort items for waiter: AVAILABLE items first, UNAVAILABLE at the bottom
-    filtered.sort((a, b) => {
-      const aAvail = a.is_available ? 1 : 0;
-      const bAvail = b.is_available ? 1 : 0;
+    // Sort items for waiter: AVAILABLE items first, UNAVAILABLE at the bottom.
+    // If searching, sort by highest relevance score first.
+    scored.sort((a, b) => {
+      const aAvail = a.item.is_available ? 1 : 0;
+      const bAvail = b.item.is_available ? 1 : 0;
       if (aAvail !== bAvail) {
         return bAvail - aAvail;
       }
-      return a.name.localeCompare(b.name);
+      if (hasSearch && b.score !== a.score) {
+        return b.score - a.score;
+      }
+      return a.item.name.localeCompare(b.item.name);
     });
 
-    filtered.forEach(item => {
+    scored.forEach(({ item }) => {
       const card = document.createElement('div');
       const isUnavailable = !item.is_available;
       card.className = `waiter-item-card ${isUnavailable ? 'disabled' : ''}`;
 
       const variants = item.menu_item_variants || [];
       const hasVariants = variants.length > 0;
+      const catName = getCategoryName(item.category_id);
 
       // Calculate quantity currently ordered for this item
       let qtyInOrder = 0;
@@ -264,8 +431,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             <span class="badge-diet ${dietClass}"></span>
             <span class="waiter-item-title">${item.name}</span>
           </div>
-          <div class="waiter-item-price">${displayPrice} ${hasVariants ? '<span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">(Choose size)</span>' : ''}</div>
-          ${isUnavailable ? '<span style="color: #ef4444; font-size: 0.75rem; font-weight: 700;">UNAVAILABLE</span>' : ''}
+          <div class="waiter-item-meta-row">
+            <span class="waiter-item-price">${displayPrice} ${hasVariants ? '<span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">(Choose size)</span>' : ''}</span>
+            ${catName ? `<span class="waiter-item-cat-badge">${catName}</span>` : ''}
+          </div>
+          ${isUnavailable ? '<span style="color: #ef4444; font-size: 0.75rem; font-weight: 700; display: inline-block; margin-top: 4px;">UNAVAILABLE</span>' : ''}
         </div>
         <div class="waiter-item-action" id="action-wrap-${item.id}">
         </div>

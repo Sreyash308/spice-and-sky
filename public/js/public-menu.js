@@ -93,6 +93,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   function renderCatalog() {
     catalogContainer.innerHTML = '';
 
+    const normQuery = searchQuery
+      ? searchQuery.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim()
+      : '';
+    const tokens = normQuery ? normQuery.split(' ').filter(Boolean) : [];
+
     // Filter items
     const filteredItems = menuItems.filter(item => {
       // Dietary filter
@@ -100,11 +105,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (currentDietFilter === 'NON_VEG' && item.food_type !== 'NON_VEG') return false;
       if (currentDietFilter === 'DRINK' && item.food_type !== 'DRINK') return false;
 
-      // Search query
-      if (searchQuery) {
-        const matchName = item.name.toLowerCase().includes(searchQuery);
-        const matchDesc = (item.description || '').toLowerCase().includes(searchQuery);
-        if (!matchName && !matchDesc) return false;
+      // Smart multi-token search query
+      if (tokens.length > 0) {
+        const cat = categories.find(c => c.id === item.category_id);
+        const catName = cat ? cat.name : '';
+        const combined = `${item.name} ${catName} ${item.description || ''} ${item.food_type || ''}`
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+          .replace(/&/g, 'and')
+          .replace(/[^a-z0-9\s]/g, ' ')
+          .replace(/\s+/g, ' ');
+
+        for (const token of tokens) {
+          if (!combined.includes(token)) return false;
+        }
       }
 
       return true;
