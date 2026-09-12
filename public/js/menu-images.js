@@ -220,6 +220,12 @@
 };
 
   const CATEGORY_FALLBACKS = {
+    "Main Course — Veg": "/images/menu/fallbacks/food.webp",
+    "Main Course — Non-Veg": "/images/menu/fallbacks/food.webp",
+    "Rice Bowls": "/images/menu/fallbacks/food.webp",
+    "Fried Rice": "/images/menu/fallbacks/food.webp",
+    "Toasts": "/images/menu/fallbacks/food.webp",
+    "French Fries": "/images/menu/fallbacks/food.webp",
     "Pizzas — Veg": "/images/menu/fallbacks/pizza.webp",
     "Pizzas — Non-Veg": "/images/menu/fallbacks/pizza.webp",
     "Pastas — Veg": "/images/menu/fallbacks/pasta.webp",
@@ -232,7 +238,11 @@
     "Milkshakes": "/images/menu/fallbacks/drink.webp",
     "Mojitos": "/images/menu/fallbacks/drink.webp",
     "Beverages": "/images/menu/fallbacks/drink.webp",
-    "Coffee Extras": "/images/menu/fallbacks/drink.webp"
+    "Coffee Extras": "/images/menu/fallbacks/drink.webp",
+    "Starters — Veg": "/images/menu/fallbacks/food.webp",
+    "Starters — Non-Veg": "/images/menu/fallbacks/food.webp",
+    "Extras / Sides": "/images/menu/fallbacks/food.webp",
+    "Specials": "/images/menu/fallbacks/food.webp"
   };
 
   const TYPE_FALLBACKS = {

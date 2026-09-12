@@ -33,18 +33,18 @@ BEGIN
   -- ----------------------------------------------------------
   INSERT INTO public.menu_categories (name, slug, display_order)
   VALUES
-    ('Rice Bowls', 'rice-bowls', 1),
-    ('Extras / Sides', 'extras-sides', 2),
-    ('Specials', 'specials', 3),
-    ('Starters — Veg', 'starters-veg', 4),
-    ('Pizzas — Veg', 'pizzas-veg', 5),
-    ('Starters — Non-Veg', 'starters-non-veg', 6),
-    ('Pizzas — Non-Veg', 'pizzas-non-veg', 7),
-    ('Pastas — Veg', 'pastas-veg', 8),
-    ('Pastas — Non-Veg', 'pastas-non-veg', 9),
-    ('French Fries', 'french-fries', 10),
-    ('Burgers — Veg', 'burgers-veg', 11),
-    ('Burgers — Non-Veg', 'burgers-non-veg', 12),
+    ('Main Course — Veg', 'main-course-veg', 1),
+    ('Main Course — Non-Veg', 'main-course-non-veg', 2),
+    ('Rice Bowls', 'rice-bowls', 3),
+    ('Pastas — Veg', 'pastas-veg', 4),
+    ('Pastas — Non-Veg', 'pastas-non-veg', 5),
+    ('French Fries', 'french-fries', 6),
+    ('Pizzas — Veg', 'pizzas-veg', 7),
+    ('Pizzas — Non-Veg', 'pizzas-non-veg', 8),
+    ('Burgers — Veg', 'burgers-veg', 9),
+    ('Burgers — Non-Veg', 'burgers-non-veg', 10),
+    ('Fried Rice', 'fried-rice', 11),
+    ('Toasts', 'toasts', 12),
     ('Hot Coffee', 'hot-coffee', 13),
     ('Iced Coffee', 'iced-coffee', 14),
     ('Coffee Extras', 'coffee-extras', 15),
@@ -55,12 +55,12 @@ BEGIN
   SET name = EXCLUDED.name, display_order = EXCLUDED.display_order;
 
   -- Cache Category IDs
-  SELECT id INTO v_cat_rice FROM public.menu_categories WHERE slug = 'rice-bowls';
-  SELECT id INTO v_cat_extras FROM public.menu_categories WHERE slug = 'extras-sides';
-  SELECT id INTO v_cat_specials FROM public.menu_categories WHERE slug = 'specials';
-  SELECT id INTO v_cat_starters_veg FROM public.menu_categories WHERE slug = 'starters-veg';
+  SELECT id INTO v_cat_rice FROM public.menu_categories WHERE slug = 'fried-rice';
+  SELECT id INTO v_cat_extras FROM public.menu_categories WHERE slug = 'toasts';
+  SELECT id INTO v_cat_specials FROM public.menu_categories WHERE slug = 'rice-bowls';
+  SELECT id INTO v_cat_starters_veg FROM public.menu_categories WHERE slug = 'main-course-veg';
   SELECT id INTO v_cat_pizzas_veg FROM public.menu_categories WHERE slug = 'pizzas-veg';
-  SELECT id INTO v_cat_starters_nonveg FROM public.menu_categories WHERE slug = 'starters-non-veg';
+  SELECT id INTO v_cat_starters_nonveg FROM public.menu_categories WHERE slug = 'main-course-non-veg';
   SELECT id INTO v_cat_pizzas_nonveg FROM public.menu_categories WHERE slug = 'pizzas-non-veg';
   SELECT id INTO v_cat_pastas_veg FROM public.menu_categories WHERE slug = 'pastas-veg';
   SELECT id INTO v_cat_pastas_nonveg FROM public.menu_categories WHERE slug = 'pastas-non-veg';
@@ -137,7 +137,7 @@ BEGIN
   WHERE NOT EXISTS (SELECT 1 FROM public.menu_items WHERE category_id = v_cat_extras AND name = 'Avocado Strawberry Toss');
 
   -- ----------------------------------------------------------
-  -- CATEGORY 3: SPECIALS
+  -- CATEGORY 3: RICE BOWLS (formerly Specials)
   -- ----------------------------------------------------------
   INSERT INTO public.menu_items (category_id, name, description, price, food_type, display_order)
   SELECT v_cat_specials, 'Grilled Chicken with Brown Sauce', 'Rice, vegetables, salsa, cashews and brownies.', 320, 'NON_VEG', 1
@@ -147,12 +147,8 @@ BEGIN
   SELECT v_cat_specials, 'Grilled Chicken with Lemon Butter Sauce', 'Mashed potatoes, vegetables, grilled chicken and lemon butter sauce.', 360, 'NON_VEG', 2
   WHERE NOT EXISTS (SELECT 1 FROM public.menu_items WHERE category_id = v_cat_specials AND name = 'Grilled Chicken with Lemon Butter Sauce');
 
-  INSERT INTO public.menu_items (category_id, name, description, price, food_type, display_order)
-  SELECT v_cat_specials, 'Lasagne', 'A dish made with multiple layers of pasta sheets, filled with vegetables or mixed chicken, baked and served with a combination of white and red sauce.', 355, 'NON_VEG', 3
-  WHERE NOT EXISTS (SELECT 1 FROM public.menu_items WHERE category_id = v_cat_specials AND name = 'Lasagne');
-
   -- ----------------------------------------------------------
-  -- CATEGORY 4: STARTERS — VEG
+  -- CATEGORY 4: MAIN COURSE — VEG (formerly Starters — Veg)
   -- ----------------------------------------------------------
   INSERT INTO public.menu_items (category_id, name, description, price, food_type, display_order)
   SELECT v_cat_starters_veg, 'Chilli Potato', 'Potatoes blended in honey and chilli sauce.', 199, 'VEG', 1
@@ -371,8 +367,12 @@ BEGIN
   SELECT v_cat_pastas_nonveg, 'Butter Chicken Sauce Pasta', 'Penne pasta served with traditional butter chicken gravy sauce.', 349, 'NON_VEG', 5
   WHERE NOT EXISTS (SELECT 1 FROM public.menu_items WHERE category_id = v_cat_pastas_nonveg AND name = 'Butter Chicken Sauce Pasta');
 
+  INSERT INTO public.menu_items (category_id, name, description, price, food_type, display_order)
+  SELECT v_cat_pastas_nonveg, 'Lasagne', 'A dish made with multiple layers of pasta sheets, filled with vegetables or mixed chicken, baked and served with a combination of white and red sauce.', 355, 'NON_VEG', 6
+  WHERE NOT EXISTS (SELECT 1 FROM public.menu_items WHERE category_id = v_cat_pastas_nonveg AND name = 'Lasagne');
+
   -- ----------------------------------------------------------
-  -- CATEGORY 10: FRENCH FRIES
+  -- CATEGORY 6: FRENCH FRIES
   -- ----------------------------------------------------------
   INSERT INTO public.menu_items (category_id, name, description, price, food_type, display_order)
   SELECT v_cat_fries, 'Peri Peri Fries', 'Crispy golden fries tossed in fiery Peri Peri spice blend.', 160, 'VEG', 1

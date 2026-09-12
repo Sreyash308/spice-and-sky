@@ -29,9 +29,76 @@ console.log('============================================================\n');
 // TEST SUITE 1: MENU ARCHITECTURE & COMPLETENESS
 console.log('--- Test Suite 1: Menu Architecture & Completeness ---');
 
-runTest('Exactly 18 Menu Categories Exist', () => {
+runTest('Exactly 18 Menu Categories Exist in Prioritized Sequence', () => {
   const cats = store.getCategories();
   assert.strictEqual(cats.length, 18, `Expected 18 categories, got ${cats.length}`);
+
+  const expectedOrder = [
+    { name: 'Main Course — Veg', slug: 'main-course-veg', order: 1 },
+    { name: 'Main Course — Non-Veg', slug: 'main-course-non-veg', order: 2 },
+    { name: 'Rice Bowls', slug: 'rice-bowls', order: 3 },
+    { name: 'Pastas — Veg', slug: 'pastas-veg', order: 4 },
+    { name: 'Pastas — Non-Veg', slug: 'pastas-non-veg', order: 5 },
+    { name: 'French Fries', slug: 'french-fries', order: 6 },
+    { name: 'Pizzas — Veg', slug: 'pizzas-veg', order: 7 },
+    { name: 'Pizzas — Non-Veg', slug: 'pizzas-non-veg', order: 8 },
+    { name: 'Burgers — Veg', slug: 'burgers-veg', order: 9 },
+    { name: 'Burgers — Non-Veg', slug: 'burgers-non-veg', order: 10 },
+    { name: 'Fried Rice', slug: 'fried-rice', order: 11 },
+    { name: 'Toasts', slug: 'toasts', order: 12 },
+    { name: 'Hot Coffee', slug: 'hot-coffee', order: 13 },
+    { name: 'Iced Coffee', slug: 'iced-coffee', order: 14 },
+    { name: 'Coffee Extras', slug: 'coffee-extras', order: 15 },
+    { name: 'Milkshakes', slug: 'milkshakes', order: 16 },
+    { name: 'Signature Coffee Drinks', slug: 'signature-coffee-drinks', order: 17 },
+    { name: 'Mojitos', slug: 'mojitos', order: 18 }
+  ];
+
+  expectedOrder.forEach((expected, idx) => {
+    assert.strictEqual(cats[idx].name, expected.name, `Category at index ${idx} expected ${expected.name}, got ${cats[idx].name}`);
+    assert.strictEqual(cats[idx].slug, expected.slug, `Category at index ${idx} expected slug ${expected.slug}, got ${cats[idx].slug}`);
+    assert.strictEqual(cats[idx].display_order, expected.order, `Category at index ${idx} expected display_order ${expected.order}`);
+  });
+});
+
+runTest('Lasagne is Placed in Pastas — Non-Veg at ₹355', () => {
+  const items = store.getMenuItems();
+  const lasagne = items.find(i => i.name === 'Lasagne');
+  assert(lasagne, 'Lasagne must exist');
+  assert.strictEqual(lasagne.category_slug, 'pastas-non-veg', `Lasagne category_slug should be pastas-non-veg, got ${lasagne.category_slug}`);
+  assert.strictEqual(lasagne.price, 355, `Lasagne price should be 355, got ${lasagne.price}`);
+  assert.strictEqual(lasagne.food_type, 'NON_VEG', 'Lasagne food_type should be NON_VEG');
+});
+
+runTest('Renamed Categories Contain Expected Items', () => {
+  const items = store.getMenuItems();
+
+  // Fried Rice (formerly Rice Bowls)
+  const friedRiceItems = items.filter(i => i.category_slug === 'fried-rice');
+  assert.strictEqual(friedRiceItems.length, 9, `Fried Rice should have 9 items, got ${friedRiceItems.length}`);
+  assert(friedRiceItems.some(i => i.name === 'Veg Fried Rice'));
+  assert(friedRiceItems.some(i => i.name === 'Chicken Fried Rice'));
+
+  // Rice Bowls (formerly Specials)
+  const riceBowlItems = items.filter(i => i.category_slug === 'rice-bowls');
+  assert.strictEqual(riceBowlItems.length, 2, `Rice Bowls should have 2 items, got ${riceBowlItems.length}`);
+  assert(riceBowlItems.some(i => i.name === 'Grilled Chicken with Brown Sauce'));
+  assert(riceBowlItems.some(i => i.name === 'Grilled Chicken with Lemon Butter Sauce'));
+
+  // Toasts (formerly Extras / Sides)
+  const toastItems = items.filter(i => i.category_slug === 'toasts');
+  assert.strictEqual(toastItems.length, 5, `Toasts should have 5 items, got ${toastItems.length}`);
+  assert(toastItems.some(i => i.name === 'Cheesy Garlic Bread'));
+
+  // Main Course — Veg (formerly Starters — Veg)
+  const mainVegItems = items.filter(i => i.category_slug === 'main-course-veg');
+  assert.strictEqual(mainVegItems.length, 7, `Main Course — Veg should have 7 items, got ${mainVegItems.length}`);
+  assert(mainVegItems.some(i => i.name === 'Chilli Paneer'));
+
+  // Main Course — Non-Veg (formerly Starters — Non-Veg)
+  const mainNonVegItems = items.filter(i => i.category_slug === 'main-course-non-veg');
+  assert.strictEqual(mainNonVegItems.length, 7, `Main Course — Non-Veg should have 7 items, got ${mainNonVegItems.length}`);
+  assert(mainNonVegItems.some(i => i.name === 'Chilli Chicken'));
 });
 
 runTest('All 80+ Menu Items are Seeded and Active', () => {

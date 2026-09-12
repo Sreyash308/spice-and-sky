@@ -45,20 +45,20 @@ class CafeStore extends EventEmitter {
   }
 
   initDefaultData() {
-    // 18 Categories exactly as specified
+    // 18 Categories prioritized in exact specified order
     const categoryDefs = [
-      { name: 'Rice Bowls', slug: 'rice-bowls', display_order: 1 },
-      { name: 'Extras / Sides', slug: 'extras-sides', display_order: 2 },
-      { name: 'Specials', slug: 'specials', display_order: 3 },
-      { name: 'Starters — Veg', slug: 'starters-veg', display_order: 4 },
-      { name: 'Pizzas — Veg', slug: 'pizzas-veg', display_order: 5 },
-      { name: 'Starters — Non-Veg', slug: 'starters-non-veg', display_order: 6 },
-      { name: 'Pizzas — Non-Veg', slug: 'pizzas-non-veg', display_order: 7 },
-      { name: 'Pastas — Veg', slug: 'pastas-veg', display_order: 8 },
-      { name: 'Pastas — Non-Veg', slug: 'pastas-non-veg', display_order: 9 },
-      { name: 'French Fries', slug: 'french-fries', display_order: 10 },
-      { name: 'Burgers — Veg', slug: 'burgers-veg', display_order: 11 },
-      { name: 'Burgers — Non-Veg', slug: 'burgers-non-veg', display_order: 12 },
+      { name: 'Main Course — Veg', slug: 'main-course-veg', display_order: 1 },
+      { name: 'Main Course — Non-Veg', slug: 'main-course-non-veg', display_order: 2 },
+      { name: 'Rice Bowls', slug: 'rice-bowls', display_order: 3 },
+      { name: 'Pastas — Veg', slug: 'pastas-veg', display_order: 4 },
+      { name: 'Pastas — Non-Veg', slug: 'pastas-non-veg', display_order: 5 },
+      { name: 'French Fries', slug: 'french-fries', display_order: 6 },
+      { name: 'Pizzas — Veg', slug: 'pizzas-veg', display_order: 7 },
+      { name: 'Pizzas — Non-Veg', slug: 'pizzas-non-veg', display_order: 8 },
+      { name: 'Burgers — Veg', slug: 'burgers-veg', display_order: 9 },
+      { name: 'Burgers — Non-Veg', slug: 'burgers-non-veg', display_order: 10 },
+      { name: 'Fried Rice', slug: 'fried-rice', display_order: 11 },
+      { name: 'Toasts', slug: 'toasts', display_order: 12 },
       { name: 'Hot Coffee', slug: 'hot-coffee', display_order: 13 },
       { name: 'Iced Coffee', slug: 'iced-coffee', display_order: 14 },
       { name: 'Coffee Extras', slug: 'coffee-extras', display_order: 15 },
@@ -111,43 +111,59 @@ class CafeStore extends EventEmitter {
       return item;
     };
 
-    // Category 1: Rice Bowls
-    addItem('rice-bowls', 'Veg Fried Rice', 140, 'VEG', 'Traditional wok-tossed fried rice with fresh garden vegetables.');
-    addItem('rice-bowls', 'Veg Schezwan Fried Rice', 150, 'VEG', 'Spicy wok-tossed rice flavored with fiery Schezwan chili paste.');
-    addItem('rice-bowls', 'Brown Garlic Fried Rice', 160, 'VEG', 'Fragrant fried rice infused with golden toasted brown garlic.');
-    addItem('rice-bowls', 'Schezwan Veg Fried Rice', 160, 'VEG', 'Authentic spicy Schezwan rice with seasonal greens.');
-    addItem('rice-bowls', 'Egg Fried Rice', 158, 'NON_VEG', 'Scrambled eggs wok-tossed with aromatic seasoned rice.');
-    addItem('rice-bowls', 'Chicken Fried Rice', 165, 'NON_VEG', 'Tender chicken chunks tossed with vegetables and spiced rice.');
-    addItem('rice-bowls', 'Schezwan Egg Fried Rice', 170, 'NON_VEG', 'Spicy Schezwan egg fried rice with aromatic scallions.');
-    addItem('rice-bowls', 'Schezwan Chicken Fried Rice', 180, 'NON_VEG', 'Zesty Schezwan fried rice with tender spiced chicken pieces.');
-    addItem('rice-bowls', 'Schezwan Mix Fried Rice', 180, 'NON_VEG', 'Egg & Chicken.');
-
-    // Category 2: Extras / Sides
-    addItem('extras-sides', 'Cheddar Cheese Slices', 120, 'VEG', '2 pcs.');
-    addItem('extras-sides', 'Cheesy Garlic Bread', 150, 'VEG', '2 pcs. Warm toasted garlic bread with melted cheese.', {
-      verification_note: 'Normalized from OCR "Pasta Cheese Garlic Bread". Owner to confirm exact menu name.'
-    });
-    addItem('extras-sides', 'Tossed Avocado Toss', 170, 'VEG', 'Fresh avocado chunks tossed with greens and light seasoning.');
-    addItem('extras-sides', 'Avocado Mango Toss', 180, 'VEG', 'Refreshing combination of ripe avocado, sweet mango cubes, and citrus glaze.');
-    addItem('extras-sides', 'Avocado Strawberry Toss', 190, 'VEG', 'Vibrant tossed salad with creamy avocado and sweet strawberries.');
-
-    // Category 3: Specials
-    addItem('specials', 'Grilled Chicken with Brown Sauce', 320, 'NON_VEG', 'Rice, vegetables, salsa, cashews and brownies.');
-    addItem('specials', 'Grilled Chicken with Lemon Butter Sauce', 360, 'NON_VEG', 'Mashed potatoes, vegetables, grilled chicken and lemon butter sauce.');
-    addItem('specials', 'Lasagne', 355, 'NON_VEG', 'A dish made with multiple layers of pasta sheets, filled with vegetables or mixed chicken, baked and served with a combination of white and red sauce.');
-
-    // Category 4: Starters — Veg
-    addItem('starters-veg', 'Chilli Potato', 199, 'VEG', 'Potatoes blended in honey and chilli sauce.');
-    addItem('starters-veg', 'Chilli Paneer', 249, 'VEG', 'Paneer tossed in a traditional spicy red chilli flavour.');
-    addItem('starters-veg', 'Jalapeño Stick', 260, 'VEG', 'A mix of potato and jalapeño with a blend of cheese.');
-    addItem('starters-veg', 'Paneer Popcorn', 229, 'VEG', 'Crunchy bite-sized vegetarian snack featuring cubes of paneer coated in spiced batter and breadcrumbs.');
-    addItem('starters-veg', 'Paneer 65', 299, 'VEG', 'Spicy, crispy and flavorful paneer appetizer made by deep-frying paneer and tossing it with curry leaves, ginger, garlic and tangy spices.');
-    addItem('starters-veg', 'Loaded Fries', 299, 'VEG', 'French fries, paneer, jalapeño and peri peri dip.');
-    addItem('starters-veg', 'Broccoli Cheesey Stick', 299, 'NEEDS_CONFIRMATION', 'Chopped broccoli with shredded chicken.', {
-      verification_note: 'IMPORTANT OWNER VERIFICATION: Menu listed under Veg Starters but description specifies shredded chicken. Owner confirmation required.'
+    // Category 1: Main Course — Veg (formerly Starters — Veg)
+    addItem('main-course-veg', 'Chilli Potato', 199, 'VEG', 'Potatoes blended in honey and chilli sauce.');
+    addItem('main-course-veg', 'Chilli Paneer', 249, 'VEG', 'Paneer tossed in a traditional spicy red chilli flavour.');
+    addItem('main-course-veg', 'Jalapeño Stick', 260, 'VEG', 'A mix of potato and jalapeño with a blend of cheese.');
+    addItem('main-course-veg', 'Paneer Popcorn', 229, 'VEG', 'Crunchy bite-sized vegetarian snack featuring cubes of paneer coated in spiced batter and breadcrumbs.');
+    addItem('main-course-veg', 'Paneer 65', 299, 'VEG', 'Spicy, crispy and flavorful paneer appetizer made by deep-frying paneer and tossing it with curry leaves, ginger, garlic and tangy spices.');
+    addItem('main-course-veg', 'Loaded Fries', 299, 'VEG', 'French fries, paneer, jalapeño and peri peri dip.');
+    addItem('main-course-veg', 'Broccoli Cheesey Stick', 299, 'NEEDS_CONFIRMATION', 'Chopped broccoli with shredded chicken.', {
+      verification_note: 'IMPORTANT OWNER VERIFICATION: Menu listed under Veg Main Course but description specifies shredded chicken. Owner confirmation required.'
     });
 
-    // Category 5: Pizzas — Veg (6 inch, 12 inch)
+    // Category 2: Main Course — Non-Veg (formerly Starters — Non-Veg)
+    addItem('main-course-non-veg', 'Chilli Chicken', 279, 'NON_VEG', 'Dry / Wet. Tender chicken bites tossed in a bold, tangy and spicy Indo-Chinese gravy or dry glaze.');
+    addItem('main-course-non-veg', 'Lemon Garlic Chicken', 269, 'NON_VEG', 'Chicken cooked with lemon, garlic and a rich buttery, tangy sauce.');
+    addItem('main-course-non-veg', 'Honey Chicken', 289, 'NON_VEG', 'Chicken bites pan-seared and tossed in a sticky, sweet and savory glaze.');
+    addItem('main-course-non-veg', 'Chicken Loaded Fries', 299, 'NON_VEG', 'French fries, chicken, jalapeño and peri peri dip.');
+    addItem('main-course-non-veg', 'Spice & Sky Special Popcorn Chicken', 329, 'NON_VEG', 'Crunchy bite-sized chicken pieces coated in spiced batter and breadcrumbs with special spices.');
+    addItem('main-course-non-veg', 'Chicken Popcorn', 199, 'NON_VEG', 'Crunchy bite-sized chicken pieces coated in spiced batter and breadcrumbs with special spices.');
+    addItem('main-course-non-veg', 'Crispy Chicken', 279, 'NON_VEG', 'Tender chicken marinated and fried in crispy breadcrumbs.');
+
+    // Category 3: Rice Bowls (formerly Specials)
+    addItem('rice-bowls', 'Grilled Chicken with Brown Sauce', 320, 'NON_VEG', 'Rice, vegetables, salsa, cashews and brownies.');
+    addItem('rice-bowls', 'Grilled Chicken with Lemon Butter Sauce', 360, 'NON_VEG', 'Mashed potatoes, vegetables, grilled chicken and lemon butter sauce.');
+
+    // Category 4: Pastas — Veg
+    addItem('pastas-veg', 'White Sauce Pasta', 249, 'VEG', 'A blend of vegetables with white sauce, cheese and spaghetti pasta.');
+    addItem('pastas-veg', 'Pesto Penne Pasta', 259, 'VEG', 'Penne pasta with green pesto sauce and cheese.');
+    addItem('pastas-veg', 'Pink Sauce Pasta', 279, 'VEG', 'Pink sauce pasta.', {
+      verification_note: 'Original description inconsistent with dish name. Owner to confirm.'
+    });
+    addItem('pastas-veg', 'Aglio-Olio Pasta', 269, 'VEG', 'Aglio-olio pasta.', {
+      verification_note: 'Original description inconsistent with Aglio-Olio. Owner to confirm.'
+    });
+
+    // Category 5: Pastas — Non-Veg (includes Lasagne)
+    addItem('pastas-non-veg', 'White Sauce Pasta', 279, 'NON_VEG', 'Chicken with white sauce, cheese and penne/spaghetti pasta.');
+    addItem('pastas-non-veg', 'Pesto Penne Pasta', 275, 'NON_VEG', 'Penne pasta with green pesto sauce, cheese and chicken.');
+    addItem('pastas-non-veg', 'Pink Sauce Pasta', 289, 'NON_VEG', 'Pink sauce pasta.', {
+      verification_note: 'Original description inconsistent with dish name. Owner to confirm.'
+    });
+    addItem('pastas-non-veg', 'Aglio-Olio Pasta', 295, 'NON_VEG', 'Aglio-olio pasta.', {
+      verification_note: 'Original description inconsistent with Aglio-Olio. Owner to confirm.'
+    });
+    addItem('pastas-non-veg', 'Butter Chicken Sauce Pasta', 349, 'NON_VEG', 'Penne pasta served with traditional butter chicken gravy sauce.');
+    addItem('pastas-non-veg', 'Lasagne', 355, 'NON_VEG', 'A dish made with multiple layers of pasta sheets, filled with vegetables or mixed chicken, baked and served with a combination of white and red sauce.');
+
+    // Category 6: French Fries
+    addItem('french-fries', 'Peri Peri Fries', 160, 'VEG', 'Crispy golden fries tossed in fiery Peri Peri spice blend.');
+    addItem('french-fries', 'Classic Fries', 169, 'VEG', 'Lightly salted, golden crunchy potato fries.');
+    addItem('french-fries', 'Spice & Sky Special Fries', 229, 'VEG', 'Signature loaded fries with rooftop spiced seasoning and house dips.');
+    addItem('french-fries', 'Cheesy Fries', 199, 'VEG', 'Golden French fries smothered in warm, velvety melted cheese sauce.');
+
+    // Category 7: Pizzas — Veg (6 inch, 12 inch)
     addItem('pizzas-veg', 'Classic Pizza', 199, 'VEG', 'Classic cheese pizza.', {
       variants: [{ name: '6 inch', price: 199 }, { name: '12 inch', price: 249 }]
     });
@@ -164,16 +180,7 @@ class CafeStore extends EventEmitter {
       variants: [{ name: '6 inch', price: 329 }, { name: '12 inch', price: 369 }]
     });
 
-    // Category 6: Starters — Non-Veg
-    addItem('starters-non-veg', 'Chilli Chicken', 279, 'NON_VEG', 'Dry / Wet. Tender chicken bites tossed in a bold, tangy and spicy Indo-Chinese gravy or dry glaze.');
-    addItem('starters-non-veg', 'Lemon Garlic Chicken', 269, 'NON_VEG', 'Chicken cooked with lemon, garlic and a rich buttery, tangy sauce.');
-    addItem('starters-non-veg', 'Honey Chicken', 289, 'NON_VEG', 'Chicken bites pan-seared and tossed in a sticky, sweet and savory glaze.');
-    addItem('starters-non-veg', 'Chicken Loaded Fries', 299, 'NON_VEG', 'French fries, chicken, jalapeño and peri peri dip.');
-    addItem('starters-non-veg', 'Spice & Sky Special Popcorn Chicken', 329, 'NON_VEG', 'Crunchy bite-sized chicken pieces coated in spiced batter and breadcrumbs with special spices.');
-    addItem('starters-non-veg', 'Chicken Popcorn', 199, 'NON_VEG', 'Crunchy bite-sized chicken pieces coated in spiced batter and breadcrumbs with special spices.');
-    addItem('starters-non-veg', 'Crispy Chicken', 279, 'NON_VEG', 'Tender chicken marinated and fried in crispy breadcrumbs.');
-
-    // Category 7: Pizzas — Non-Veg (9 inch, 12 inch)
+    // Category 8: Pizzas — Non-Veg (9 inch, 12 inch)
     addItem('pizzas-non-veg', 'Chicken Pepperoni Pizza', 299, 'NON_VEG', 'Chicken pepperoni slices.', {
       verification_note: 'Normalized from OCR wording. Owner to confirm exact ingredient description.',
       variants: [{ name: '9 inch', price: 299 }, { name: '12 inch', price: 349 }]
@@ -191,42 +198,35 @@ class CafeStore extends EventEmitter {
       variants: [{ name: '9 inch', price: 269 }, { name: '12 inch', price: 299 }]
     });
 
-    // Category 8: Pastas — Veg
-    addItem('pastas-veg', 'White Sauce Pasta', 249, 'VEG', 'A blend of vegetables with white sauce, cheese and spaghetti pasta.');
-    addItem('pastas-veg', 'Pesto Penne Pasta', 259, 'VEG', 'Penne pasta with green pesto sauce and cheese.');
-    addItem('pastas-veg', 'Pink Sauce Pasta', 279, 'VEG', 'Pink sauce pasta.', {
-      verification_note: 'Original description inconsistent with dish name. Owner to confirm.'
-    });
-    addItem('pastas-veg', 'Aglio-Olio Pasta', 269, 'VEG', 'Aglio-olio pasta.', {
-      verification_note: 'Original description inconsistent with Aglio-Olio. Owner to confirm.'
-    });
-
-    // Category 9: Pastas — Non-Veg
-    addItem('pastas-non-veg', 'White Sauce Pasta', 279, 'NON_VEG', 'Chicken with white sauce, cheese and penne/spaghetti pasta.');
-    addItem('pastas-non-veg', 'Pesto Penne Pasta', 275, 'NON_VEG', 'Penne pasta with green pesto sauce, cheese and chicken.');
-    addItem('pastas-non-veg', 'Pink Sauce Pasta', 289, 'NON_VEG', 'Pink sauce pasta.', {
-      verification_note: 'Original description inconsistent with dish name. Owner to confirm.'
-    });
-    addItem('pastas-non-veg', 'Aglio-Olio Pasta', 295, 'NON_VEG', 'Aglio-olio pasta.', {
-      verification_note: 'Original description inconsistent with Aglio-Olio. Owner to confirm.'
-    });
-    addItem('pastas-non-veg', 'Butter Chicken Sauce Pasta', 349, 'NON_VEG', 'Penne pasta served with traditional butter chicken gravy sauce.');
-
-    // Category 10: French Fries
-    addItem('french-fries', 'Peri Peri Fries', 160, 'VEG', 'Crispy golden fries tossed in fiery Peri Peri spice blend.');
-    addItem('french-fries', 'Classic Fries', 169, 'VEG', 'Lightly salted, golden crunchy potato fries.');
-    addItem('french-fries', 'Spice & Sky Special Fries', 229, 'VEG', 'Signature loaded fries with rooftop spiced seasoning and house dips.');
-    addItem('french-fries', 'Cheesy Fries', 199, 'VEG', 'Golden French fries smothered in warm, velvety melted cheese sauce.');
-
-    // Category 11: Burgers — Veg
+    // Category 9: Burgers — Veg
     addItem('burgers-veg', 'Veg Patty Burger', 129, 'VEG', 'Served with a vegetarian patty.');
     addItem('burgers-veg', 'Crispy Paneer Burger', 135, 'VEG', 'Paneer coated with crispy batter and served between two buns.');
     addItem('burgers-veg', 'Double Patty Burger', 155, 'VEG', 'Double patty with vegetables.');
 
-    // Category 12: Burgers — Non-Veg
+    // Category 10: Burgers — Non-Veg
     addItem('burgers-non-veg', 'Chicken Patty Burger', 169, 'NON_VEG', 'Served with a chicken patty.');
     addItem('burgers-non-veg', 'Crispy Chicken Burger', 149, 'NON_VEG', 'Crispy chicken between two buns.');
     addItem('burgers-non-veg', 'Double Patty Burger', 175, 'NON_VEG', 'Double patty with vegetables and cheese slices.');
+
+    // Category 11: Fried Rice (formerly Rice Bowls)
+    addItem('fried-rice', 'Veg Fried Rice', 140, 'VEG', 'Traditional wok-tossed fried rice with fresh garden vegetables.');
+    addItem('fried-rice', 'Veg Schezwan Fried Rice', 150, 'VEG', 'Spicy wok-tossed rice flavored with fiery Schezwan chili paste.');
+    addItem('fried-rice', 'Brown Garlic Fried Rice', 160, 'VEG', 'Fragrant fried rice infused with golden toasted brown garlic.');
+    addItem('fried-rice', 'Schezwan Veg Fried Rice', 160, 'VEG', 'Authentic spicy Schezwan rice with seasonal greens.');
+    addItem('fried-rice', 'Egg Fried Rice', 158, 'NON_VEG', 'Scrambled eggs wok-tossed with aromatic seasoned rice.');
+    addItem('fried-rice', 'Chicken Fried Rice', 165, 'NON_VEG', 'Tender chicken chunks tossed with vegetables and spiced rice.');
+    addItem('fried-rice', 'Schezwan Egg Fried Rice', 170, 'NON_VEG', 'Spicy Schezwan egg fried rice with aromatic scallions.');
+    addItem('fried-rice', 'Schezwan Chicken Fried Rice', 180, 'NON_VEG', 'Zesty Schezwan fried rice with tender spiced chicken pieces.');
+    addItem('fried-rice', 'Schezwan Mix Fried Rice', 180, 'NON_VEG', 'Egg & Chicken.');
+
+    // Category 12: Toasts (formerly Extras / Sides)
+    addItem('toasts', 'Cheddar Cheese Slices', 120, 'VEG', '2 pcs.');
+    addItem('toasts', 'Cheesy Garlic Bread', 150, 'VEG', '2 pcs. Warm toasted garlic bread with melted cheese.', {
+      verification_note: 'Normalized from OCR "Pasta Cheese Garlic Bread". Owner to confirm exact menu name.'
+    });
+    addItem('toasts', 'Tossed Avocado Toss', 170, 'VEG', 'Fresh avocado chunks tossed with greens and light seasoning.');
+    addItem('toasts', 'Avocado Mango Toss', 180, 'VEG', 'Refreshing combination of ripe avocado, sweet mango cubes, and citrus glaze.');
+    addItem('toasts', 'Avocado Strawberry Toss', 190, 'VEG', 'Vibrant tossed salad with creamy avocado and sweet strawberries.');
 
     // Category 13: Hot Coffee
     addItem('hot-coffee', 'Espresso', 170, 'DRINK', 'Rich concentrated specialty coffee shot.');

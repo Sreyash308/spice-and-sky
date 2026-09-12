@@ -256,12 +256,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (catLower.includes('hot')) aliases.push('hot');
     if (catLower.includes('iced')) aliases.push('iced', 'cold');
     if (catLower.includes('pizza')) aliases.push('pizza', 'pizzas');
-    if (catLower.includes('pasta')) aliases.push('pasta', 'pastas');
+    if (catLower.includes('pasta')) aliases.push('pasta', 'pastas', 'lasagne', 'lasagna');
     if (catLower.includes('burger')) aliases.push('burger', 'burgers');
-    if (catLower.includes('starter')) aliases.push('starter', 'starters', 'appetizer', 'snack');
+    if (catLower.includes('main course') || catLower.includes('starter')) aliases.push('main course', 'maincourse', 'starter', 'starters', 'appetizer', 'snack');
+    if (catLower.includes('toast') || catLower.includes('side') || catLower.includes('extra')) aliases.push('toast', 'toasts', 'bread', 'extras', 'sides');
     if (catLower.includes('shake')) aliases.push('shake', 'milkshake', 'smoothie');
     if (catLower.includes('mojito')) aliases.push('mojito', 'cooler', 'mocktail');
-    if (catLower.includes('rice')) aliases.push('rice', 'bowl', 'fried rice');
+    if (catLower.includes('fried rice')) aliases.push('fried rice', 'rice');
+    if (catLower.includes('rice bowl')) aliases.push('rice bowl', 'rice bowls', 'specials');
     if (catLower.includes('fries')) aliases.push('fries', 'french fries', 'potato');
 
     const rawCombined = [
