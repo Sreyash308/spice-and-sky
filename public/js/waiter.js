@@ -143,12 +143,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   const cancelPaymentBtn = document.getElementById('cancelPaymentBtn');
   const confirmPaymentBtn = document.getElementById('confirmPaymentBtn');
   const closePaymentModalBtn = document.getElementById('closePaymentModalBtn');
+  const breakdownTotalText = document.getElementById('breakdownTotalText');
+  const breakdownCashText = document.getElementById('breakdownCashText');
+  const breakdownOnlineText = document.getElementById('breakdownOnlineText');
+  const quickCashChips = document.getElementById('quickCashChips');
+  const cashInputHint = document.getElementById('cashInputHint');
 
   const billPaymentBox = document.getElementById('billPaymentBox');
   const billPaymentModeText = document.getElementById('billPaymentModeText');
   const billCashRow = document.getElementById('billCashRow');
+  const billCashLabelText = document.getElementById('billCashLabelText');
   const billCashPaidText = document.getElementById('billCashPaidText');
   const billOnlineRow = document.getElementById('billOnlineRow');
+  const billOnlineLabelText = document.getElementById('billOnlineLabelText');
   const billOnlinePaidText = document.getElementById('billOnlinePaidText');
 
   // --- MULTI-ORDER HELPERS ---
@@ -524,7 +531,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderCatalog();
   });
 
-  // --- PAYMENT MODE MODAL LOGIC ---
+  // --- PAYMENT MODE & MANUAL CASH MODAL LOGIC ---
   let currentPaymentMode = 'CASH'; // 'CASH' | 'ONLINE' | 'SPLIT'
   let orderTotalForPayment = 0;
 
@@ -543,7 +550,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (paymentModalSubtitle) {
       paymentModalSubtitle.textContent = `Table ${activeTable} • ${order.length} item(s) • Total: ${SpiceClient.formatCurrency(orderTotalForPayment)}`;
     }
+    if (breakdownTotalText) {
+      breakdownTotalText.textContent = SpiceClient.formatCurrency(orderTotalForPayment);
+    }
 
+    // Default to Full Cash (can easily opt for Partial Cash or Full Online)
     setPaymentMode('CASH');
     if (paymentModal) paymentModal.classList.add('active');
   }
@@ -552,77 +563,127 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (paymentModal) paymentModal.classList.remove('active');
   }
 
-  function setPaymentMode(mode) {
-    currentPaymentMode = mode;
-    if (payModeCashBtn) payModeCashBtn.classList.toggle('active', mode === 'CASH');
-    if (payModeOnlineBtn) payModeOnlineBtn.classList.toggle('active', mode === 'ONLINE');
-    if (payModeSplitBtn) payModeSplitBtn.classList.toggle('active', mode === 'SPLIT');
+  function updateCashCalculation() {
+    if (!splitCashInput || !breakdownCashText || !breakdownOnlineText) return;
+    const rawVal = splitCashInput.value.trim();
+    let cashVal = rawVal === '' ? 0 : parseFloat(rawVal);
+    if (isNaN(cashVal)) cashVal = 0;
 
-    if (mode === 'SPLIT') {
-      if (splitPaymentSection) splitPaymentSection.style.display = 'block';
-      const half = Math.round(orderTotalForPayment / 2);
-      if (splitCashInput) splitCashInput.value = half;
-      if (splitOnlineInput) splitOnlineInput.value = (orderTotalForPayment - half);
-      updateSplitBalance();
-    } else {
-      if (splitPaymentSection) splitPaymentSection.style.display = 'none';
+    const target = Math.round(orderTotalForPayment * 100) / 100;
+
+    if (cashVal < 0) {
+      if (splitBalanceIndicator) {
+        splitBalanceIndicator.style.color = '#dc2626';
+        splitBalanceIndicator.innerHTML = '⚠️ Cash amount cannot be negative.';
+      }
       if (paymentSummaryNotice) {
-        if (mode === 'CASH') {
-          paymentSummaryNotice.innerHTML = `Customer will pay full <strong>${SpiceClient.formatCurrency(orderTotalForPayment)}</strong> in <strong>Cash</strong>.`;
-        } else {
-          paymentSummaryNotice.innerHTML = `Customer will pay full <strong>${SpiceClient.formatCurrency(orderTotalForPayment)}</strong> via <strong>UPI / Online</strong>.`;
-        }
+        paymentSummaryNotice.innerHTML = '<span style="color: #dc2626; font-weight: 700;">Cash amount cannot be negative.</span>';
       }
       if (confirmPaymentBtn) {
-        confirmPaymentBtn.disabled = false;
-        confirmPaymentBtn.style.opacity = '1';
-        confirmPaymentBtn.style.pointerEvents = 'auto';
+        confirmPaymentBtn.disabled = true;
+        confirmPaymentBtn.style.opacity = '0.5';
+        confirmPaymentBtn.style.pointerEvents = 'none';
       }
+      return;
+    }
+
+    if (cashVal > target) {
+      const diff = Math.round((cashVal - target) * 100) / 100;
+      if (splitBalanceIndicator) {
+        splitBalanceIndicator.style.color = '#dc2626';
+        splitBalanceIndicator.innerHTML = `⚠️ Cash entered (${SpiceClient.formatCurrency(cashVal)}) exceeds Total Bill (${SpiceClient.formatCurrency(target)}) by ${SpiceClient.formatCurrency(diff)}.`;
+      }
+      if (paymentSummaryNotice) {
+        paymentSummaryNotice.innerHTML = `<span style="color: #dc2626; font-weight: 700;">Cash cannot exceed total bill amount (${SpiceClient.formatCurrency(target)}).</span>`;
+      }
+      if (breakdownCashText) breakdownCashText.textContent = SpiceClient.formatCurrency(cashVal);
+      if (breakdownOnlineText) breakdownOnlineText.textContent = '₹0';
+      if (confirmPaymentBtn) {
+        confirmPaymentBtn.disabled = true;
+        confirmPaymentBtn.style.opacity = '0.5';
+        confirmPaymentBtn.style.pointerEvents = 'none';
+      }
+      return;
+    }
+
+    // Amount to be paid Online = Total Bill - Cash
+    const onlineDue = Math.max(0, Math.round((target - cashVal) * 100) / 100);
+    if (splitOnlineInput) splitOnlineInput.value = onlineDue;
+
+    if (breakdownCashText) breakdownCashText.textContent = SpiceClient.formatCurrency(cashVal);
+    if (breakdownOnlineText) breakdownOnlineText.textContent = SpiceClient.formatCurrency(onlineDue);
+
+    if (Math.abs(cashVal - target) < 0.01) {
+      currentPaymentMode = 'CASH';
+      if (payModeCashBtn) payModeCashBtn.classList.add('active');
+      if (payModeSplitBtn) payModeSplitBtn.classList.remove('active');
+      if (payModeOnlineBtn) payModeOnlineBtn.classList.remove('active');
+      if (cashInputHint) cashInputHint.textContent = '100% Full Cash';
+
+      if (splitBalanceIndicator) {
+        splitBalanceIndicator.style.color = '#15803d';
+        splitBalanceIndicator.innerHTML = `✅ Full Cash: <strong>${SpiceClient.formatCurrency(cashVal)}</strong> in Cash &bull; ₹0 Online`;
+      }
+      if (paymentSummaryNotice) {
+        paymentSummaryNotice.innerHTML = `Customer opted for <strong>Full Cash</strong>: <strong>${SpiceClient.formatCurrency(target)}</strong>.`;
+      }
+    } else if (cashVal <= 0) {
+      currentPaymentMode = 'ONLINE';
+      if (payModeCashBtn) payModeCashBtn.classList.remove('active');
+      if (payModeSplitBtn) payModeSplitBtn.classList.remove('active');
+      if (payModeOnlineBtn) payModeOnlineBtn.classList.add('active');
+      if (cashInputHint) cashInputHint.textContent = '100% Online / UPI';
+
+      if (splitBalanceIndicator) {
+        splitBalanceIndicator.style.color = '#1d4ed8';
+        splitBalanceIndicator.innerHTML = `✅ Full Online: ₹0 Cash &bull; <strong>${SpiceClient.formatCurrency(onlineDue)}</strong> via UPI / QR`;
+      }
+      if (paymentSummaryNotice) {
+        paymentSummaryNotice.innerHTML = `Customer opted for <strong>Full Online / UPI</strong>: <strong>${SpiceClient.formatCurrency(target)}</strong>.`;
+      }
+    } else {
+      currentPaymentMode = 'SPLIT';
+      if (payModeCashBtn) payModeCashBtn.classList.remove('active');
+      if (payModeSplitBtn) payModeSplitBtn.classList.add('active');
+      if (payModeOnlineBtn) payModeOnlineBtn.classList.remove('active');
+      if (cashInputHint) cashInputHint.textContent = 'Partial Cash + Online';
+
+      if (splitBalanceIndicator) {
+        splitBalanceIndicator.style.color = '#b45309';
+        splitBalanceIndicator.innerHTML = `✅ Partial Cash: <strong>${SpiceClient.formatCurrency(cashVal)} Cash</strong> + <strong>${SpiceClient.formatCurrency(onlineDue)} Online</strong> = ${SpiceClient.formatCurrency(target)}`;
+      }
+      if (paymentSummaryNotice) {
+        paymentSummaryNotice.innerHTML = `Partial payment: Customer pays <strong>${SpiceClient.formatCurrency(cashVal)} Cash</strong>, and remaining <strong>${SpiceClient.formatCurrency(onlineDue)} Online / UPI</strong>.`;
+      }
+    }
+
+    if (confirmPaymentBtn) {
+      confirmPaymentBtn.disabled = false;
+      confirmPaymentBtn.style.opacity = '1';
+      confirmPaymentBtn.style.pointerEvents = 'auto';
     }
   }
 
+  // Backwards compatibility helper for tests
   function updateSplitBalance() {
-    if (!splitCashInput || !splitOnlineInput || !splitBalanceIndicator) return;
-    const cashVal = parseFloat(splitCashInput.value) || 0;
-    const onlineVal = parseFloat(splitOnlineInput.value) || 0;
-    const sum = Math.round((cashVal + onlineVal) * 100) / 100;
-    const target = Math.round(orderTotalForPayment * 100) / 100;
-    const diff = Math.round((target - sum) * 100) / 100;
+    updateCashCalculation();
+  }
 
-    if (Math.abs(diff) < 0.01) {
-      splitBalanceIndicator.style.color = '#15803d';
-      splitBalanceIndicator.innerHTML = `✅ Total Matched: ₹${cashVal.toFixed(2)} Cash + ₹${onlineVal.toFixed(2)} Online = <strong>₹${target.toFixed(2)}</strong>`;
-      if (paymentSummaryNotice) {
-        paymentSummaryNotice.innerHTML = `Partial payment configured: <strong>₹${cashVal.toFixed(2)} Cash</strong> and <strong>₹${onlineVal.toFixed(2)} Online</strong>.`;
-      }
-      if (confirmPaymentBtn) {
-        confirmPaymentBtn.disabled = false;
-        confirmPaymentBtn.style.opacity = '1';
-        confirmPaymentBtn.style.pointerEvents = 'auto';
-      }
-    } else if (diff > 0) {
-      splitBalanceIndicator.style.color = '#b45309';
-      splitBalanceIndicator.innerHTML = `⚠️ Remaining: ₹${diff.toFixed(2)} still unallocated (Total: ₹${target.toFixed(2)}).`;
-      if (paymentSummaryNotice) {
-        paymentSummaryNotice.innerHTML = `<span style="color: #ef4444;">Please allocate remaining ₹${diff.toFixed(2)} between Cash or Online.</span>`;
-      }
-      if (confirmPaymentBtn) {
-        confirmPaymentBtn.disabled = true;
-        confirmPaymentBtn.style.opacity = '0.5';
-        confirmPaymentBtn.style.pointerEvents = 'none';
-      }
-    } else {
-      splitBalanceIndicator.style.color = '#b91c1c';
-      splitBalanceIndicator.innerHTML = `⚠️ Overallocated by ₹${(-diff).toFixed(2)} (Total exceeds ₹${target.toFixed(2)}).`;
-      if (paymentSummaryNotice) {
-        paymentSummaryNotice.innerHTML = `<span style="color: #ef4444;">Sum is ₹${(-diff).toFixed(2)} higher than total bill. Please adjust.</span>`;
-      }
-      if (confirmPaymentBtn) {
-        confirmPaymentBtn.disabled = true;
-        confirmPaymentBtn.style.opacity = '0.5';
-        confirmPaymentBtn.style.pointerEvents = 'none';
+  function setPaymentMode(mode) {
+    currentPaymentMode = mode;
+    if (mode === 'CASH') {
+      if (splitCashInput) splitCashInput.value = orderTotalForPayment;
+    } else if (mode === 'ONLINE') {
+      if (splitCashInput) splitCashInput.value = 0;
+    } else if (mode === 'SPLIT') {
+      if (splitCashInput) {
+        if (parseFloat(splitCashInput.value) === orderTotalForPayment || parseFloat(splitCashInput.value) === 0 || !splitCashInput.value) {
+          splitCashInput.value = '';
+        }
+        setTimeout(() => splitCashInput.focus(), 50);
       }
     }
+    updateCashCalculation();
   }
 
   if (closePaymentModalBtn) closePaymentModalBtn.addEventListener('click', closePaymentModal);
@@ -639,11 +700,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (splitCashInput) {
     splitCashInput.addEventListener('input', () => {
-      const c = parseFloat(splitCashInput.value);
-      if (!isNaN(c) && c >= 0 && c <= orderTotalForPayment && splitOnlineInput) {
-        splitOnlineInput.value = Math.max(0, Math.round((orderTotalForPayment - c) * 100) / 100);
-      }
-      updateSplitBalance();
+      updateCashCalculation();
     });
   }
 
@@ -653,34 +710,54 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!isNaN(o) && o >= 0 && o <= orderTotalForPayment && splitCashInput) {
         splitCashInput.value = Math.max(0, Math.round((orderTotalForPayment - o) * 100) / 100);
       }
-      updateSplitBalance();
+      updateCashCalculation();
+    });
+  }
+
+  if (quickCashChips) {
+    quickCashChips.addEventListener('click', (e) => {
+      const btn = e.target.closest('.quick-chip');
+      if (!btn) return;
+      const val = btn.dataset.val;
+      if (val === 'full') {
+        if (splitCashInput) splitCashInput.value = orderTotalForPayment;
+      } else if (val === '0') {
+        if (splitCashInput) splitCashInput.value = 0;
+      } else {
+        const addNum = parseFloat(val) || 0;
+        const currentNum = parseFloat(splitCashInput.value) || 0;
+        const nextVal = Math.min(orderTotalForPayment, currentNum + addNum);
+        if (splitCashInput) splitCashInput.value = nextVal;
+      }
+      updateCashCalculation();
     });
   }
 
   if (confirmPaymentBtn) {
     confirmPaymentBtn.addEventListener('click', () => {
-      let cashAmount = 0;
-      let onlineAmount = 0;
-      if (currentPaymentMode === 'CASH') {
-        cashAmount = orderTotalForPayment;
-        onlineAmount = 0;
-      } else if (currentPaymentMode === 'ONLINE') {
-        cashAmount = 0;
-        onlineAmount = orderTotalForPayment;
-      } else if (currentPaymentMode === 'SPLIT') {
-        cashAmount = parseFloat(splitCashInput.value) || 0;
-        onlineAmount = parseFloat(splitOnlineInput.value) || 0;
-        const sum = Math.round((cashAmount + onlineAmount) * 100) / 100;
-        const target = Math.round(orderTotalForPayment * 100) / 100;
-        if (Math.abs(sum - target) > 0.01) {
-          alert(`Payment amounts must equal the order total (₹${target}). Current: ₹${sum}`);
-          return;
-        }
+      let cashAmount = parseFloat(splitCashInput ? splitCashInput.value : 0) || 0;
+      if (cashAmount < 0) {
+        alert('Cash amount cannot be negative.');
+        return;
+      }
+      if (cashAmount > orderTotalForPayment) {
+        alert(`Cash amount (${SpiceClient.formatCurrency(cashAmount)}) cannot exceed total bill (${SpiceClient.formatCurrency(orderTotalForPayment)}).`);
+        return;
+      }
+
+      cashAmount = Math.round(cashAmount * 100) / 100;
+      const onlineAmount = Math.max(0, Math.round((orderTotalForPayment - cashAmount) * 100) / 100);
+
+      let finalMode = 'SPLIT';
+      if (cashAmount >= orderTotalForPayment) {
+        finalMode = 'CASH';
+      } else if (cashAmount <= 0) {
+        finalMode = 'ONLINE';
       }
 
       closePaymentModal();
       handleGenerateBill({
-        payment_mode: currentPaymentMode,
+        payment_mode: finalMode,
         cash_amount: cashAmount,
         online_amount: onlineAmount
       });
@@ -1429,17 +1506,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (billPaymentModeText) {
         if (mode === 'SPLIT') {
-          billPaymentModeText.textContent = 'PARTIAL (CASH + UPI)';
+          billPaymentModeText.textContent = 'PARTIAL (CASH + ONLINE)';
         } else if (mode === 'ONLINE') {
-          billPaymentModeText.textContent = 'UPI / ONLINE';
+          billPaymentModeText.textContent = 'FULL ONLINE / UPI';
         } else {
-          billPaymentModeText.textContent = 'CASH';
+          billPaymentModeText.textContent = 'FULL CASH';
         }
       }
 
       if (billCashRow && billCashPaidText) {
         if (mode === 'SPLIT' || mode === 'CASH') {
           billCashRow.style.display = 'flex';
+          if (billCashLabelText) billCashLabelText.textContent = 'Cash Paid:';
           billCashPaidText.textContent = SpiceClient.formatCurrency(cash);
         } else {
           billCashRow.style.display = 'none';
@@ -1449,6 +1527,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (billOnlineRow && billOnlinePaidText) {
         if (mode === 'SPLIT' || mode === 'ONLINE') {
           billOnlineRow.style.display = 'flex';
+          if (billOnlineLabelText) {
+            billOnlineLabelText.textContent = (mode === 'SPLIT') ? 'Amount Paid Online (Total - Cash):' : 'Online / UPI Paid:';
+          }
           billOnlinePaidText.textContent = SpiceClient.formatCurrency(online);
         } else {
           billOnlineRow.style.display = 'none';

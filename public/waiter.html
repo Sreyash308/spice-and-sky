@@ -164,7 +164,7 @@
 
   <!-- Payment Mode Selection Modal (Cash, Online, Split) -->
   <div class="modal-backdrop" id="paymentModal">
-    <div class="modal-content" style="max-width: 440px; text-align: left;">
+    <div class="modal-content" style="max-width: 460px; text-align: left;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px;">
         <div>
           <h3 style="font-family: var(--font-heading); margin: 0; font-size: 1.25rem;">Payment Collection</h3>
@@ -174,49 +174,87 @@
       </div>
 
       <!-- Bill Total Callout -->
-      <div style="background: var(--bg-secondary); border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
-        <span style="font-size: 0.9rem; font-weight: 700; color: var(--text-secondary);">Total Bill Amount:</span>
-        <span id="paymentTotalAmount" style="font-size: 1.35rem; font-weight: 900; color: var(--spice-terracotta); font-family: var(--font-heading);">₹0</span>
+      <div style="background: var(--bg-secondary); border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 0.95rem; font-weight: 700; color: var(--text-secondary);">Total Bill Amount:</span>
+        <span id="paymentTotalAmount" style="font-size: 1.45rem; font-weight: 900; color: var(--spice-terracotta); font-family: var(--font-heading);">₹0</span>
       </div>
 
+      <!-- Question: Is cash payment applicable? -->
       <div style="margin-bottom: 14px;">
-        <label style="font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); display: block; margin-bottom: 8px;">Select Payment Method</label>
-        <div class="payment-mode-tabs" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
-          <button type="button" class="payment-mode-btn active" data-mode="CASH" id="payModeCashBtn">
+        <label style="font-size: 0.85rem; font-weight: 800; color: var(--text-primary); display: block; margin-bottom: 8px;">
+          Is Cash payment applicable?
+        </label>
+        <div class="payment-mode-tabs" style="display: grid; grid-template-columns: 1fr 1.15fr 1fr; gap: 8px;">
+          <button type="button" class="payment-mode-btn active" data-mode="CASH" id="payModeCashBtn" title="Customer pays full amount in Cash">
             <span style="font-size: 1.3rem;">💵</span>
-            <span style="font-weight: 700; font-size: 0.85rem; margin-top: 2px;">Full Cash</span>
+            <span style="font-weight: 800; font-size: 0.85rem; margin-top: 2px;">Full Cash</span>
+            <span style="font-size: 0.7rem; color: var(--text-muted); margin-top: 1px;">100% Cash</span>
           </button>
-          <button type="button" class="payment-mode-btn" data-mode="ONLINE" id="payModeOnlineBtn">
+          <button type="button" class="payment-mode-btn" data-mode="SPLIT" id="payModeSplitBtn" title="Enter manual cash amount; rest online">
+            <span style="font-size: 1.3rem;">🪙</span>
+            <span style="font-weight: 800; font-size: 0.85rem; margin-top: 2px;">Partial Cash</span>
+            <span style="font-size: 0.7rem; color: var(--text-muted); margin-top: 1px;">Cash + Online</span>
+          </button>
+          <button type="button" class="payment-mode-btn" data-mode="ONLINE" id="payModeOnlineBtn" title="Customer pays full amount via UPI / Online">
             <span style="font-size: 1.3rem;">📱</span>
-            <span style="font-weight: 700; font-size: 0.85rem; margin-top: 2px;">Full UPI</span>
-          </button>
-          <button type="button" class="payment-mode-btn" data-mode="SPLIT" id="payModeSplitBtn">
-            <span style="font-size: 1.3rem;">⚖️</span>
-            <span style="font-weight: 700; font-size: 0.85rem; margin-top: 2px;">Split</span>
+            <span style="font-weight: 800; font-size: 0.85rem; margin-top: 2px;">Full Online</span>
+            <span style="font-size: 0.7rem; color: var(--text-muted); margin-top: 1px;">100% UPI</span>
           </button>
         </div>
       </div>
 
-      <!-- Split Inputs Section (Shown for Split Mode) -->
-      <div id="splitPaymentSection" style="display: none; background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-md); padding: 14px; margin-bottom: 16px;">
-        <div style="font-size: 0.82rem; font-weight: 700; color: #92400e; margin-bottom: 10px;">Enter Cash and Online amounts (Must equal Total):</div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-          <div>
-            <label style="font-size: 0.78rem; font-weight: 700; color: #78350f; display: block; margin-bottom: 4px;">💵 Cash (₹)</label>
-            <input type="number" id="splitCashInput" class="form-input" min="0" step="1" placeholder="0" style="font-weight: 800; font-size: 1.1rem; color: #15803d; background: #ffffff;">
+      <!-- Cash Entry & Automatic Online Remainder Section -->
+      <div id="splitPaymentSection" style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: var(--radius-md); padding: 14px; margin-bottom: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
+          <label for="splitCashInput" style="font-size: 0.84rem; font-weight: 800; color: #0f172a;">
+            💵 Cash Received from Customer (₹):
+          </label>
+          <span style="font-size: 0.74rem; color: #64748b;" id="cashInputHint">Enter manual cash</span>
+        </div>
+
+        <div style="position: relative; display: flex; align-items: center;">
+          <span style="position: absolute; left: 14px; font-weight: 900; font-size: 1.3rem; color: #16a34a; pointer-events: none;">₹</span>
+          <input type="number" id="splitCashInput" class="form-input" min="0" step="any" placeholder="0" 
+                 style="padding-left: 34px; font-weight: 900; font-size: 1.35rem; color: #15803d; background: #ffffff; border: 2px solid #86efac; border-radius: var(--radius-md); width: 100%;">
+          <input type="hidden" id="splitOnlineInput" value="0">
+        </div>
+
+        <!-- Quick Cash Chips -->
+        <div style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;" id="quickCashChips">
+          <button type="button" class="btn btn-secondary quick-chip" data-val="0" style="padding: 3px 8px; font-size: 0.74rem;">₹0 (No Cash)</button>
+          <button type="button" class="btn btn-secondary quick-chip" data-val="100" style="padding: 3px 8px; font-size: 0.74rem;">₹100</button>
+          <button type="button" class="btn btn-secondary quick-chip" data-val="200" style="padding: 3px 8px; font-size: 0.74rem;">₹200</button>
+          <button type="button" class="btn btn-secondary quick-chip" data-val="500" style="padding: 3px 8px; font-size: 0.74rem;">₹500</button>
+          <button type="button" class="btn btn-secondary quick-chip" data-val="full" style="padding: 3px 8px; font-size: 0.74rem; font-weight: 700; color: #15803d; border-color: #86efac;">Full Cash</button>
+        </div>
+
+        <!-- Live Reactive Calculation Card -->
+        <div style="margin-top: 12px; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: var(--radius-sm); padding: 10px 14px;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: #64748b; margin-bottom: 4px;">
+            <span>Total Bill:</span>
+            <span style="font-weight: 700; color: #0f172a;" id="breakdownTotalText">₹0</span>
           </div>
-          <div>
-            <label style="font-size: 0.78rem; font-weight: 700; color: #78350f; display: block; margin-bottom: 4px;">📱 Online / UPI (₹)</label>
-            <input type="number" id="splitOnlineInput" class="form-input" min="0" step="1" placeholder="0" style="font-weight: 800; font-size: 1.1rem; color: #1d4ed8; background: #ffffff;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.9rem; color: #15803d; margin-bottom: 4px;">
+            <span>💵 Cash Amount Paid:</span>
+            <span style="font-weight: 800;" id="breakdownCashText">₹0</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 1.05rem; font-weight: 800; color: #1d4ed8; padding-top: 6px; border-top: 1px dashed #cbd5e1; margin-top: 2px;">
+            <span>📱 Amount to be Paid Online:</span>
+            <span style="font-weight: 950;" id="breakdownOnlineText">₹0</span>
+          </div>
+          <div style="font-size: 0.72rem; color: #64748b; margin-top: 3px; text-align: right;">
+            (Amount to be paid Online = Total Bill − Cash Paid)
           </div>
         </div>
-        <div id="splitBalanceIndicator" style="font-size: 0.8rem; font-weight: 700; color: #15803d;">
+
+        <!-- Status Indicator / Notice -->
+        <div id="splitBalanceIndicator" style="font-size: 0.8rem; font-weight: 700; color: #15803d; margin-top: 8px;">
           ✅ Total Matched: ₹0 Cash + ₹0 Online = ₹0
         </div>
       </div>
 
       <!-- Mode Summary Preview -->
-      <div id="paymentSummaryNotice" style="font-size: 0.84rem; color: var(--text-secondary); line-height: 1.4; margin-bottom: 18px; padding: 10px 12px; background: var(--bg-secondary); border-radius: var(--radius-sm);">
+      <div id="paymentSummaryNotice" style="font-size: 0.84rem; color: var(--text-secondary); line-height: 1.4; margin-bottom: 16px; padding: 10px 12px; background: var(--bg-secondary); border-radius: var(--radius-sm);">
         Entire bill amount will be paid in <strong>Cash</strong>.
       </div>
 
@@ -279,11 +317,11 @@
             <span id="billPaymentModeText">FULL CASH</span>
           </div>
           <div style="display: flex; justify-content: space-between; margin-top: 3px;" id="billCashRow">
-            <span>Cash Paid:</span>
+            <span id="billCashLabelText">Cash Paid:</span>
             <span id="billCashPaidText">₹0</span>
           </div>
           <div style="display: flex; justify-content: space-between; margin-top: 3px;" id="billOnlineRow">
-            <span>Online / UPI Paid:</span>
+            <span id="billOnlineLabelText">Online / UPI Paid:</span>
             <span id="billOnlinePaidText">₹0</span>
           </div>
         </div>

@@ -433,32 +433,72 @@ router.post('/orders/:id/complete', requireAuth(['WAITER', 'ADMIN']), async (req
       return res.status(404).json({ success: false, error: 'Order not found.' });
     }
 
-    let payment_mode = req.body.payment_mode ? String(req.body.payment_mode).toUpperCase() : 'CASH';
-    const validModes = ['CASH', 'ONLINE', 'SPLIT'];
-    if (!validModes.includes(payment_mode)) {
-      payment_mode = 'CASH';
-    }
-
     const orderTotal = Number(existingOrder.total || 0);
+    let payment_mode = req.body.payment_mode ? String(req.body.payment_mode).toUpperCase() : 'CASH';
     let cash_amount = 0;
     let online_amount = 0;
 
-    if (payment_mode === 'CASH') {
-      cash_amount = orderTotal;
-      online_amount = 0;
-    } else if (payment_mode === 'ONLINE') {
-      cash_amount = 0;
-      online_amount = orderTotal;
-    } else if (payment_mode === 'SPLIT') {
-      cash_amount = Number(req.body.cash_amount) || 0;
-      online_amount = Number(req.body.online_amount) || 0;
-
-      // Validate split sum equals order total
-      if (Math.abs((cash_amount + online_amount) - orderTotal) > 0.01) {
+    if (req.body.cash_amount !== undefined && req.body.cash_amount !== null) {
+      const inputCash = Math.round(Number(req.body.cash_amount) * 100) / 100;
+      if (inputCash < 0) {
+        return res.status(400).json({ success: false, error: 'Cash amount cannot be negative.' });
+      }
+      if (inputCash > orderTotal) {
         return res.status(400).json({
           success: false,
-          error: `Split amounts (Cash: ₹${cash_amount} + Online: ₹${online_amount} = ₹${cash_amount + online_amount}) must equal total order amount (₹${orderTotal}).`
+          error: `Cash amount (₹${inputCash}) cannot exceed order total (₹${orderTotal}).`
         });
+      }
+
+      // If online_amount was also explicitly supplied, ensure the sum equals total
+      if (req.body.online_amount !== undefined && req.body.online_amount !== null) {
+        const inputOnline = Math.round(Number(req.body.online_amount) * 100) / 100;
+        if (Math.abs((inputCash + inputOnline) - orderTotal) > 0.01) {
+          return res.status(400).json({
+            success: false,
+            error: `Split amounts (Cash: ₹${inputCash} + Online: ₹${inputOnline} = ₹${inputCash + inputOnline}) must equal total order amount (₹${orderTotal}).`
+          });
+        }
+        online_amount = inputOnline;
+      } else {
+        online_amount = Math.round((orderTotal - inputCash) * 100) / 100;
+      }
+
+      cash_amount = inputCash;
+
+      if (cash_amount >= orderTotal) {
+        payment_mode = 'CASH';
+        cash_amount = orderTotal;
+        online_amount = 0;
+      } else if (cash_amount <= 0) {
+        payment_mode = 'ONLINE';
+        cash_amount = 0;
+        online_amount = orderTotal;
+      } else {
+        payment_mode = 'SPLIT';
+      }
+    } else {
+      const validModes = ['CASH', 'ONLINE', 'SPLIT'];
+      if (!validModes.includes(payment_mode)) {
+        payment_mode = 'CASH';
+      }
+
+      if (payment_mode === 'CASH') {
+        cash_amount = orderTotal;
+        online_amount = 0;
+      } else if (payment_mode === 'ONLINE') {
+        cash_amount = 0;
+        online_amount = orderTotal;
+      } else if (payment_mode === 'SPLIT') {
+        cash_amount = Number(req.body.cash_amount) || 0;
+        online_amount = Number(req.body.online_amount) || 0;
+
+        if (Math.abs((cash_amount + online_amount) - orderTotal) > 0.01) {
+          return res.status(400).json({
+            success: false,
+            error: `Split amounts (Cash: ₹${cash_amount} + Online: ₹${online_amount} = ₹${cash_amount + online_amount}) must equal total order amount (₹${orderTotal}).`
+          });
+        }
       }
     }
 
