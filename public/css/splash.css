@@ -108,6 +108,33 @@
   }
 }
 
+/* Official Brand Logo Container */
+.splash-logo-container {
+  position: relative;
+  width: 100%;
+  max-width: 290px;
+  margin-bottom: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.splash-brand-logo {
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 24px rgba(163, 138, 92, 0.35));
+  animation: splashLogoPulse 3.5s ease-in-out infinite alternate;
+  z-index: 2;
+  position: relative;
+}
+
+@keyframes splashLogoPulse {
+  0% { transform: scale(0.97); filter: drop-shadow(0 4px 14px rgba(163, 138, 92, 0.22)); }
+  100% { transform: scale(1.02); filter: drop-shadow(0 10px 28px rgba(163, 138, 92, 0.45)); }
+}
+
 /* Emblem & Lottie Container */
 .splash-emblem-wrap {
   position: relative;

@@ -38,8 +38,10 @@
 }
 
 .waiter-nav-logo {
-  height: 34px;
+  height: 38px;
   width: auto;
+  max-width: 150px;
+  object-fit: contain;
 }
 
 .waiter-profile-chip {

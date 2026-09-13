@@ -35,9 +35,11 @@
 }
 
 .brand-logo-img {
-  height: 60px;
+  height: 68px;
   width: auto;
   max-width: 90vw;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(163, 138, 92, 0.2));
 }
 
 .cafe-tagline {
