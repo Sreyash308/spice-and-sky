@@ -541,8 +541,14 @@ class CafeStore extends EventEmitter {
     if (existingIndex >= 0) {
       this.orders[existingIndex] = order;
     } else {
-      this.orders.unshift(order);
+      this.orders.push(order);
     }
+
+    // Always sort descending by order_number (highest order number first)
+    this.orders.sort((a, b) => {
+      if (b.order_number && a.order_number) return Number(b.order_number) - Number(a.order_number);
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
 
     if (itemsData && itemsData.length > 0) {
       this.orderItems = this.orderItems.filter(oi => oi.order_id !== orderId);
@@ -680,7 +686,10 @@ class CafeStore extends EventEmitter {
 
   // --- ORDERS QUERY ---
   getOrders(filters = {}) {
-    let result = [...this.orders];
+    let result = [...this.orders].sort((a, b) => {
+      if (b.order_number && a.order_number) return Number(b.order_number) - Number(a.order_number);
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
 
     if (filters.table_number) {
       result = result.filter(o => o.table_number === Number(filters.table_number));
@@ -814,10 +823,16 @@ class CafeStore extends EventEmitter {
       salesByTable: Object.values(salesByTable),
       topSellingItems,
       activeServing,
-      recentOrders: this.orders.slice(0, 20).map(o => ({
-        ...o,
-        items: this.orderItems.filter(oi => oi.order_id === o.id)
-      }))
+      recentOrders: [...this.orders]
+        .sort((a, b) => {
+          if (b.order_number && a.order_number) return Number(b.order_number) - Number(a.order_number);
+          return new Date(b.created_at) - new Date(a.created_at);
+        })
+        .slice(0, 20)
+        .map(o => ({
+          ...o,
+          items: this.orderItems.filter(oi => oi.order_id === o.id)
+        }))
     };
   }
 }

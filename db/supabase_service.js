@@ -605,6 +605,16 @@ module.exports = {
 
   // Get Analytics
   async getAnalytics() {
+    if (isConfigured && (!localStore.orders || localStore.orders.length === 0)) {
+      try {
+        const remoteOrders = await this.getOrders();
+        if (remoteOrders && remoteOrders.length > 0) {
+          remoteOrders.forEach(o => {
+            localStore.recordOrderSnapshot(o, o.items || o.order_items || []);
+          });
+        }
+      } catch (e) {}
+    }
     return localStore.getAnalytics();
   },
 

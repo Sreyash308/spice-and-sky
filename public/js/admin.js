@@ -173,10 +173,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
         }
 
-        // Recent Orders Feed
+        // Recent Orders Feed (highest order number down to num - 9)
         const recentTbody = document.getElementById('dashboardRecentOrdersTbody');
         recentTbody.innerHTML = '';
-        const recents = a.recentOrders || [];
+        const recents = (a.recentOrders || [])
+          .sort((a, b) => Number(b.order_number || 0) - Number(a.order_number || 0));
 
         if (recents.length === 0) {
           recentTbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No orders recorded yet.</td></tr>`;
@@ -281,7 +282,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const res = await fetch('/api/orders');
       const json = await res.json();
       if (json.success) {
-        ordersList = json.data || [];
+        ordersList = (json.data || []).sort((a, b) => Number(b.order_number || 0) - Number(a.order_number || 0));
         filterAndRenderOrders();
       }
     } catch (err) {
