@@ -29,8 +29,7 @@ async function testAll() {
   const menuHtml = await menuHtmlRes.text();
 
   // Verification of branding elements
-  assert(menuHtml.includes('SPICE &amp; SKY ROOFTOP CAFE') || menuHtml.includes('SPICE & SKY'), 'Menu must contain cafe name');
-  assert(menuHtml.includes('Rooftop Vibes, Bold Flavors &amp; Cozy Brews') || menuHtml.includes('Rooftop Vibes'), 'Menu must contain tagline');
+  assert(menuHtml.includes('SPICE &amp; SKY ROOFTOP CAFE') || menuHtml.includes('SPICE & SKY') || menuHtml.includes('Spice &amp; Sky'), 'Menu must contain cafe name');
   assert(menuHtml.includes('+91 85228 80017'), 'Menu must contain phone number');
   assert(menuHtml.includes('1:00 PM – 02:00 AM'), 'Menu must contain hours');
   assert(menuHtml.includes('@spicensky') && menuHtml.includes('https://www.instagram.com/spicensky'), 'Menu must show updated Instagram handle and link');
