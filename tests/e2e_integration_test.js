@@ -95,7 +95,7 @@ async function testAll() {
     headers: waiterHeaders,
     body: JSON.stringify({
       table_number: 4,
-      waiter_name: 'Staff Sreyash',
+      waiter_name: 'Shan',
       items: [
         { menu_item_id: cap.id, quantity: 2 }, // 2 x 219 = 438
         { menu_item_id: fries.id, quantity: 1 }  // 1 x 160 = 160
@@ -129,7 +129,7 @@ async function testAll() {
         { menu_item_id: cap.id, quantity: 2 },
         { menu_item_id: fries.id, quantity: 1 }
       ],
-      waiter_name: 'Staff Sreyash'
+      waiter_name: 'Shan'
     })
   });
   const editJson = await editRes.json();
@@ -170,7 +170,7 @@ async function testAll() {
     headers: waiterHeaders,
     body: JSON.stringify({
       table_number: 1,
-      waiter_name: 'Staff Sreyash',
+      waiter_name: 'Shan',
       items: [{ menu_item_id: cap.id, quantity: 1 }]
     })
   });

@@ -224,8 +224,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           recents.slice(0, 10).forEach(o => {
             const tr = document.createElement('tr');
             const orderItemList = (o.items && o.items.length > 0) ? o.items : (o.order_items && o.order_items.length > 0 ? o.order_items : []);
-            const rawSummary = orderItemList.map(i => `${i.quantity}x ${i.item_name_snapshot || i.name || 'Item'}`).join(', ') || (o.total > 0 ? `Total: ${SpiceClient.formatCurrency(o.total)}` : 'No items');
-            const itemsSummary = orderItemList.map(i => `${i.quantity}x ${SpiceClient.escapeHtml(i.item_name_snapshot || i.name || 'Item')}`).join(', ') || (o.total > 0 ? `Total: ${SpiceClient.formatCurrency(o.total)}` : 'No items');
+            const rawSummary = orderItemList.length > 0
+              ? orderItemList.map(i => `${i.quantity}x ${i.item_name_snapshot || i.name || 'Item'}`).join(', ')
+              : (Number(o.total) > 0 ? `Cafe Dining (${SpiceClient.formatCurrency(o.total)})` : 'No items');
+            const itemsSummary = orderItemList.length > 0
+              ? orderItemList.map(i => `${i.quantity}x ${SpiceClient.escapeHtml(i.item_name_snapshot || i.name || 'Item')}`).join(', ')
+              : (Number(o.total) > 0 ? `Cafe Dining (${SpiceClient.formatCurrency(o.total)})` : 'No items');
             const timeStr = SpiceClient.formatDateTimeIST(o.created_at).split(',')[1] || '';
             const isCompleted = o.status === 'COMPLETED';
             const isServing = !isCompleted && o.status !== 'CANCELLED';
@@ -363,8 +367,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     filtered.forEach(o => {
       const tr = document.createElement('tr');
       const orderItemList = (o.items && o.items.length > 0) ? o.items : (o.order_items && o.order_items.length > 0 ? o.order_items : []);
-      const rawItemsList = orderItemList.map(i => `${i.quantity}x ${i.item_name_snapshot || i.name || 'Item'}${i.variant_name_snapshot ? ` (${i.variant_name_snapshot})` : ''}`).join(', ') || (o.total > 0 ? `Order Total: ${SpiceClient.formatCurrency(o.total)}` : 'No items recorded');
-      const itemsList = orderItemList.map(i => `${i.quantity}x ${SpiceClient.escapeHtml(i.item_name_snapshot || i.name || 'Item')}${i.variant_name_snapshot ? ` (${SpiceClient.escapeHtml(i.variant_name_snapshot)})` : ''}`).join(', ') || (o.total > 0 ? `<span style="color: var(--text-secondary); font-weight: 500;">Order Total: ${SpiceClient.formatCurrency(o.total)}</span>` : '<span style="color: var(--text-muted); font-style: italic;">No items recorded</span>');
+      const rawItemsList = orderItemList.length > 0
+        ? orderItemList.map(i => `${i.quantity}x ${i.item_name_snapshot || i.name || 'Item'}${i.variant_name_snapshot ? ` (${i.variant_name_snapshot})` : ''}`).join(', ')
+        : (Number(o.total) > 0 ? `Cafe Dining (${SpiceClient.formatCurrency(o.total)})` : 'No items recorded');
+      const itemsList = orderItemList.length > 0
+        ? orderItemList.map(i => `${i.quantity}x ${SpiceClient.escapeHtml(i.item_name_snapshot || i.name || 'Item')}${i.variant_name_snapshot ? ` (${SpiceClient.escapeHtml(i.variant_name_snapshot)})` : ''}`).join(', ')
+        : (Number(o.total) > 0 ? `<span style="color: var(--text-secondary); font-weight: 500;">Cafe Dining (${SpiceClient.formatCurrency(o.total)})</span>` : '<span style="color: var(--text-muted); font-style: italic;">No items recorded</span>');
       const isCompleted = o.status === 'COMPLETED';
       const isServing = !isCompleted && o.status !== 'CANCELLED';
       const statusPill = isCompleted

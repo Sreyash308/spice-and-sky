@@ -437,9 +437,8 @@ module.exports = {
           const itemsToInsert = itemSnapshots.map(s => ({
             order_id: updatedOrder.id,
             menu_item_id: validDbItemIds.has(s.menu_item_id) ? s.menu_item_id : null,
-            variant_id: s.variant_id,
             item_name_snapshot: s.item_name_snapshot,
-            variant_name_snapshot: s.variant_name_snapshot,
+            variant_name_snapshot: s.variant_name_snapshot || null,
             unit_price_snapshot: s.unit_price_snapshot,
             quantity: s.quantity,
             line_total: s.line_total
@@ -447,7 +446,7 @@ module.exports = {
           const { error: insErr } = await supabase.from('order_items').insert(itemsToInsert);
           if (insErr) {
             console.warn('Supabase update order_items insert warning:', insErr.message);
-            await supabase.from('order_items').insert(itemsToInsert.map(i => ({ ...i, menu_item_id: null, variant_id: null })));
+            await supabase.from('order_items').insert(itemsToInsert.map(i => ({ ...i, menu_item_id: null })));
           }
 
           updatedOrder.items = itemSnapshots;
@@ -712,13 +711,16 @@ module.exports = {
       const { data, error } = await query;
       if (!error && data) {
         return data.map(o => {
-          const localO = localStore.getOrderById(o.id);
+          const localO = localStore.getOrderById(o.id) || localStore.getOrderById(o.order_number);
           const payment_mode = o.payment_mode || (localO && localO.payment_mode) || (o.notes && o.notes.includes('Payment: ONLINE') ? 'ONLINE' : (o.notes && o.notes.includes('Payment: SPLIT') ? 'SPLIT' : 'CASH'));
           const cash_amount = (o.cash_amount != null) ? Number(o.cash_amount) : (localO && localO.cash_amount != null ? Number(localO.cash_amount) : (payment_mode === 'ONLINE' ? 0 : Number(o.total)));
           const online_amount = (o.online_amount != null) ? Number(o.online_amount) : (localO && localO.online_amount != null ? Number(localO.online_amount) : (payment_mode === 'ONLINE' ? Number(o.total) : 0));
+          const localItems = (localO && localO.items && localO.items.length > 0)
+            ? localO.items
+            : (localStore.orderItems ? localStore.orderItems.filter(i => i.order_id === o.id) : []);
           const items = (o.order_items && o.order_items.length > 0)
             ? o.order_items
-            : ((o.items && o.items.length > 0) ? o.items : []);
+            : ((o.items && o.items.length > 0) ? o.items : localItems);
           return {
             ...o,
             payment_mode,
@@ -968,7 +970,8 @@ module.exports = {
       console.error('Local image save error:', fsErr.message);
       throw new Error(`Failed to upload image: ${fsErr.message}`);
     }
-  }
+  },
+  supabase
 };
 
 // Pre-warm local store cache with remote Supabase data
