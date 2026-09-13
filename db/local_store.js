@@ -38,6 +38,24 @@ class CafeStore extends EventEmitter {
         role: 'WAITER',
         display_name: 'Rooftop Waiter',
         email: 'waiter@spiceandsky.com'
+      },
+      {
+        id: 'f80da808-79e6-45e0-801c-19064070a9a1',
+        role: 'WAITER',
+        display_name: 'Shan',
+        email: 'shan@spiceandsky.com'
+      },
+      {
+        id: 'f80da808-79e6-45e0-801c-19064070a9a2',
+        role: 'WAITER',
+        display_name: 'Yawar',
+        email: 'yawar@spiceandsky.com'
+      },
+      {
+        id: 'f80da808-79e6-45e0-801c-19064070a9a3',
+        role: 'WAITER',
+        display_name: 'Nawaz',
+        email: 'nawaz@spiceandsky.com'
       }
     ];
     this.orderSequence = 0;

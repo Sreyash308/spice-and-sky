@@ -36,13 +36,31 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET || 'spice_sky_rooftop_cafe_secret_key_2026_jwt_token';
 
-// Authoritative Default Users (Admin & Waiter)
+// Authoritative Default Users (Admin & Waiters)
 const DEFAULT_USERS = {
   ADMIN: {
     id: '497c557a-0182-4d22-a3e7-1a929415c947',
     email: 'admin@143',
     role: 'ADMIN',
     display_name: 'Owner Admin'
+  },
+  WAITER_SHAN: {
+    id: 'f80da808-79e6-45e0-801c-19064070a9a1',
+    email: 'shan@spiceandsky.com',
+    role: 'WAITER',
+    display_name: 'Shan'
+  },
+  WAITER_YAWAR: {
+    id: 'f80da808-79e6-45e0-801c-19064070a9a2',
+    email: 'yawar@spiceandsky.com',
+    role: 'WAITER',
+    display_name: 'Yawar'
+  },
+  WAITER_NAWAZ: {
+    id: 'f80da808-79e6-45e0-801c-19064070a9a3',
+    email: 'nawaz@spiceandsky.com',
+    role: 'WAITER',
+    display_name: 'Nawaz'
   },
   WAITER: {
     id: 'f80da808-79e6-45e0-801c-19064070a9a8',
@@ -142,11 +160,31 @@ router.post('/auth/login', async (req, res) => {
       } else {
         return res.status(401).json({ success: false, error: 'Invalid username or password.' });
       }
+    } else if (rawIdentifier === 'shan' || rawIdentifier === 'shan@spiceandsky.com') {
+      if (rawPassword.toLowerCase() === 'waiter' || rawPassword === 'SpiceSkyWaiter2026!') {
+        authUser = DEFAULT_USERS.WAITER_SHAN;
+      } else {
+        return res.status(401).json({ success: false, error: 'Invalid username or password.' });
+      }
+    } else if (rawIdentifier === 'yawar' || rawIdentifier === 'yawar@spiceandsky.com') {
+      if (rawPassword.toLowerCase() === 'waiter' || rawPassword === 'SpiceSkyWaiter2026!') {
+        authUser = DEFAULT_USERS.WAITER_YAWAR;
+      } else {
+        return res.status(401).json({ success: false, error: 'Invalid username or password.' });
+      }
+    } else if (rawIdentifier === 'nawaz' || rawIdentifier === 'nawaz@spiceandsky.com') {
+      if (rawPassword.toLowerCase() === 'waiter' || rawPassword === 'SpiceSkyWaiter2026!') {
+        authUser = DEFAULT_USERS.WAITER_NAWAZ;
+      } else {
+        return res.status(401).json({ success: false, error: 'Invalid username or password.' });
+      }
     } else if (rawIdentifier === 'waiter' || rawIdentifier === 'staff' || rawIdentifier === 'waiter@spiceandsky.com') {
       // Waiter credentials
       const validWaiterPasswords = ['spiceskywaiter2026!', 'waiter', 'waiter123', 'waiter@123'];
       if (validWaiterPasswords.includes(rawPassword.toLowerCase()) || rawPassword === 'SpiceSkyWaiter2026!') {
         authUser = DEFAULT_USERS.WAITER;
+      } else {
+        return res.status(401).json({ success: false, error: 'Invalid username or password.' });
       }
     }
 

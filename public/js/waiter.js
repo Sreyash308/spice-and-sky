@@ -10,6 +10,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const currentUser = SpiceClient.requireRole('WAITER', '/waiter/login');
   if (!currentUser) return;
 
+  const waiterStaffBadge = document.getElementById('waiterStaffBadge');
+  if (waiterStaffBadge && currentUser) {
+    const roleIcon = currentUser.role === 'ADMIN' ? '👑 ' : '👔 ';
+    waiterStaffBadge.textContent = roleIcon + (currentUser.display_name || 'Staff');
+  }
+
   const waiterSignOutBtn = document.getElementById('waiterSignOutBtn');
 
   if (waiterSignOutBtn) {
