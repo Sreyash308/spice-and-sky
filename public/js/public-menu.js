@@ -197,6 +197,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    let renderedItemCount = 0;
+
     // Group items by category in the prioritized visible sequence
     visibleCategories.forEach(cat => {
       const catItems = filteredItems.filter(i => i.category_id === cat.id);
@@ -229,13 +231,40 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
 
       catItems.forEach(item => {
-        const card = createItemCard(item, cat.name);
+        const isAboveFold = renderedItemCount < 8;
+        renderedItemCount++;
+        const card = createItemCard(item, cat.name, isAboveFold);
         itemsGrid.appendChild(card);
       });
 
       section.appendChild(itemsGrid);
       catalogContainer.appendChild(section);
     });
+
+    // Preheat subsequent images in idle background time for instant navigation
+    preheatMenuImages(filteredItems);
+  }
+
+  function preheatMenuImages(items) {
+    if (!items || items.length <= 8) return;
+    const run = () => {
+      const batch = items.slice(8, 40);
+      batch.forEach(item => {
+        const url = (window.SpiceSkyImages && window.SpiceSkyImages.getMenuItemImageUrl)
+          ? window.SpiceSkyImages.getMenuItemImageUrl(item)
+          : item.image_url;
+        if (url) {
+          const preImg = new Image();
+          preImg.src = url;
+        }
+      });
+    };
+
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(run, { timeout: 1800 });
+    } else {
+      setTimeout(run, 800);
+    }
   }
 
   function setupScrollSpy() {
@@ -272,7 +301,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     sections.forEach(sec => scrollSpyObserver.observe(sec));
   }
 
-  function createItemCard(item, categoryName = '') {
+  function createItemCard(item, categoryName = '', isAboveFold = false) {
     const card = document.createElement('article');
     card.className = `menu-card ${!item.is_available ? 'is-unavailable' : ''}`;
     card.id = `menu-item-${item.id}`;
@@ -333,11 +362,13 @@ document.addEventListener('DOMContentLoaded', async () => {
           <img
             src="${imgUrl}"
             alt="${item.name}"
-            loading="lazy"
+            loading="${isAboveFold ? 'eager' : 'lazy'}"
             decoding="async"
+            ${isAboveFold ? 'fetchpriority="high"' : 'fetchpriority="low"'}
             width="104"
             height="94"
-            onerror="this.onerror=null;this.src='${fallbackUrl}';"
+            onload="this.classList.add('loaded')"
+            onerror="this.onerror=null;this.src='${fallbackUrl}';this.classList.add('loaded');"
           />
         </div>
       </div>

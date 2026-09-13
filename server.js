@@ -67,12 +67,16 @@ app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Static Assets
-app.use('/public', express.static(path.join(__dirname, 'public')));
-app.use('/css', express.static(path.join(__dirname, 'public', 'css')));
-app.use('/js', express.static(path.join(__dirname, 'public', 'js')));
-app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
-app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
+// Static Assets with optimized cache headers for fast image and asset rendering
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+app.use('/images', express.static(path.join(__dirname, 'public', 'images'), {
+  maxAge: THIRTY_DAYS_MS,
+  immutable: true
+}));
+app.use('/public', express.static(path.join(__dirname, 'public'), { maxAge: '1d' }));
+app.use('/css', express.static(path.join(__dirname, 'public', 'css'), { maxAge: '1d' }));
+app.use('/js', express.static(path.join(__dirname, 'public', 'js'), { maxAge: '1d' }));
+app.use('/assets', express.static(path.join(__dirname, 'public', 'assets'), { maxAge: '7d' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Health Check

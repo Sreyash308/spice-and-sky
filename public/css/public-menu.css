@@ -442,10 +442,17 @@
   border-radius: 12px;
   overflow: hidden;
   flex-shrink: 0;
-  background: var(--bg-secondary);
+  background: linear-gradient(90deg, #f5efe8 0%, #fcf7f0 50%, #f5efe8 100%);
+  background-size: 200% 100%;
+  animation: thumbShimmer 1.8s infinite ease-in-out;
   border: 1px solid var(--border-subtle);
   position: relative;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+@keyframes thumbShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 .item-card-thumb-box img {
@@ -453,7 +460,12 @@
   height: 100%;
   object-fit: cover;
   display: block;
-  transition: transform var(--transition-fast);
+  opacity: 0;
+  transition: opacity 0.22s ease-in, transform var(--transition-fast);
+}
+
+.item-card-thumb-box img.loaded {
+  opacity: 1;
 }
 
 .menu-card:hover .item-card-thumb-box img {
