@@ -409,10 +409,12 @@ window.SpiceClient = (function () {
               padding-bottom: 2mm;
               margin-bottom: 2mm;
             }
-            .receipt-cafe-name {
-              font-size: 13pt;
-              font-weight: 900;
-              letter-spacing: 0.5px;
+            .receipt-logo {
+              height: 14mm;
+              max-width: 50mm;
+              margin: 0 auto 2mm auto;
+              display: block;
+              object-fit: contain;
             }
             .receipt-tagline {
               font-size: 8.5pt;

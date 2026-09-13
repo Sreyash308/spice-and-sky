@@ -111,10 +111,12 @@
     margin-bottom: 2mm !important;
   }
 
-  .receipt-cafe-name {
-    font-size: 13pt !important;
-    font-weight: 900 !important;
-    letter-spacing: 0.5px !important;
+  .receipt-logo {
+    height: 14mm !important;
+    max-width: 50mm !important;
+    margin: 0 auto 2mm auto !important;
+    display: block !important;
+    object-fit: contain !important;
   }
 
   .receipt-tagline {
