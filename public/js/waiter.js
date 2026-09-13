@@ -61,6 +61,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const drawerTotalAmount = document.getElementById('drawerTotalAmount');
   const closeDrawerBtn = document.getElementById('closeDrawerBtn');
   const clearOrderBtn = document.getElementById('clearOrderBtn');
+  const cancelOrderBtn = document.getElementById('cancelOrderBtn');
   const drawerSaveServingBtn = document.getElementById('drawerSaveServingBtn');
   const drawerGenerateBtn = document.getElementById('drawerGenerateBtn');
 
@@ -210,8 +211,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         <span class="tab-serving-dot"></span>
         <span>Order #${ord.order_number}</span>
         <span class="tab-amount">${SpiceClient.formatCurrency(totalAmt)}</span>
+        <span class="tab-cancel-x" title="Cancel Order #${ord.order_number}">&times;</span>
       `;
-      pill.addEventListener('click', () => {
+      pill.addEventListener('click', (e) => {
+        if (e.target.classList.contains('tab-cancel-x')) {
+          e.stopPropagation();
+          if (confirm(`Are you sure you want to CANCEL Order #${ord.order_number} for Table ${activeTable}? This action cannot be undone.`)) {
+            handleCancelActiveOrder(ord.id);
+          }
+          return;
+        }
         selectOrderTab(ord.id);
       });
       tableOrdersBar.appendChild(pill);
@@ -365,6 +374,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       closeDrawer();
     }
   });
+
+  if (cancelOrderBtn) {
+    cancelOrderBtn.addEventListener('click', async () => {
+      const activeOrder = getSelectedActiveOrder();
+      if (!activeOrder || !activeOrder.id) return;
+      if (confirm(`Are you sure you want to CANCEL Order #${activeOrder.order_number} for Table ${activeTable}? This action cannot be undone.`)) {
+        await handleCancelActiveOrder(activeOrder.id);
+      }
+    });
+  }
 
   if (saveServingBtn) {
     saveServingBtn.addEventListener('click', () => handleSaveServingOrder());
@@ -893,11 +912,64 @@ document.addEventListener('DOMContentLoaded', async () => {
       drawerGenerateBtn.disabled = isSubmitting;
     }
 
+    if (activeOrder && activeOrder.id) {
+      if (cancelOrderBtn) {
+        cancelOrderBtn.style.display = 'inline-block';
+        cancelOrderBtn.textContent = `🚫 Cancel #${activeOrder.order_number}`;
+        cancelOrderBtn.disabled = isSubmitting;
+      }
+      if (clearOrderBtn) clearOrderBtn.style.display = 'none';
+    } else {
+      if (cancelOrderBtn) cancelOrderBtn.style.display = 'none';
+      if (clearOrderBtn) clearOrderBtn.style.display = 'inline-block';
+    }
+
     orderDrawer.classList.add('active');
   }
 
   function closeDrawer() {
     orderDrawer.classList.remove('active');
+  }
+
+  // CANCEL ACTIVE SERVING ORDER
+  async function handleCancelActiveOrder(orderId) {
+    if (!orderId || isSubmitting) return;
+    isSubmitting = true;
+    if (cancelOrderBtn) cancelOrderBtn.disabled = true;
+
+    try {
+      const res = await fetch(`/api/orders/${orderId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'CANCELLED' })
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Failed to cancel order.');
+
+      // Remove from active orders list for this table
+      const list = activeOrdersByTable[activeTable] || [];
+      activeOrdersByTable[activeTable] = list.filter(o => String(o.id) !== String(orderId));
+      delete orderCarts[String(orderId)];
+
+      // If the cancelled order was the selected one, switch to remaining active order or 'new'
+      if (String(selectedOrderIdByTable[activeTable]) === String(orderId)) {
+        const remaining = activeOrdersByTable[activeTable];
+        selectedOrderIdByTable[activeTable] = (remaining && remaining.length > 0) ? remaining[0].id : 'new';
+      }
+
+      updateTableGridIndicators();
+      renderOrderTabs();
+      updateBottomBar();
+      renderCatalog();
+      closeDrawer();
+      alert(`❌ Order #${json.data ? json.data.order_number : ''} has been cancelled.`);
+    } catch (err) {
+      alert(`Error cancelling order: ${err.message}`);
+    } finally {
+      isSubmitting = false;
+      if (cancelOrderBtn) cancelOrderBtn.disabled = false;
+      updateBottomBar();
+    }
   }
 
   // SAVE ORDER & KEEP SERVING (Multi-Round & Multi-Order Ordering)

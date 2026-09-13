@@ -147,6 +147,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div style="display: flex; gap: 6px;">
                   <button type="button" class="btn btn-secondary view-serving-btn" style="padding: 4px 8px; font-size: 0.78rem;">View</button>
                   <button type="button" class="btn btn-primary complete-serving-btn" style="padding: 4px 8px; font-size: 0.78rem; background: #16a34a; border-color: #16a34a;">⚡ Bill</button>
+                  <button type="button" class="btn btn-danger cancel-serving-btn" style="padding: 4px 8px; font-size: 0.78rem;">Cancel</button>
                 </div>
               `;
 
@@ -158,6 +159,12 @@ document.addEventListener('DOMContentLoaded', async () => {
               card.querySelector('.complete-serving-btn').addEventListener('click', async () => {
                 if (confirm(`Complete bill for Table ${t.table_number} (Order #${t.order_number})?`)) {
                   await completeOrderDirect(t.id || t.order_number);
+                }
+              });
+
+              card.querySelector('.cancel-serving-btn').addEventListener('click', async () => {
+                if (confirm(`Are you sure you want to CANCEL Order #${t.order_number} for Table ${t.table_number}? This action cannot be undone.`)) {
+                  await cancelOrderDirect(t.id || t.order_number);
                 }
               });
 
@@ -195,7 +202,10 @@ document.addEventListener('DOMContentLoaded', async () => {
               <td style="font-size: 0.8rem; color: var(--text-muted);">${timeStr}</td>
               <td>
                 <button type="button" class="btn btn-secondary view-dash-order-btn" style="padding: 4px 8px; font-size: 0.8rem;">View</button>
-                ${isServing ? `<button type="button" class="btn btn-primary complete-dash-order-btn" style="padding: 4px 8px; font-size: 0.8rem; background: #16a34a; border-color: #16a34a; margin-left: 4px;">⚡ Bill</button>` : ''}
+                ${isServing ? `
+                  <button type="button" class="btn btn-primary complete-dash-order-btn" style="padding: 4px 8px; font-size: 0.8rem; background: #16a34a; border-color: #16a34a; margin-left: 4px;">⚡ Bill</button>
+                  <button type="button" class="btn btn-danger cancel-dash-order-btn" style="padding: 4px 8px; font-size: 0.8rem; margin-left: 4px;">Cancel</button>
+                ` : ''}
               </td>
             `;
 
@@ -208,6 +218,15 @@ document.addEventListener('DOMContentLoaded', async () => {
               completeBtn.addEventListener('click', async () => {
                 if (confirm(`Complete bill for Table ${o.table_number} (Order #${o.order_number})?`)) {
                   await completeOrderDirect(o.id);
+                }
+              });
+            }
+
+            const cancelBtn = tr.querySelector('.cancel-dash-order-btn');
+            if (cancelBtn) {
+              cancelBtn.addEventListener('click', async () => {
+                if (confirm(`Are you sure you want to CANCEL Order #${o.order_number} for Table ${o.table_number}? This action cannot be undone.`)) {
+                  await cancelOrderDirect(o.id);
                 }
               });
             }
@@ -319,7 +338,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         <td style="font-weight: 700; color: var(--spice-gold); font-family: var(--font-heading);">${SpiceClient.formatCurrency(o.total)}</td>
         <td>
           <button type="button" class="btn btn-secondary view-order-btn" style="padding: 4px 8px; font-size: 0.8rem;">View Bill</button>
-          ${isServing ? `<button type="button" class="btn btn-primary complete-order-btn" style="padding: 4px 8px; font-size: 0.8rem; background: #16a34a; border-color: #16a34a; margin-left: 4px;">⚡ Bill</button>` : ''}
+          ${isServing ? `
+            <button type="button" class="btn btn-primary complete-order-btn" style="padding: 4px 8px; font-size: 0.8rem; background: #16a34a; border-color: #16a34a; margin-left: 4px;">⚡ Bill</button>
+            <button type="button" class="btn btn-danger cancel-order-btn" style="padding: 4px 8px; font-size: 0.8rem; margin-left: 4px;">Cancel</button>
+          ` : ''}
         </td>
       `;
 
@@ -332,6 +354,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         completeBtn.addEventListener('click', async () => {
           if (confirm(`Complete bill for Table ${o.table_number} (Order #${o.order_number})?`)) {
             await completeOrderDirect(o.id);
+          }
+        });
+      }
+
+      const cancelBtn = tr.querySelector('.cancel-order-btn');
+      if (cancelBtn) {
+        cancelBtn.addEventListener('click', async () => {
+          if (confirm(`Are you sure you want to CANCEL Order #${o.order_number} for Table ${o.table_number}? This action cannot be undone.`)) {
+            await cancelOrderDirect(o.id);
           }
         });
       }
@@ -380,6 +411,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  async function cancelOrderDirect(orderId) {
+    try {
+      const res = await fetch(`/api/orders/${orderId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'CANCELLED' })
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Failed to cancel order.');
+      alert(`❌ Order #${json.data ? json.data.order_number : ''} has been cancelled.`);
+      loadDashboardData();
+      loadOrdersData();
+    } catch (err) {
+      alert(`Error cancelling order: ${err.message}`);
+    }
+  }
+
   function openOrderModal(order) {
     if (!order) return;
     activeModalOrder = order;
@@ -401,6 +449,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       adminCompleteBillBtn.onclick = async () => {
         if (confirm(`Complete bill for Table ${order.table_number} (Order #${order.order_number})?`)) {
           await completeOrderDirect(order.id);
+          adminOrderModal.classList.remove('active');
+        }
+      };
+    }
+
+    const adminCancelBillBtn = document.getElementById('adminCancelBillBtn');
+    if (adminCancelBillBtn) {
+      const isServing = order.status !== 'COMPLETED' && order.status !== 'CANCELLED';
+      adminCancelBillBtn.style.display = isServing ? 'inline-block' : 'none';
+      adminCancelBillBtn.onclick = async () => {
+        if (confirm(`Are you sure you want to CANCEL Order #${order.order_number} for Table ${order.table_number}? This action cannot be undone.`)) {
+          await cancelOrderDirect(order.id);
           adminOrderModal.classList.remove('active');
         }
       };
