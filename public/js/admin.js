@@ -10,6 +10,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const currentUser = SpiceClient.requireRole('ADMIN', '/admin/login');
   if (!currentUser) return;
 
+  const adminBadge = document.getElementById('adminBadge');
+  if (adminBadge && currentUser) {
+    const adminName = currentUser.username || currentUser.display_name || 'admin@143';
+    adminBadge.textContent = `👑 ${adminName}`;
+  }
+
   // Sign out button
   const adminLogoutBtn = document.getElementById('adminLogoutBtn');
   if (adminLogoutBtn) {

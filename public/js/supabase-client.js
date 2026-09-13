@@ -150,7 +150,12 @@ window.SpiceClient = (function () {
     const storedToken = getStoredToken();
 
     try {
-      const res = await fetch('/api/auth/session');
+      const headers = {};
+      if (storedToken) {
+        headers['x-session-id'] = storedToken;
+        headers['Authorization'] = `Bearer ${storedToken}`;
+      }
+      const res = await fetch('/api/auth/session', { headers });
       const json = await res.json();
       if (json.success && json.authenticated && json.user) {
         currentUser = json.user;
@@ -163,7 +168,11 @@ window.SpiceClient = (function () {
           }
         }
         return { authenticated: true, user: currentUser, sessionId: currentSessionId, token: currentSessionId };
-      } else {
+      } else if (storedUser && storedToken && (!json || json.authenticated !== false)) {
+        currentUser = storedUser;
+        currentSessionId = storedToken;
+        return { authenticated: true, user: currentUser, sessionId: currentSessionId, token: currentSessionId };
+      } else if (json && json.authenticated === false && !storedToken) {
         // Explicitly unauthenticated by server (e.g. token revoked/killed or signed out)
         currentUser = null;
         currentSessionId = null;

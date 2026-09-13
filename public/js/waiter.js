@@ -4,21 +4,45 @@
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
+  function updateWaiterDisplay(user) {
+    if (!user) return;
+    const username = user.username || user.display_name || (user.email ? user.email.split('@')[0] : 'Staff');
+    const badgeText = document.getElementById('waiterUsernameText');
+    const badge = document.getElementById('waiterStaffBadge');
+    if (badgeText) {
+      badgeText.textContent = username;
+    } else if (badge) {
+      badge.textContent = username;
+    }
+    if (badge) {
+      badge.style.display = 'inline-flex';
+    }
+
+    const greet = document.getElementById('waiterGreetingName');
+    if (greet) greet.textContent = username;
+    const greetBadge = document.getElementById('waiterGreetingBadge');
+    if (greetBadge) greetBadge.style.display = 'inline-flex';
+
+    const drawerServer = document.getElementById('drawerServerName');
+    if (drawerServer) drawerServer.textContent = username;
+  }
+
+  // Instant synchronous hydration before async init
+  const initialUser = (typeof SpiceClient !== 'undefined' && SpiceClient.getStoredUser) ? SpiceClient.getStoredUser() : null;
+  if (initialUser) {
+    updateWaiterDisplay(initialUser);
+  }
+
   await SpiceClient.init();
 
   // Guard: Require WAITER or ADMIN role
   const currentUser = SpiceClient.requireRole('WAITER', '/waiter/login');
   if (!currentUser) return;
 
-  const waiterStaffBadge = document.getElementById('waiterStaffBadge');
-  if (waiterStaffBadge && currentUser) {
-    const username = currentUser.username || currentUser.display_name || (currentUser.email ? currentUser.email.split('@')[0] : 'waiter');
-    waiterStaffBadge.textContent = username;
-    waiterStaffBadge.style.display = 'inline-flex';
-  }
+  updateWaiterDisplay(currentUser);
 
   function getCurrentStaffUsername() {
-    return currentUser.username || currentUser.display_name || (currentUser.email ? currentUser.email.split('@')[0] : 'waiter');
+    return (currentUser && (currentUser.username || currentUser.display_name)) || (currentUser && currentUser.email ? currentUser.email.split('@')[0] : 'Staff');
   }
 
   const waiterSignOutBtn = document.getElementById('waiterSignOutBtn');

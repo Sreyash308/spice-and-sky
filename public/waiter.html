@@ -19,7 +19,10 @@
         <img src="/images/logo.png" alt="Spice &amp; Sky Cafe" class="waiter-nav-logo">
       </div>
       <div class="waiter-profile-chip">
-        <span class="staff-name-badge" id="waiterStaffBadge" style="display: none;"></span>
+        <span class="staff-name-badge" id="waiterStaffBadge" style="display: inline-flex; align-items: center; gap: 6px;">
+          <span style="font-size: 0.95rem;">👤</span>
+          <span id="waiterUsernameText">Staff</span>
+        </span>
         <button class="btn-signout" id="waiterSignOutBtn" title="Sign Out">Sign Out</button>
       </div>
     </div>
@@ -29,7 +32,12 @@
   <section class="table-selector-section">
     <div class="table-selector-inner">
       <div class="section-label-row">
-        <span class="section-label">Select Table (1 - 9)</span>
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <span class="section-label">Select Table (1 - 9)</span>
+          <span id="waiterGreetingBadge" style="display: inline-flex; align-items: center; gap: 5px; font-size: 0.82rem; font-weight: 700; color: var(--spice-terracotta); background: var(--spice-glow); padding: 3px 10px; border-radius: var(--radius-full); border: 1px solid rgba(224, 90, 43, 0.2);">
+            Server: <span id="waiterGreetingName">Staff</span>
+          </span>
+        </div>
         <div style="display: flex; align-items: center; gap: 8px;">
           <span class="active-table-callout" id="activeTableCallout">Table 1 Selected</span>
           <span class="table-serving-pill" id="tableServingPill" style="display: none;">🟢 Serving</span>
@@ -115,7 +123,12 @@
   <div class="order-drawer" id="orderDrawer">
     <div class="order-drawer-content">
       <div class="drawer-header">
-        <h3 class="drawer-title" id="drawerTitle">Table 1 Order Review</h3>
+        <div>
+          <h3 class="drawer-title" id="drawerTitle">Table 1 Order Review</h3>
+          <div id="drawerServerBadge" style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">
+            Server: <strong id="drawerServerName" style="color: var(--spice-terracotta);">Staff</strong>
+          </div>
+        </div>
         <button type="button" class="btn btn-secondary" id="closeDrawerBtn" style="padding: 6px 12px;">Close</button>
       </div>
 
@@ -209,5 +222,22 @@
   <!-- Scripts -->
   <script src="/js/supabase-client.js"></script>
   <script src="/js/waiter.js"></script>
+  <script>
+    (function() {
+      try {
+        const raw = localStorage.getItem('spice_auth_user');
+        if (raw) {
+          const u = JSON.parse(raw);
+          const name = u.username || u.display_name || (u.email ? u.email.split('@')[0] : 'Staff');
+          const badgeText = document.getElementById('waiterUsernameText');
+          if (badgeText) badgeText.textContent = name;
+          const greet = document.getElementById('waiterGreetingName');
+          if (greet) greet.textContent = name;
+          const drawerServer = document.getElementById('drawerServerName');
+          if (drawerServer) drawerServer.textContent = name;
+        }
+      } catch (e) {}
+    })();
+  </script>
 </body>
 </html>
