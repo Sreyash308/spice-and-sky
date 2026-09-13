@@ -64,6 +64,11 @@
     <section class="tab-panel active" id="tab-dashboard">
       <!-- KPI Metric Cards -->
       <div class="kpi-grid">
+        <div class="kpi-card" style="border-left: 4px solid #16a34a; background: linear-gradient(145deg, #ffffff, #f0fdf4);">
+          <span class="kpi-label" style="color: #15803d; font-weight: 700;">🟢 Currently Serving</span>
+          <span class="kpi-value" id="kpiActiveServingRev" style="color: #15803d;">₹0</span>
+          <span class="kpi-sub" id="kpiActiveServingCount">0 tables active</span>
+        </div>
         <div class="kpi-card">
           <span class="kpi-label">Today's Revenue</span>
           <span class="kpi-value" id="kpiTodayRev">₹0</span>
@@ -91,6 +96,23 @@
         </div>
       </div>
 
+      <!-- Currently Serving Tables Live Monitor -->
+      <div class="panel-card" style="margin-bottom: 24px; border: 1.5px solid rgba(22, 163, 74, 0.35);">
+        <div class="panel-header">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 1.25rem;">🍽️</span>
+            <div>
+              <h3 class="panel-title" style="margin-bottom: 2px;">Currently Serving Tables</h3>
+              <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0;">Active open dining orders being served right now (not in final revenue until billed)</p>
+            </div>
+          </div>
+          <span class="pill pill-veg" id="servingTablesSummaryBadge">0 Active</span>
+        </div>
+        <div id="servingTablesContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; padding: 6px 0;">
+          <p style="color: var(--text-muted); font-size: 0.88rem; grid-column: 1 / -1; margin: 0;">No tables currently serving.</p>
+        </div>
+      </div>
+
       <!-- Recent Orders & Top Selling Grid -->
       <div class="admin-grid-2">
         <!-- Recent Orders Feed -->
@@ -105,6 +127,7 @@
                 <tr>
                   <th>Order #</th>
                   <th>Table</th>
+                  <th>Status</th>
                   <th>Items</th>
                   <th>Total</th>
                   <th>Time</th>
@@ -112,7 +135,7 @@
                 </tr>
               </thead>
               <tbody id="dashboardRecentOrdersTbody">
-                <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Loading orders...</td></tr>
+                <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Loading orders...</td></tr>
               </tbody>
             </table>
           </div>
@@ -148,6 +171,12 @@
               <option value="8">Table 8</option>
               <option value="9">Table 9</option>
             </select>
+            <select id="orderStatusFilter" class="form-select" style="max-width: 180px;">
+              <option value="">All Statuses</option>
+              <option value="SERVING">🟢 Currently Serving</option>
+              <option value="COMPLETED">✅ Completed</option>
+              <option value="CANCELLED">❌ Cancelled</option>
+            </select>
           </div>
           <button type="button" class="btn btn-secondary" id="reloadOrdersBtn">Refresh Orders</button>
         </div>
@@ -161,6 +190,7 @@
                 <th>Order #</th>
                 <th>Date &amp; Time (IST)</th>
                 <th>Table</th>
+                <th>Status</th>
                 <th>Waiter</th>
                 <th>Items (Snapshot)</th>
                 <th>Total</th>
@@ -168,7 +198,7 @@
               </tr>
             </thead>
             <tbody id="ordersTableTbody">
-              <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Loading orders...</td></tr>
+              <tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Loading orders...</td></tr>
             </tbody>
           </table>
         </div>
@@ -361,8 +391,7 @@
         <div class="receipt-header">
           <img src="/images/logo.png" alt="Spice &amp; Sky Cafe" class="receipt-logo" style="height: 38px; max-width: 150px; margin: 0 auto 6px auto; display: block; object-fit: contain;">
           <div class="receipt-cafe-name">SPICE &amp; SKY ROOFTOP CAFE</div>
-          <div class="receipt-tagline">"Rooftop Vibes, Bold Flavors &amp; Cozy Brews"</div>
-          <div style="font-size: 8pt; margin-top: 2px;">Phone: +91 85228 80017 &bull; Hyderabad</div>
+          <div style="font-size: 8.5pt; margin-top: 3px; color: var(--text-secondary);">Phone: +91 85228 80017 &bull; Hyderabad</div>
           <div class="receipt-meta">
             <span id="adminModalTable">Table 1</span>
             <span id="adminModalOrderNum">Order #1001</span>
@@ -372,7 +401,8 @@
             <span id="adminModalTime">Time: --</span>
           </div>
           <div class="receipt-meta">
-            <span id="adminModalWaiter">Waiter: Staff</span>
+            <span id="adminModalWaiter">Server: Staff</span>
+            <span id="adminModalStatus" style="font-weight: 700; color: #16a34a;">Status: COMPLETED</span>
           </div>
         </div>
 
@@ -404,7 +434,8 @@
       <!-- Action Buttons -->
       <div style="display: flex; gap: 10px;" class="no-print">
         <button type="button" class="btn btn-secondary" id="adminPrintBillBtn" style="flex: 1;">🖨️ Print Bill</button>
-        <button type="button" class="btn btn-primary" id="closeAdminOrderModalBtn" style="flex: 1;">Close</button>
+        <button type="button" class="btn btn-primary" id="adminCompleteBillBtn" style="flex: 1; background: #16a34a; border-color: #16a34a; display: none;">⚡ Complete Bill</button>
+        <button type="button" class="btn btn-secondary" id="closeAdminOrderModalBtn" style="flex: 1;">Close</button>
       </div>
     </div>
   </div>

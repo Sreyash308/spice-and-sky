@@ -101,6 +101,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const a = json.data;
 
         // Metric Cards
+        const activeServing = a.activeServing || { count: 0, runningTotal: 0, tables: [] };
+        const activeServingRevEl = document.getElementById('kpiActiveServingRev');
+        const activeServingCountEl = document.getElementById('kpiActiveServingCount');
+        if (activeServingRevEl) activeServingRevEl.textContent = SpiceClient.formatCurrency(activeServing.runningTotal || 0);
+        if (activeServingCountEl) activeServingCountEl.textContent = `${activeServing.count || 0} tables active`;
+
         document.getElementById('kpiTodayRev').textContent = SpiceClient.formatCurrency(a.today?.revenue || 0);
         document.getElementById('kpiTodayOrders').textContent = `${a.today?.count || 0} orders today`;
         document.getElementById('kpiAvgBill').textContent = SpiceClient.formatCurrency(a.today?.averageBill || 0);
@@ -114,33 +120,95 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('kpiAllTimeRev').textContent = SpiceClient.formatCurrency(a.allTime?.revenue || 0);
         document.getElementById('kpiAllTimeOrders').textContent = `${a.allTime?.count || 0} total orders`;
 
+        // Currently Serving Tables Monitor
+        const servingContainer = document.getElementById('servingTablesContainer');
+        const servingBadge = document.getElementById('servingTablesSummaryBadge');
+        if (servingBadge) servingBadge.textContent = `${activeServing.count || 0} Active`;
+
+        if (servingContainer) {
+          servingContainer.innerHTML = '';
+          if (!activeServing.tables || activeServing.tables.length === 0) {
+            servingContainer.innerHTML = `<p style="color: var(--text-muted); font-size: 0.88rem; grid-column: 1 / -1; margin: 0;">No tables currently serving right now.</p>`;
+          } else {
+            activeServing.tables.forEach(t => {
+              const card = document.createElement('div');
+              card.style.cssText = 'background: #ffffff; border: 1.5px solid #86efac; border-radius: 12px; padding: 12px 14px; box-shadow: 0 2px 8px rgba(22, 163, 74, 0.08); display: flex; justify-content: space-between; align-items: center;';
+              card.innerHTML = `
+                <div>
+                  <div style="font-weight: 800; font-family: var(--font-heading); color: #15803d; font-size: 1.05rem;">
+                    Table ${t.table_number} <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">#${t.order_number}</span>
+                  </div>
+                  <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">
+                    ${t.itemCount} items &bull; <strong style="color: var(--spice-gold); font-size: 0.9rem;">${SpiceClient.formatCurrency(t.total)}</strong>
+                  </div>
+                </div>
+                <div style="display: flex; gap: 6px;">
+                  <button type="button" class="btn btn-secondary view-serving-btn" style="padding: 4px 8px; font-size: 0.78rem;">View</button>
+                  <button type="button" class="btn btn-primary complete-serving-btn" style="padding: 4px 8px; font-size: 0.78rem; background: #16a34a; border-color: #16a34a;">⚡ Bill</button>
+                </div>
+              `;
+
+              card.querySelector('.view-serving-btn').addEventListener('click', async () => {
+                const fullOrder = await fetchOrderDetails(t.order_number);
+                if (fullOrder) openOrderModal(fullOrder);
+              });
+
+              card.querySelector('.complete-serving-btn').addEventListener('click', async () => {
+                if (confirm(`Complete bill for Table ${t.table_number} (Order #${t.order_number})?`)) {
+                  await completeOrderDirect(t.order_number);
+                }
+              });
+
+              servingContainer.appendChild(card);
+            });
+          }
+        }
+
         // Recent Orders Feed
         const recentTbody = document.getElementById('dashboardRecentOrdersTbody');
         recentTbody.innerHTML = '';
         const recents = a.recentOrders || [];
 
         if (recents.length === 0) {
-          recentTbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No orders recorded yet.</td></tr>`;
+          recentTbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No orders recorded yet.</td></tr>`;
         } else {
           recents.slice(0, 8).forEach(o => {
             const tr = document.createElement('tr');
             const itemsSummary = (o.items || o.order_items || []).map(i => `${i.quantity}x ${i.item_name_snapshot}`).join(', ') || 'No items';
             const timeStr = SpiceClient.formatDateTimeIST(o.created_at).split(',')[1] || '';
+            const isCompleted = o.status === 'COMPLETED';
+            const isServing = !isCompleted && o.status !== 'CANCELLED';
+            const statusPill = isCompleted
+              ? '<span class="pill pill-veg" style="font-size: 0.75rem;">✅ Completed</span>'
+              : (o.status === 'CANCELLED' 
+                ? '<span class="pill pill-non-veg" style="font-size: 0.75rem;">❌ Cancelled</span>'
+                : '<span class="pill" style="background: rgba(22, 163, 74, 0.12); color: #16a34a; border: 1px solid rgba(22, 163, 74, 0.3); font-size: 0.75rem;">🟢 Serving</span>');
 
             tr.innerHTML = `
               <td><strong>#${o.order_number}</strong></td>
               <td><span class="pill pill-drink">Table ${o.table_number}</span></td>
+              <td>${statusPill}</td>
               <td style="max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${itemsSummary}">${itemsSummary}</td>
               <td style="font-weight: 700; color: var(--spice-gold);">${SpiceClient.formatCurrency(o.total)}</td>
               <td style="font-size: 0.8rem; color: var(--text-muted);">${timeStr}</td>
               <td>
-                <button type="button" class="btn btn-secondary view-dash-order-btn" style="padding: 4px 10px; font-size: 0.8rem;">View Bill</button>
+                <button type="button" class="btn btn-secondary view-dash-order-btn" style="padding: 4px 8px; font-size: 0.8rem;">View</button>
+                ${isServing ? `<button type="button" class="btn btn-primary complete-dash-order-btn" style="padding: 4px 8px; font-size: 0.8rem; background: #16a34a; border-color: #16a34a; margin-left: 4px;">⚡ Bill</button>` : ''}
               </td>
             `;
 
             tr.querySelector('.view-dash-order-btn').addEventListener('click', () => {
               openOrderModal(o);
             });
+
+            const completeBtn = tr.querySelector('.complete-dash-order-btn');
+            if (completeBtn) {
+              completeBtn.addEventListener('click', async () => {
+                if (confirm(`Complete bill for Table ${o.table_number} (Order #${o.order_number})?`)) {
+                  await completeOrderDirect(o.id);
+                }
+              });
+            }
 
             recentTbody.appendChild(tr);
           });
@@ -177,15 +245,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   // --- TAB 2: ORDERS MANAGEMENT ---
   const orderSearchInput = document.getElementById('orderSearchInput');
   const orderTableFilter = document.getElementById('orderTableFilter');
+  const orderStatusFilter = document.getElementById('orderStatusFilter');
   const reloadOrdersBtn = document.getElementById('reloadOrdersBtn');
   const ordersTableTbody = document.getElementById('ordersTableTbody');
 
   reloadOrdersBtn.addEventListener('click', () => loadOrdersData());
   orderSearchInput.addEventListener('input', () => filterAndRenderOrders());
   orderTableFilter.addEventListener('change', () => filterAndRenderOrders());
+  if (orderStatusFilter) orderStatusFilter.addEventListener('change', () => filterAndRenderOrders());
 
   async function loadOrdersData() {
-    ordersTableTbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Fetching orders...</td></tr>`;
+    ordersTableTbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Fetching orders...</td></tr>`;
     try {
       const res = await fetch('/api/orders');
       const json = await res.json();
@@ -194,16 +264,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         filterAndRenderOrders();
       }
     } catch (err) {
-      ordersTableTbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #ef4444;">Failed to load orders.</td></tr>`;
+      ordersTableTbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #ef4444;">Failed to load orders.</td></tr>`;
     }
   }
 
   function filterAndRenderOrders() {
     const q = orderSearchInput.value.trim().toLowerCase();
     const tableF = orderTableFilter.value;
+    const statusF = orderStatusFilter ? orderStatusFilter.value : '';
 
     const filtered = ordersList.filter(o => {
       if (tableF && String(o.table_number) !== tableF) return false;
+      if (statusF) {
+        if (statusF === 'SERVING') {
+          if (o.status === 'COMPLETED' || o.status === 'CANCELLED') return false;
+        } else if (o.status !== statusF) {
+          return false;
+        }
+      }
       if (q) {
         const matchNum = String(o.order_number).includes(q);
         const matchWaiter = (o.waiter_name_snapshot || '').toLowerCase().includes(q);
@@ -214,29 +292,47 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     ordersTableTbody.innerHTML = '';
     if (filtered.length === 0) {
-      ordersTableTbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No matching orders found.</td></tr>`;
+      ordersTableTbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No matching orders found.</td></tr>`;
       return;
     }
 
     filtered.forEach(o => {
       const tr = document.createElement('tr');
       const itemsList = (o.items || []).map(i => `${i.quantity}x ${i.item_name_snapshot}${i.variant_name_snapshot ? ` (${i.variant_name_snapshot})` : ''}`).join(', ') || '<span style="color: var(--text-muted); font-style: italic;">No items recorded</span>';
+      const isCompleted = o.status === 'COMPLETED';
+      const isServing = !isCompleted && o.status !== 'CANCELLED';
+      const statusPill = isCompleted
+        ? '<span class="pill pill-veg" style="font-size: 0.75rem;">✅ Completed</span>'
+        : (o.status === 'CANCELLED'
+          ? '<span class="pill pill-non-veg" style="font-size: 0.75rem;">❌ Cancelled</span>'
+          : '<span class="pill" style="background: rgba(22, 163, 74, 0.12); color: #16a34a; border: 1px solid rgba(22, 163, 74, 0.3); font-size: 0.75rem;">🟢 Serving</span>');
 
       tr.innerHTML = `
         <td><strong>#${o.order_number}</strong></td>
         <td>${SpiceClient.formatDateTimeIST(o.created_at)}</td>
         <td><span class="pill pill-drink">Table ${o.table_number}</span></td>
+        <td>${statusPill}</td>
         <td>${o.waiter_name_snapshot || 'Staff'}</td>
         <td style="max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${(o.items || []).map(i => `${i.quantity}x ${i.item_name_snapshot}`).join(', ')}">${itemsList}</td>
         <td style="font-weight: 700; color: var(--spice-gold); font-family: var(--font-heading);">${SpiceClient.formatCurrency(o.total)}</td>
         <td>
-          <button type="button" class="btn btn-secondary view-order-btn" style="padding: 4px 10px; font-size: 0.8rem;">View Bill</button>
+          <button type="button" class="btn btn-secondary view-order-btn" style="padding: 4px 8px; font-size: 0.8rem;">View Bill</button>
+          ${isServing ? `<button type="button" class="btn btn-primary complete-order-btn" style="padding: 4px 8px; font-size: 0.8rem; background: #16a34a; border-color: #16a34a; margin-left: 4px;">⚡ Bill</button>` : ''}
         </td>
       `;
 
       tr.querySelector('.view-order-btn').addEventListener('click', () => {
         openOrderModal(o);
       });
+
+      const completeBtn = tr.querySelector('.complete-order-btn');
+      if (completeBtn) {
+        completeBtn.addEventListener('click', async () => {
+          if (confirm(`Complete bill for Table ${o.table_number} (Order #${o.order_number})?`)) {
+            await completeOrderDirect(o.id);
+          }
+        });
+      }
 
       ordersTableTbody.appendChild(tr);
     });
@@ -249,10 +345,38 @@ document.addEventListener('DOMContentLoaded', async () => {
   const adminModalDate = document.getElementById('adminModalDate');
   const adminModalTime = document.getElementById('adminModalTime');
   const adminModalWaiter = document.getElementById('adminModalWaiter');
+  const adminModalStatus = document.getElementById('adminModalStatus');
   const adminModalItemsTbody = document.getElementById('adminModalItemsTbody');
   const adminModalTotal = document.getElementById('adminModalTotal');
   const adminPrintBillBtn = document.getElementById('adminPrintBillBtn');
+  const adminCompleteBillBtn = document.getElementById('adminCompleteBillBtn');
   const closeAdminOrderModalBtn = document.getElementById('closeAdminOrderModalBtn');
+
+  async function fetchOrderDetails(idOrNum) {
+    try {
+      const res = await fetch(`/api/orders/${idOrNum}`);
+      const json = await res.json();
+      return json.success ? json.data : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function completeOrderDirect(orderId) {
+    try {
+      const res = await fetch(`/api/orders/${orderId}/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Failed to complete order.');
+      alert(`✅ Order #${json.data.order_number} completed and added to permanent history!`);
+      loadDashboardData();
+      loadOrdersData();
+    } catch (err) {
+      alert(`Error completing bill: ${err.message}`);
+    }
+  }
 
   function openOrderModal(order) {
     if (!order) return;
@@ -261,7 +385,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     adminModalOrderNum.textContent = `Order #${order.order_number}`;
     adminModalDate.textContent = `Date: ${SpiceClient.formatDateTimeIST(order.created_at).split(',')[0]}`;
     adminModalTime.textContent = `Time: ${SpiceClient.formatDateTimeIST(order.created_at).split(',')[1] || ''}`;
-    adminModalWaiter.textContent = `Waiter: ${order.waiter_name_snapshot || 'Staff'}`;
+    adminModalWaiter.textContent = `Server: ${order.waiter_name_snapshot || 'Staff'}`;
+
+    if (adminModalStatus) {
+      const isCompleted = order.status === 'COMPLETED';
+      adminModalStatus.textContent = isCompleted ? 'Status: COMPLETED' : 'Status: CURRENTLY SERVING';
+      adminModalStatus.style.color = isCompleted ? '#16a34a' : 'var(--spice-gold)';
+    }
+
+    if (adminCompleteBillBtn) {
+      const isServing = order.status !== 'COMPLETED' && order.status !== 'CANCELLED';
+      adminCompleteBillBtn.style.display = isServing ? 'inline-block' : 'none';
+      adminCompleteBillBtn.onclick = async () => {
+        if (confirm(`Complete bill for Table ${order.table_number} (Order #${order.order_number})?`)) {
+          await completeOrderDirect(order.id);
+          adminOrderModal.classList.remove('active');
+        }
+      };
+    }
+
     adminModalTotal.textContent = SpiceClient.formatCurrency(order.total);
 
     adminModalItemsTbody.innerHTML = '';

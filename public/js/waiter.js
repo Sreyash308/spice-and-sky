@@ -10,12 +10,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const currentUser = SpiceClient.requireRole('WAITER', '/waiter/login');
   if (!currentUser) return;
 
-  const waiterNameDisplay = document.getElementById('waiterNameDisplay');
-  const waiterIcon = document.getElementById('waiterIcon');
   const waiterSignOutBtn = document.getElementById('waiterSignOutBtn');
-
-  if (waiterIcon) waiterIcon.textContent = '👔';
-  if (waiterNameDisplay) waiterNameDisplay.textContent = 'Waiter';
 
   if (waiterSignOutBtn) {
     waiterSignOutBtn.addEventListener('click', async () => {
@@ -31,6 +26,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentCategory = 'ALL';
   let searchQuery = '';
   let isSubmitting = false;
+  let activeServingOrders = {}; // tableNum -> order object
+  let lastBilledOrder = null;
 
   // Active table cart: tableOrders[tableNumber] = [ { menu_item_id, variant_id, name, variant_name, price, quantity } ]
   const tableOrders = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [] };
@@ -38,6 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // DOM Elements
   const tablesGrid = document.getElementById('tablesGrid');
   const activeTableCallout = document.getElementById('activeTableCallout');
+  const tableServingPill = document.getElementById('tableServingPill');
   const waiterSearchInput = document.getElementById('waiterSearchInput');
   const clearSearchBtn = document.getElementById('clearSearchBtn');
   const waiterCategoriesNav = document.getElementById('waiterCategoriesNav');
@@ -47,6 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const peekTableLine = document.getElementById('peekTableLine');
   const peekTotalLine = document.getElementById('peekTotalLine');
   const peekCountLine = document.getElementById('peekCountLine');
+  const saveServingBtn = document.getElementById('saveServingBtn');
   const generateBillBtn = document.getElementById('generateBillBtn');
 
   const orderDrawer = document.getElementById('orderDrawer');
@@ -55,6 +54,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const drawerTotalAmount = document.getElementById('drawerTotalAmount');
   const closeDrawerBtn = document.getElementById('closeDrawerBtn');
   const clearOrderBtn = document.getElementById('clearOrderBtn');
+  const drawerSaveServingBtn = document.getElementById('drawerSaveServingBtn');
   const drawerGenerateBtn = document.getElementById('drawerGenerateBtn');
 
   const variantModal = document.getElementById('variantModal');
@@ -68,8 +68,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const billDateText = document.getElementById('billDateText');
   const billTimeText = document.getElementById('billTimeText');
   const billWaiterText = document.getElementById('billWaiterText');
+  const billStatusText = document.getElementById('billStatusText');
   const billItemsTbody = document.getElementById('billItemsTbody');
   const billTotalText = document.getElementById('billTotalText');
+  const editBillBtn = document.getElementById('editBillBtn');
   const printBillBtn = document.getElementById('printBillBtn');
   const newOrderBtn = document.getElementById('newOrderBtn');
 
@@ -89,12 +91,44 @@ document.addEventListener('DOMContentLoaded', async () => {
       <p style="font-size: 1rem;">Loading menu catalog...</p>
     </div>`;
   await loadMenu();
+  await loadActiveOrders();
+
+  // Periodically sync active serving tables
+  setInterval(loadActiveOrders, 15000);
 
   // Listen to Realtime Menu Updates
   SpiceClient.on('menu_updated', () => {
-    SpiceClient.showToast('Menu updated in real time');
     loadMenu(false);
   });
+
+  function updateTableGridIndicators() {
+    tablesGrid.querySelectorAll('.table-btn').forEach(b => {
+      const tNum = Number(b.getAttribute('data-table'));
+      const isServing = !!activeServingOrders[tNum];
+      b.classList.toggle('serving', isServing);
+
+      let dot = b.querySelector('.serving-dot');
+      if (isServing && !dot) {
+        dot = document.createElement('span');
+        dot.className = 'serving-dot';
+        b.appendChild(dot);
+      } else if (!isServing && dot) {
+        dot.remove();
+      }
+    });
+
+    const activeOrder = activeServingOrders[activeTable];
+    if (activeOrder) {
+      if (tableServingPill) {
+        tableServingPill.style.display = 'inline-block';
+        tableServingPill.textContent = `🟢 Serving (#${activeOrder.order_number})`;
+      }
+    } else {
+      if (tableServingPill) {
+        tableServingPill.style.display = 'none';
+      }
+    }
+  }
 
   function selectTable(num) {
     if (num < 1 || num > 9) return;
@@ -105,8 +139,49 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     activeTableCallout.textContent = `Table ${num} Selected`;
+
+    const activeOrder = activeServingOrders[num];
+    if (activeOrder && (!tableOrders[num] || tableOrders[num].length === 0)) {
+      tableOrders[num] = (activeOrder.items || []).map(i => ({
+        menu_item_id: i.menu_item_id,
+        variant_id: i.variant_id || null,
+        name: i.item_name_snapshot,
+        variant_name: i.variant_name_snapshot,
+        price: Number(i.unit_price_snapshot),
+        quantity: Number(i.quantity)
+      }));
+    }
+
+    updateTableGridIndicators();
     updateBottomBar();
     renderCatalog();
+  }
+
+  async function loadActiveOrders() {
+    try {
+      const res = await fetch('/api/orders/active');
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        activeServingOrders = {};
+        json.data.forEach(order => {
+          activeServingOrders[order.table_number] = order;
+          if (!tableOrders[order.table_number] || tableOrders[order.table_number].length === 0) {
+            tableOrders[order.table_number] = (order.items || []).map(i => ({
+              menu_item_id: i.menu_item_id,
+              variant_id: i.variant_id || null,
+              name: i.item_name_snapshot,
+              variant_name: i.variant_name_snapshot,
+              price: Number(i.unit_price_snapshot),
+              quantity: Number(i.quantity)
+            }));
+          }
+        });
+        updateTableGridIndicators();
+        updateBottomBar();
+      }
+    } catch (err) {
+      console.warn('Failed to load active orders:', err);
+    }
   }
 
   // Search & Filter Events
@@ -157,6 +232,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  if (saveServingBtn) {
+    saveServingBtn.addEventListener('click', () => handleSaveServingOrder());
+  }
+  if (drawerSaveServingBtn) {
+    drawerSaveServingBtn.addEventListener('click', () => {
+      closeDrawer();
+      handleSaveServingOrder();
+    });
+  }
+
   generateBillBtn.addEventListener('click', () => handleGenerateBill());
   drawerGenerateBtn.addEventListener('click', () => {
     closeDrawer();
@@ -171,9 +256,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     SpiceClient.printReceipt(document.getElementById('printableReceipt'));
   });
 
+  if (editBillBtn) {
+    editBillBtn.addEventListener('click', async () => {
+      billModal.classList.remove('active');
+      if (lastBilledOrder && lastBilledOrder.id) {
+        try {
+          await fetch(`/api/orders/${lastBilledOrder.id}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'CONFIRMED' })
+          });
+          lastBilledOrder.status = 'CONFIRMED';
+          activeServingOrders[lastBilledOrder.table_number] = lastBilledOrder;
+          updateTableGridIndicators();
+          updateBottomBar();
+        } catch (e) {
+          console.warn('Reopen bill error:', e);
+        }
+      }
+      openDrawer();
+    });
+  }
+
   newOrderBtn.addEventListener('click', () => {
     billModal.classList.remove('active');
     tableOrders[activeTable] = [];
+    delete activeServingOrders[activeTable];
+    lastBilledOrder = null;
+    updateTableGridIndicators();
     updateBottomBar();
     renderCatalog();
   });
@@ -549,22 +659,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     const order = tableOrders[activeTable] || [];
     const totalItems = order.reduce((sum, i) => sum + i.quantity, 0);
     const subtotal = order.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+    const activeOrder = activeServingOrders[activeTable];
 
-    peekTableLine.textContent = `Table ${activeTable} Order`;
+    if (activeOrder) {
+      peekTableLine.textContent = `Table ${activeTable} (Serving #${activeOrder.order_number})`;
+    } else {
+      peekTableLine.textContent = `Table ${activeTable} Order`;
+    }
     peekTotalLine.textContent = SpiceClient.formatCurrency(subtotal);
     peekCountLine.textContent = `${totalItems} item${totalItems === 1 ? '' : 's'} • Tap to review`;
 
-    generateBillBtn.disabled = totalItems === 0 || isSubmitting;
+    if (saveServingBtn) {
+      saveServingBtn.disabled = totalItems === 0 || isSubmitting;
+      saveServingBtn.innerHTML = activeOrder
+        ? `<span>🍽️ Update Serving</span>`
+        : `<span>🍽️ Keep Serving</span>`;
+    }
+
+    if (generateBillBtn) {
+      generateBillBtn.disabled = totalItems === 0 || isSubmitting;
+    }
   }
 
   function openDrawer() {
     const order = tableOrders[activeTable] || [];
-    drawerTitle.textContent = `Table ${activeTable} Order Review`;
+    const activeOrder = activeServingOrders[activeTable];
+    drawerTitle.textContent = activeOrder 
+      ? `Table ${activeTable} Review • Serving #${activeOrder.order_number}`
+      : `Table ${activeTable} Order Review`;
     drawerItemsList.innerHTML = '';
 
     if (order.length === 0) {
       drawerItemsList.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 20px;">No items added for Table ${activeTable} yet.</p>`;
       drawerTotalAmount.textContent = '₹0';
+      if (drawerSaveServingBtn) drawerSaveServingBtn.disabled = true;
       drawerGenerateBtn.disabled = true;
     } else {
       let subtotal = 0;
@@ -604,6 +732,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
 
       drawerTotalAmount.textContent = SpiceClient.formatCurrency(subtotal);
+      if (drawerSaveServingBtn) {
+        drawerSaveServingBtn.disabled = isSubmitting;
+        drawerSaveServingBtn.textContent = activeOrder ? '🍽️ Update Serving' : '🍽️ Keep Serving';
+      }
       drawerGenerateBtn.disabled = isSubmitting;
     }
 
@@ -614,43 +746,152 @@ document.addEventListener('DOMContentLoaded', async () => {
     orderDrawer.classList.remove('active');
   }
 
-  // ATOMIC BILL GENERATION
+  // SAVE ORDER & KEEP SERVING (Multi-Round Ordering)
+  async function handleSaveServingOrder() {
+    const order = tableOrders[activeTable] || [];
+    if (order.length === 0 || isSubmitting) return;
+
+    isSubmitting = true;
+    if (saveServingBtn) {
+      saveServingBtn.disabled = true;
+      saveServingBtn.innerHTML = `<span>⏳ Saving...</span>`;
+    }
+    if (drawerSaveServingBtn) drawerSaveServingBtn.disabled = true;
+
+    try {
+      const activeOrder = activeServingOrders[activeTable];
+      let savedOrder;
+
+      if (activeOrder && activeOrder.id) {
+        // Update existing active order
+        const res = await fetch(`/api/orders/${activeOrder.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: order.map(i => ({
+              menu_item_id: i.menu_item_id,
+              variant_id: i.variant_id,
+              quantity: i.quantity
+            })),
+            waiter_id: currentUser.id,
+            waiter_name: currentUser.role === 'WAITER' ? (currentUser.display_name || 'Staff') : 'Staff',
+            status: 'CONFIRMED'
+          })
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'Failed to update serving order.');
+        savedOrder = json.data;
+      } else {
+        // Create new active serving order
+        const payload = {
+          table_number: activeTable,
+          waiter_id: currentUser.id,
+          waiter_name: currentUser.role === 'WAITER' ? (currentUser.display_name || 'Staff') : 'Staff',
+          idempotency_key: `order-${activeTable}-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+          status: 'CONFIRMED',
+          items: order.map(i => ({
+            menu_item_id: i.menu_item_id,
+            variant_id: i.variant_id,
+            quantity: i.quantity
+          }))
+        };
+        const res = await fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'Failed to start serving order.');
+        savedOrder = json.data;
+      }
+
+      activeServingOrders[activeTable] = savedOrder;
+      updateTableGridIndicators();
+      updateBottomBar();
+      closeDrawer();
+      renderCatalog();
+    } catch (err) {
+      alert(`Error saving order: ${err.message}`);
+    } finally {
+      isSubmitting = false;
+      if (saveServingBtn) {
+        saveServingBtn.disabled = false;
+        saveServingBtn.innerHTML = activeServingOrders[activeTable]
+          ? `<span>🍽️ Update Serving</span>`
+          : `<span>🍽️ Keep Serving</span>`;
+      }
+      if (drawerSaveServingBtn) drawerSaveServingBtn.disabled = false;
+      updateBottomBar();
+    }
+  }
+
+  // ATOMIC BILL GENERATION & COMPLETION (Customer is full)
   async function handleGenerateBill() {
     const order = tableOrders[activeTable] || [];
     if (order.length === 0 || isSubmitting) return;
 
     isSubmitting = true;
     generateBillBtn.disabled = true;
-    generateBillBtn.innerHTML = `<span>⏳ Processing...</span>`;
+    generateBillBtn.innerHTML = `<span>⏳ Billing...</span>`;
     drawerGenerateBtn.disabled = true;
 
-    // Build payload for atomic server RPC
-    const payload = {
-      table_number: activeTable,
-      waiter_id: currentUser.id,
-      waiter_name: currentUser.role === 'WAITER' ? (currentUser.display_name || 'Waiter') : 'Waiter',
-      idempotency_key: `order-${activeTable}-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-      items: order.map(i => ({
-        menu_item_id: i.menu_item_id,
-        variant_id: i.variant_id,
-        quantity: i.quantity
-      }))
-    };
-
     try {
-      const res = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      const activeOrder = activeServingOrders[activeTable];
+      let orderIdToComplete;
 
-      const json = await res.json();
-      if (!json.success) {
-        throw new Error(json.error || 'Failed to generate bill.');
+      if (activeOrder && activeOrder.id) {
+        // Sync any recent item changes first
+        await fetch(`/api/orders/${activeOrder.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: order.map(i => ({
+              menu_item_id: i.menu_item_id,
+              variant_id: i.variant_id,
+              quantity: i.quantity
+            })),
+            waiter_id: currentUser.id,
+            waiter_name: currentUser.role === 'WAITER' ? (currentUser.display_name || 'Staff') : 'Staff'
+          })
+        });
+        orderIdToComplete = activeOrder.id;
+      } else {
+        // Create initial order record
+        const payload = {
+          table_number: activeTable,
+          waiter_id: currentUser.id,
+          waiter_name: currentUser.role === 'WAITER' ? (currentUser.display_name || 'Staff') : 'Staff',
+          idempotency_key: `order-${activeTable}-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+          status: 'CONFIRMED',
+          items: order.map(i => ({
+            menu_item_id: i.menu_item_id,
+            variant_id: i.variant_id,
+            quantity: i.quantity
+          }))
+        };
+        const createRes = await fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const createJson = await createRes.json();
+        if (!createJson.success) throw new Error(createJson.error || 'Failed to create order.');
+        orderIdToComplete = createJson.data.id;
       }
 
-      const billData = json.data;
-      displayBillReceipt(billData);
+      // Mark order COMPLETED -> permanently enters history & analytics
+      const completeRes = await fetch(`/api/orders/${orderIdToComplete}/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const completeJson = await completeRes.json();
+      if (!completeJson.success) throw new Error(completeJson.error || 'Failed to finalize bill.');
+
+      const finalizedOrder = completeJson.data;
+      lastBilledOrder = finalizedOrder;
+      delete activeServingOrders[activeTable];
+      updateTableGridIndicators();
+      displayBillReceipt(finalizedOrder);
 
     } catch (err) {
       alert(`Bill Generation Failed: ${err.message}`);
@@ -659,6 +900,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       generateBillBtn.disabled = false;
       generateBillBtn.innerHTML = `<span>⚡ Generate Bill</span>`;
       drawerGenerateBtn.disabled = false;
+      updateBottomBar();
     }
   }
 
@@ -667,11 +909,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     billOrderNumText.textContent = `Order #${order.order_number}`;
     billDateText.textContent = `Date: ${SpiceClient.formatDateTimeIST(order.created_at).split(',')[0]}`;
     billTimeText.textContent = `Time: ${SpiceClient.formatDateTimeIST(order.created_at).split(',')[1] || ''}`;
-    billWaiterText.textContent = `Waiter: ${order.waiter_name_snapshot || 'Waiter'}`;
+    billWaiterText.textContent = `Server: ${order.waiter_name_snapshot || 'Staff'}`;
+    if (billStatusText) {
+      billStatusText.textContent = `Status: ${order.status || 'COMPLETED'}`;
+      billStatusText.style.color = (order.status === 'COMPLETED') ? '#16a34a' : 'var(--spice-gold)';
+    }
     billTotalText.textContent = SpiceClient.formatCurrency(order.total);
 
     billItemsTbody.innerHTML = '';
-    const items = order.items || [];
+    const items = order.items || order.order_items || [];
     items.forEach(oi => {
       const tr = document.createElement('tr');
       const itemTitle = oi.item_name_snapshot + (oi.variant_name_snapshot ? ` (${oi.variant_name_snapshot})` : '');

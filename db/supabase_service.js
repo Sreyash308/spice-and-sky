@@ -169,7 +169,7 @@ module.exports = {
           table_number: Number(params.table_number),
           waiter_id: validatedWaiterId,
           waiter_name_snapshot: params.waiter_name || 'Staff',
-          status: 'CONFIRMED',
+          status: params.status || 'CONFIRMED',
           subtotal: calculatedSubtotal,
           total: calculatedSubtotal, // Zero Tax, Zero GST, Zero Service Charges
           notes: params.notes || null,
@@ -241,6 +241,95 @@ module.exports = {
     }
 
     return localStore.createOrderAtomic(params);
+  },
+
+  // Update Order Items (Edit Bill / Multi-Round Serving)
+  async updateOrderItems(orderId, params) {
+    if (isConfigured) {
+      try {
+        const allItems = await this.getMenuItems(true);
+        let calculatedSubtotal = 0;
+        const itemSnapshots = (params.items || []).map(oi => {
+          const item = allItems.find(i => i.id === oi.menu_item_id);
+          const variants = item ? (item.menu_item_variants || []) : [];
+          const variant = oi.variant_id ? variants.find(v => v.id === oi.variant_id) : null;
+          const unitPrice = variant ? Number(variant.price) : (item ? Number(item.price) : 0);
+          const qty = Math.max(1, Number(oi.quantity) || 1);
+          const lineTotal = unitPrice * qty;
+          calculatedSubtotal += lineTotal;
+          return {
+            order_id: orderId,
+            menu_item_id: oi.menu_item_id,
+            variant_id: (oi.variant_id && String(oi.variant_id) !== 'null') ? oi.variant_id : null,
+            item_name_snapshot: item ? item.name : 'Item',
+            variant_name_snapshot: variant ? variant.name : null,
+            unit_price_snapshot: unitPrice,
+            quantity: qty,
+            line_total: lineTotal
+          };
+        });
+
+        const updatePayload = {
+          subtotal: calculatedSubtotal,
+          total: calculatedSubtotal,
+          updated_at: new Date().toISOString()
+        };
+        if (params.notes !== undefined) updatePayload.notes = params.notes;
+        if (params.status) updatePayload.status = params.status;
+        if (params.waiter_name) updatePayload.waiter_name_snapshot = params.waiter_name;
+
+        const { data: updatedOrder, error: updateErr } = await supabase
+          .from('orders')
+          .update(updatePayload)
+          .eq('id', orderId)
+          .select()
+          .single();
+
+        if (!updateErr && updatedOrder) {
+          await supabase.from('order_items').delete().eq('order_id', orderId);
+          await supabase.from('order_items').insert(itemSnapshots.map(s => ({
+            order_id: orderId,
+            menu_item_id: s.menu_item_id,
+            item_name_snapshot: s.item_name_snapshot,
+            variant_name_snapshot: s.variant_name_snapshot,
+            unit_price_snapshot: s.unit_price_snapshot,
+            quantity: s.quantity,
+            line_total: s.line_total
+          })));
+
+          updatedOrder.items = itemSnapshots;
+          localStore.updateOrderItems(orderId, params);
+          return updatedOrder;
+        }
+      } catch (err) {
+        console.warn('Supabase updateOrderItems error:', err.message);
+      }
+    }
+    return localStore.updateOrderItems(orderId, params);
+  },
+
+  // Get Active Serving Orders
+  async getActiveServingOrders() {
+    if (isConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*, order_items(*)')
+          .neq('status', 'COMPLETED')
+          .neq('status', 'CANCELLED')
+          .order('created_at', { ascending: false });
+
+        if (!error && data) {
+          return data.map(o => ({
+            ...o,
+            items: o.order_items || []
+          }));
+        }
+      } catch (err) {
+        console.warn('Supabase getActiveServingOrders error:', err.message);
+      }
+    }
+    return localStore.getActiveServingOrders();
   },
 
   // Update Menu Item

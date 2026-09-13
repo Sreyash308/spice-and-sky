@@ -335,16 +335,74 @@ runTest('Dynamic Category Creation Generates Valid Slug and Display Order', () =
   if (catIdx !== -1) store.categories.splice(catIdx, 1);
 });
 
-// TEST SUITE 5: ANALYTICS & CANCELLED ORDER EXCLUSION
-console.log('\n--- Test Suite 5: Analytics & Revenue Calculations ---');
+// TEST SUITE 5: ANALYTICS & SERVING / COMPLETED ORDER LIFECYCLE
+console.log('\n--- Test Suite 5: Analytics, Serving Lifecycle & Revenue Calculations ---');
+
+runTest('Active Serving Orders are Tracked in Active Tables and Excluded from Revenue until Completed', () => {
+  const item = store.getMenuItems()[0];
+
+  // 1. Create order in serving state
+  const order = store.createOrderAtomic({
+    table_number: 6,
+    items: [{ menu_item_id: item.id, quantity: 1 }],
+    status: 'CONFIRMED'
+  });
+
+  const analyticsServing = store.getAnalytics();
+  assert(analyticsServing.activeServing.count >= 1, 'Active serving count must be at least 1');
+  const table6Active = analyticsServing.activeServing.tables.find(t => t.table_number === 6);
+  assert(table6Active, 'Table 6 must be listed in active serving tables');
+
+  // Revenue before completion should not include this unbilled serving order
+  const revBefore = analyticsServing.allTime.revenue;
+
+  // 2. Customer finishes and order is COMPLETED
+  store.updateOrderStatus(order.id, 'COMPLETED');
+  const analyticsCompleted = store.getAnalytics();
+  const revAfter = analyticsCompleted.allTime.revenue;
+
+  assert.strictEqual(revAfter, revBefore + order.total, `Completed order total was not added to revenue! Before: ${revBefore}, After: ${revAfter}`);
+});
+
+runTest('Editing an Open Bill (Multi-Round Ordering) Accurately Recalculates Subtotal & Items', () => {
+  const items = store.getMenuItems();
+  const item1 = items[0];
+  const item2 = items[1];
+
+  // Round 1
+  const order = store.createOrderAtomic({
+    table_number: 5,
+    items: [{ menu_item_id: item1.id, quantity: 1 }],
+    status: 'CONFIRMED'
+  });
+  const initialTotal = item1.price;
+  assert.strictEqual(order.total, initialTotal, 'Initial total must equal item 1 price');
+
+  // Round 2 (Edit bill / add item)
+  const updatedOrder = store.updateOrderItems(order.id, {
+    items: [
+      { menu_item_id: item1.id, quantity: 2 },
+      { menu_item_id: item2.id, quantity: 1 }
+    ],
+    status: 'CONFIRMED'
+  });
+
+  const expectedTotal = (item1.price * 2) + item2.price;
+  assert.strictEqual(updatedOrder.total, expectedTotal, `Updated total must be ₹${expectedTotal}, got ₹${updatedOrder.total}`);
+  assert.strictEqual(updatedOrder.items.length, 2, 'Must have 2 item snapshots');
+
+  // Clean up test order
+  store.updateOrderStatus(order.id, 'CANCELLED');
+});
 
 runTest('Cancelled Orders are Excluded from Revenue', () => {
   const item = store.getMenuItems()[0];
 
-  // 1. Create order
+  // 1. Create and complete order
   const order = store.createOrderAtomic({
     table_number: 7,
-    items: [{ menu_item_id: item.id, quantity: 2 }]
+    items: [{ menu_item_id: item.id, quantity: 2 }],
+    status: 'COMPLETED'
   });
 
   const analyticsBefore = store.getAnalytics();

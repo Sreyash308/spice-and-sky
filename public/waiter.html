@@ -19,10 +19,6 @@
         <img src="/images/logo.png" alt="Spice &amp; Sky Cafe" class="waiter-nav-logo">
       </div>
       <div class="waiter-profile-chip">
-        <span class="staff-name-badge" id="waiterRoleBadge">
-          <span id="waiterIcon">👔</span>
-          <span id="waiterNameDisplay">Waiter</span>
-        </span>
         <button class="btn-signout" id="waiterSignOutBtn" title="Sign Out">Sign Out</button>
       </div>
     </div>
@@ -33,7 +29,10 @@
     <div class="table-selector-inner">
       <div class="section-label-row">
         <span class="section-label">Select Table (1 - 9)</span>
-        <span class="active-table-callout" id="activeTableCallout">Table 1 Selected</span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="active-table-callout" id="activeTableCallout">Table 1 Selected</span>
+          <span class="table-serving-pill" id="tableServingPill" style="display: none;">🟢 Serving</span>
+        </div>
       </div>
       <div class="tables-grid" id="tablesGrid">
         <button class="table-btn active" data-table="1">T1</button>
@@ -68,7 +67,7 @@
     <!-- Item cards injected via JS -->
   </main>
 
-  <!-- Sticky Bottom Order Summary & Generate Bill Bar -->
+  <!-- Sticky Bottom Order Summary & Action Bar -->
   <aside class="waiter-bottom-bar">
     <div class="bottom-bar-inner">
       <div class="order-summary-peek" id="orderPeekTrigger">
@@ -77,9 +76,14 @@
         <span class="peek-items-count" id="peekCountLine">0 items &bull; Tap to review</span>
       </div>
 
-      <button type="button" class="btn-generate-bill" id="generateBillBtn" disabled>
-        <span>⚡ Generate Bill</span>
-      </button>
+      <div class="bottom-bar-actions">
+        <button type="button" class="btn-save-serving" id="saveServingBtn" disabled title="Keep order open and save current items for this table">
+          <span>🍽️ Keep Serving</span>
+        </button>
+        <button type="button" class="btn-generate-bill" id="generateBillBtn" disabled title="Complete order and generate final receipt">
+          <span>⚡ Generate Bill</span>
+        </button>
+      </div>
     </div>
   </aside>
 
@@ -100,9 +104,10 @@
         <span class="drawer-total-amount" id="drawerTotalAmount">₹0</span>
       </div>
 
-      <div style="display: flex; gap: 10px;">
-        <button type="button" class="btn btn-danger" id="clearOrderBtn" style="flex: 1;">Clear Order</button>
-        <button type="button" class="btn btn-primary" id="drawerGenerateBtn" style="flex: 2;">Generate Bill</button>
+      <div style="display: flex; gap: 8px;">
+        <button type="button" class="btn btn-danger" id="clearOrderBtn" style="flex: 1;">Clear</button>
+        <button type="button" class="btn btn-secondary" id="drawerSaveServingBtn" style="flex: 1.2;">🍽️ Keep Serving</button>
+        <button type="button" class="btn btn-primary" id="drawerGenerateBtn" style="flex: 1.5;">⚡ Generate Bill</button>
       </div>
     </div>
   </div>
@@ -127,8 +132,7 @@
         <div class="receipt-header">
           <img src="/images/logo.png" alt="Spice &amp; Sky Cafe" class="receipt-logo" style="height: 38px; max-width: 150px; margin: 0 auto 6px auto; display: block; object-fit: contain;">
           <div class="receipt-cafe-name">SPICE &amp; SKY ROOFTOP CAFE</div>
-          <div class="receipt-tagline">"Rooftop Vibes, Bold Flavors &amp; Cozy Brews"</div>
-          <div style="font-size: 8pt; margin-top: 2px;">Phone: +91 85228 80017 &bull; Hyderabad</div>
+          <div style="font-size: 8.5pt; margin-top: 3px; color: var(--text-secondary);">Phone: +91 85228 80017 &bull; Hyderabad</div>
           <div class="receipt-meta">
             <span id="billTableText">Table 1</span>
             <span id="billOrderNumText">Order #1001</span>
@@ -138,7 +142,8 @@
             <span id="billTimeText">Time: --</span>
           </div>
           <div class="receipt-meta">
-            <span id="billWaiterText">Waiter: Staff</span>
+            <span id="billWaiterText">Server: Staff</span>
+            <span id="billStatusText" style="font-weight: 700; color: #16a34a;">Status: COMPLETED</span>
           </div>
         </div>
 
@@ -168,9 +173,10 @@
       </div>
 
       <!-- Action Buttons -->
-      <div style="display: flex; gap: 10px;" class="no-print">
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;" class="no-print">
+        <button type="button" class="btn btn-secondary" id="editBillBtn" style="flex: 1; border-color: var(--spice-gold); color: var(--spice-gold);">✏️ Edit Bill</button>
         <button type="button" class="btn btn-secondary" id="printBillBtn" style="flex: 1;">🖨️ Print Bill</button>
-        <button type="button" class="btn btn-primary" id="newOrderBtn" style="flex: 1;">New Order &rarr;</button>
+        <button type="button" class="btn btn-primary" id="newOrderBtn" style="flex: 1.2;">Complete &amp; Clear &rarr;</button>
       </div>
     </div>
   </div>

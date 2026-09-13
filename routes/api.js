@@ -293,6 +293,16 @@ router.post('/orders', async (req, res) => {
   }
 });
 
+// GET /api/orders/active - List currently serving active orders
+router.get('/orders/active', async (req, res) => {
+  try {
+    const active = await dbService.getActiveServingOrders();
+    res.json({ success: true, data: active });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // GET /api/orders - Staff/Admin order listing
 router.get('/orders', async (req, res) => {
   try {
@@ -311,6 +321,39 @@ router.get('/orders/:id', async (req, res) => {
     res.json({ success: true, data: order });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// PUT /api/orders/:id - Edit order items / bill
+router.put('/orders/:id', async (req, res) => {
+  try {
+    const { items, notes, waiter_id, waiter_name, status } = req.body;
+    if (!items || !items.length) {
+      return res.status(400).json({ success: false, error: 'Order items are required.' });
+    }
+    const updated = await dbService.updateOrderItems(req.params.id, {
+      items,
+      notes,
+      waiter_id,
+      waiter_name,
+      status
+    });
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    console.error('API PUT /orders/:id error:', err);
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/orders/:id/complete - Complete order & finalize bill
+router.post('/orders/:id/complete', async (req, res) => {
+  try {
+    await dbService.updateOrderStatus(req.params.id, 'COMPLETED');
+    const order = await dbService.getOrderById(req.params.id);
+    res.json({ success: true, data: order });
+  } catch (err) {
+    console.error('API POST /orders/:id/complete error:', err);
+    res.status(400).json({ success: false, error: err.message });
   }
 });
 

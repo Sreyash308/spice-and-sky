@@ -309,7 +309,7 @@ class CafeStore extends EventEmitter {
   }
 
   // --- ATOMIC ORDER CREATION ---
-  createOrderAtomic({ table_number, items, notes, idempotency_key, waiter_id, waiter_name }) {
+  createOrderAtomic({ table_number, items, notes, idempotency_key, waiter_id, waiter_name, status }) {
     const tableNum = Number(table_number);
     if (!tableNum || tableNum < 1 || tableNum > 9) {
       throw new Error(`Invalid table number: ${table_number}. Must be between 1 and 9.`);
@@ -391,7 +391,7 @@ class CafeStore extends EventEmitter {
       table_number: tableNum,
       waiter_id: waiter_id || null,
       waiter_name_snapshot: waiter_name || 'Staff',
-      status: 'CONFIRMED',
+      status: status || 'CONFIRMED',
       subtotal: calculatedTotal,
       total: calculatedTotal, // STRICT: NO TAX, NO GST, NO SERVICE CHARGE
       notes: notes || null,
@@ -414,6 +414,88 @@ class CafeStore extends EventEmitter {
       ...order,
       items: orderItemsToInsert
     };
+  }
+
+  // --- ATOMIC ORDER ITEMS UPDATE (EDIT BILL / MULTI-ROUND SERVING) ---
+  updateOrderItems(orderId, { items, notes, waiter_id, waiter_name, status }) {
+    const orderIndex = this.orders.findIndex(o => o.id === orderId || String(o.order_number) === String(orderId));
+    if (orderIndex === -1) {
+      throw new Error(`Order not found: ${orderId}`);
+    }
+
+    if (!Array.isArray(items) || items.length === 0) {
+      throw new Error('Order cannot be empty.');
+    }
+
+    let calculatedTotal = 0;
+    const orderItemsToInsert = [];
+    const targetOrderId = this.orders[orderIndex].id;
+
+    for (const reqItem of items) {
+      const dbItem = this.getMenuItemById(reqItem.menu_item_id);
+      if (!dbItem) throw new Error(`Menu item not found: ${reqItem.menu_item_id}`);
+      if (!dbItem.is_active) throw new Error(`Item "${dbItem.name}" is no longer on the menu.`);
+      if (!dbItem.is_available) throw new Error(`Item "${dbItem.name}" is currently unavailable.`);
+
+      const qty = parseInt(reqItem.quantity, 10);
+      if (isNaN(qty) || qty <= 0) throw new Error(`Invalid quantity for item "${dbItem.name}".`);
+
+      let unitPrice = dbItem.price;
+      let variantName = null;
+
+      if (reqItem.variant_id) {
+        const variant = this.getVariantById(reqItem.variant_id);
+        if (!variant || variant.menu_item_id !== dbItem.id) throw new Error(`Variant not found for item "${dbItem.name}".`);
+        if (!variant.is_available) throw new Error(`Variant "${variant.name}" is currently unavailable.`);
+        unitPrice = variant.price;
+        variantName = variant.name;
+      }
+
+      const lineTotal = unitPrice * qty;
+      calculatedTotal += lineTotal;
+
+      orderItemsToInsert.push({
+        id: crypto.randomUUID(),
+        order_id: targetOrderId,
+        menu_item_id: dbItem.id,
+        item_name_snapshot: dbItem.name,
+        variant_name_snapshot: variantName,
+        unit_price_snapshot: unitPrice,
+        quantity: qty,
+        line_total: lineTotal,
+        created_at: new Date().toISOString()
+      });
+    }
+
+    const order = this.orders[orderIndex];
+    order.subtotal = calculatedTotal;
+    order.total = calculatedTotal;
+    if (notes !== undefined) order.notes = notes;
+    if (waiter_id) order.waiter_id = waiter_id;
+    if (waiter_name) order.waiter_name_snapshot = waiter_name;
+    if (status) order.status = status;
+    order.updated_at = new Date().toISOString();
+
+    // Remove old order items and insert new ones
+    this.orderItems = this.orderItems.filter(oi => oi.order_id !== targetOrderId);
+    orderItemsToInsert.forEach(oi => this.orderItems.push(oi));
+
+    this.emit('order_updated', { order, items: orderItemsToInsert });
+
+    return {
+      ...order,
+      items: orderItemsToInsert
+    };
+  }
+
+  // --- ACTIVE SERVING ORDERS QUERY ---
+  getActiveServingOrders() {
+    return this.orders
+      .filter(o => o.status !== 'COMPLETED' && o.status !== 'CANCELLED')
+      .map(o => ({
+        ...o,
+        items: this.orderItems.filter(oi => oi.order_id === o.id)
+      }));
   }
 
   syncWithRemote({ categories, items, variants }) {
@@ -641,8 +723,9 @@ class CafeStore extends EventEmitter {
 
   // --- ANALYTICS (Asia/Kolkata timezone awareness) ---
   getAnalytics() {
-    // Exclude CANCELLED orders from all sales & revenue calculations
-    const validOrders = this.orders.filter(o => o.status !== 'CANCELLED');
+    // Permanent historical revenue comes STRICTLY from completed orders
+    const validOrders = this.orders.filter(o => o.status === 'COMPLETED');
+    const activeOrders = this.orders.filter(o => o.status !== 'COMPLETED' && o.status !== 'CANCELLED');
 
     const now = new Date();
     // Asia/Kolkata offset: +5.5 hours
@@ -677,7 +760,7 @@ class CafeStore extends EventEmitter {
     const weekOrders = validOrders.filter(o => isOrderInDateRange(o, startOfWeek));
     const monthOrders = validOrders.filter(o => isOrderInDateRange(o, startOfMonth));
 
-    // Sales by Table (Table 1 through 9)
+    // Sales by Table (Table 1 through 9) - strictly completed orders
     const salesByTable = {};
     for (let i = 1; i <= 9; i++) {
       salesByTable[i] = { table_number: i, revenue: 0, orders: 0 };
@@ -689,7 +772,7 @@ class CafeStore extends EventEmitter {
       }
     });
 
-    // Top Selling Items (from historical snapshots)
+    // Top Selling Items (from completed order snapshots)
     const itemSales = {};
     validOrders.forEach(o => {
       const items = this.orderItems.filter(oi => oi.order_id === o.id);
@@ -707,6 +790,18 @@ class CafeStore extends EventEmitter {
       .sort((a, b) => b.quantity - a.quantity)
       .slice(0, 10);
 
+    const activeServing = {
+      count: activeOrders.length,
+      runningTotal: activeOrders.reduce((sum, o) => sum + Number(o.total || 0), 0),
+      tables: activeOrders.map(o => ({
+        table_number: o.table_number,
+        order_number: o.order_number,
+        total: o.total,
+        created_at: o.created_at,
+        itemCount: this.orderItems.filter(oi => oi.order_id === o.id).reduce((s, i) => s + i.quantity, 0)
+      }))
+    };
+
     return {
       today: getMetricsForOrders(todayOrders),
       weekly: getMetricsForOrders(weekOrders),
@@ -714,7 +809,8 @@ class CafeStore extends EventEmitter {
       allTime: getMetricsForOrders(validOrders),
       salesByTable: Object.values(salesByTable),
       topSellingItems,
-      recentOrders: this.orders.slice(0, 15).map(o => ({
+      activeServing,
+      recentOrders: this.orders.slice(0, 20).map(o => ({
         ...o,
         items: this.orderItems.filter(oi => oi.order_id === o.id)
       }))

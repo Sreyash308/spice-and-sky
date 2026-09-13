@@ -85,7 +85,39 @@ async function testAll() {
   assert.strictEqual(bill.total, 598, 'Total must be strictly 598');
   assert.strictEqual(bill.table_number, 4, 'Table number must be 4');
   assert.strictEqual(bill.items.length, 2, 'Must have 2 item snapshots');
-  console.log(`  ✅ Order generated successfully for Table 4! Order #${bill.order_number}, Total: ₹${bill.total} (NO GST, NO TAX).`);
+
+  // Verify Table 4 is currently serving
+  const activeRes = await fetch(`${BASE_URL}/api/orders/active`);
+  const activeJson = await activeRes.json();
+  assert(activeJson.success, 'Active orders query must succeed');
+  const t4Active = activeJson.data.find(o => o.table_number === 4);
+  assert(t4Active, 'Table 4 must appear in currently serving active orders');
+
+  // Edit Bill: customer adds another round or updates items
+  const editRes = await fetch(`${BASE_URL}/api/orders/${bill.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      items: [
+        { menu_item_id: cap.id, quantity: 2 },
+        { menu_item_id: fries.id, quantity: 1 }
+      ],
+      waiter_name: 'Staff Sreyash'
+    })
+  });
+  const editJson = await editRes.json();
+  assert(editJson.success, 'Edit bill must succeed');
+  assert.strictEqual(editJson.data.total, 598, 'Edited bill total must be 598');
+
+  // Customer is full -> Complete & finalize bill
+  const completeRes = await fetch(`${BASE_URL}/api/orders/${bill.id}/complete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  });
+  const completeJson = await completeRes.json();
+  assert(completeJson.success, 'Complete bill must succeed');
+  assert.strictEqual(completeJson.data.status, 'COMPLETED', 'Order status must be COMPLETED');
+  console.log(`  ✅ Order completed and billed for Table 4! Order #${bill.order_number}, Total: ₹${bill.total} (NO GST, NO TAX).`);
 
   // 5. Historical Price Snapshot Test via API
   console.log('\n5. Testing Historical Price Snapshot Immutability...');
