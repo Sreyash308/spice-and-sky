@@ -188,8 +188,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
           recents.slice(0, 10).forEach(o => {
             const tr = document.createElement('tr');
-            const rawSummary = (o.items || o.order_items || []).map(i => `${i.quantity}x ${i.item_name_snapshot}`).join(', ') || 'No items';
-            const itemsSummary = (o.items || o.order_items || []).map(i => `${i.quantity}x ${SpiceClient.escapeHtml(i.item_name_snapshot)}`).join(', ') || 'No items';
+            const orderItemList = (o.items && o.items.length > 0) ? o.items : (o.order_items && o.order_items.length > 0 ? o.order_items : []);
+            const rawSummary = orderItemList.map(i => `${i.quantity}x ${i.item_name_snapshot || i.name || 'Item'}`).join(', ') || (o.total > 0 ? `Total: ${SpiceClient.formatCurrency(o.total)}` : 'No items');
+            const itemsSummary = orderItemList.map(i => `${i.quantity}x ${SpiceClient.escapeHtml(i.item_name_snapshot || i.name || 'Item')}`).join(', ') || (o.total > 0 ? `Total: ${SpiceClient.formatCurrency(o.total)}` : 'No items');
             const timeStr = SpiceClient.formatDateTimeIST(o.created_at).split(',')[1] || '';
             const isCompleted = o.status === 'COMPLETED';
             const isServing = !isCompleted && o.status !== 'CANCELLED';
@@ -325,8 +326,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     filtered.forEach(o => {
       const tr = document.createElement('tr');
-      const rawItemsList = (o.items || []).map(i => `${i.quantity}x ${i.item_name_snapshot}${i.variant_name_snapshot ? ` (${i.variant_name_snapshot})` : ''}`).join(', ') || 'No items recorded';
-      const itemsList = (o.items || []).map(i => `${i.quantity}x ${SpiceClient.escapeHtml(i.item_name_snapshot)}${i.variant_name_snapshot ? ` (${SpiceClient.escapeHtml(i.variant_name_snapshot)})` : ''}`).join(', ') || '<span style="color: var(--text-muted); font-style: italic;">No items recorded</span>';
+      const orderItemList = (o.items && o.items.length > 0) ? o.items : (o.order_items && o.order_items.length > 0 ? o.order_items : []);
+      const rawItemsList = orderItemList.map(i => `${i.quantity}x ${i.item_name_snapshot || i.name || 'Item'}${i.variant_name_snapshot ? ` (${i.variant_name_snapshot})` : ''}`).join(', ') || (o.total > 0 ? `Order Total: ${SpiceClient.formatCurrency(o.total)}` : 'No items recorded');
+      const itemsList = orderItemList.map(i => `${i.quantity}x ${SpiceClient.escapeHtml(i.item_name_snapshot || i.name || 'Item')}${i.variant_name_snapshot ? ` (${SpiceClient.escapeHtml(i.variant_name_snapshot)})` : ''}`).join(', ') || (o.total > 0 ? `<span style="color: var(--text-secondary); font-weight: 500;">Order Total: ${SpiceClient.formatCurrency(o.total)}</span>` : '<span style="color: var(--text-muted); font-style: italic;">No items recorded</span>');
       const isCompleted = o.status === 'COMPLETED';
       const isServing = !isCompleted && o.status !== 'CANCELLED';
       const statusPill = isCompleted
@@ -476,18 +478,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     adminModalTotal.textContent = SpiceClient.formatCurrency(order.total);
 
     adminModalItemsTbody.innerHTML = '';
-    const items = order.items || order.order_items || [];
+    const items = (order.items && order.items.length > 0) ? order.items : (order.order_items && order.order_items.length > 0 ? order.order_items : []);
     if (items.length === 0) {
-      adminModalItemsTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-muted); font-style: italic; padding: 10px;">No items recorded for this order</td></tr>';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td colspan="2" style="color: var(--text-secondary); font-weight: 600;">Standard Cafe Order (Table ${order.table_number})</td>
+        <td style="text-align: right; font-weight: 700;">${SpiceClient.formatCurrency(order.total)}</td>
+      `;
+      adminModalItemsTbody.appendChild(tr);
     } else {
       items.forEach(oi => {
         const tr = document.createElement('tr');
-        const rawTitle = oi.item_name_snapshot + (oi.variant_name_snapshot ? ` (${oi.variant_name_snapshot})` : '');
+        const rawTitle = (oi.item_name_snapshot || oi.name || 'Item') + (oi.variant_name_snapshot ? ` (${oi.variant_name_snapshot})` : '');
         const itemTitle = SpiceClient.escapeHtml(rawTitle);
+        const lineTotal = (oi.line_total !== undefined && oi.line_total !== null) 
+          ? Number(oi.line_total) 
+          : ((Number(oi.unit_price_snapshot || oi.price || 0)) * Number(oi.quantity || 1));
         tr.innerHTML = `
           <td>${itemTitle}</td>
-          <td style="text-align: center;">${oi.quantity}</td>
-          <td style="text-align: right;">${SpiceClient.formatCurrency(oi.line_total)}</td>
+          <td style="text-align: center;">${oi.quantity || 1}</td>
+          <td style="text-align: right;">${SpiceClient.formatCurrency(lineTotal)}</td>
         `;
         adminModalItemsTbody.appendChild(tr);
       });

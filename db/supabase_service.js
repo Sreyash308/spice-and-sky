@@ -288,9 +288,10 @@ module.exports = {
           }
 
           if (!orderErr && insertedOrder) {
+            const validDbItemIds = new Set(allItems.map(i => i.id));
             const itemsToInsert = itemSnapshots.map(s => ({
               order_id: insertedOrder.id,
-              menu_item_id: s.menu_item_id,
+              menu_item_id: validDbItemIds.has(s.menu_item_id) ? s.menu_item_id : null,
               item_name_snapshot: s.item_name_snapshot,
               variant_name_snapshot: s.variant_name_snapshot,
               unit_price_snapshot: s.unit_price_snapshot,
@@ -304,6 +305,8 @@ module.exports = {
 
             if (itemsErr) {
               console.warn('Supabase order_items insert warning:', itemsErr.message);
+              // Fallback with null menu_item_id to ensure item snapshots are never lost
+              await supabase.from('order_items').insert(itemsToInsert.map(i => ({ ...i, menu_item_id: null })));
             }
 
             insertedOrder.items = itemSnapshots;
@@ -429,19 +432,26 @@ module.exports = {
         const { data: updatedOrder, error: updateErr } = await query.select().maybeSingle();
 
         if (!updateErr && updatedOrder) {
+          const validDbItemIds = new Set(allItems.map(i => i.id));
           await supabase.from('order_items').delete().eq('order_id', updatedOrder.id);
-          await supabase.from('order_items').insert(itemSnapshots.map(s => ({
+          const itemsToInsert = itemSnapshots.map(s => ({
             order_id: updatedOrder.id,
-            menu_item_id: s.menu_item_id,
+            menu_item_id: validDbItemIds.has(s.menu_item_id) ? s.menu_item_id : null,
             variant_id: s.variant_id,
             item_name_snapshot: s.item_name_snapshot,
             variant_name_snapshot: s.variant_name_snapshot,
             unit_price_snapshot: s.unit_price_snapshot,
             quantity: s.quantity,
             line_total: s.line_total
-          })));
+          }));
+          const { error: insErr } = await supabase.from('order_items').insert(itemsToInsert);
+          if (insErr) {
+            console.warn('Supabase update order_items insert warning:', insErr.message);
+            await supabase.from('order_items').insert(itemsToInsert.map(i => ({ ...i, menu_item_id: null, variant_id: null })));
+          }
 
           updatedOrder.items = itemSnapshots;
+          updatedOrder.order_items = itemSnapshots;
           updatedOrder.subtotal = calculatedSubtotal;
           updatedOrder.total = calculatedSubtotal;
           try {
@@ -701,10 +711,16 @@ module.exports = {
 
       const { data, error } = await query;
       if (!error && data) {
-        return data.map(o => ({
-          ...o,
-          items: o.order_items || []
-        }));
+        return data.map(o => {
+          const items = (o.order_items && o.order_items.length > 0)
+            ? o.order_items
+            : ((o.items && o.items.length > 0) ? o.items : []);
+          return {
+            ...o,
+            items,
+            order_items: items
+          };
+        });
       }
       if (error) {
         console.warn('Supabase getOrders notice (using synchronized cache):', error.message);

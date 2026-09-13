@@ -798,18 +798,26 @@ class CafeStore extends EventEmitter {
       result = result.filter(o => new Date(o.created_at) <= to);
     }
 
-    return result.map(o => ({
-      ...o,
-      items: this.orderItems.filter(oi => oi.order_id === o.id)
-    }));
+    return result.map(o => {
+      const matchingItems = this.orderItems.filter(oi => oi.order_id === o.id);
+      const items = matchingItems.length > 0 ? matchingItems : (o.items || o.order_items || []);
+      return {
+        ...o,
+        items,
+        order_items: items
+      };
+    });
   }
 
   getOrderById(id) {
     const order = this.orders.find(o => o.id === id || String(o.order_number) === String(id));
     if (!order) return null;
+    const matchingItems = this.orderItems.filter(oi => oi.order_id === order.id);
+    const items = matchingItems.length > 0 ? matchingItems : (order.items || order.order_items || []);
     return {
       ...order,
-      items: this.orderItems.filter(oi => oi.order_id === order.id)
+      items,
+      order_items: items
     };
   }
 

@@ -1195,20 +1195,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     billItemsTbody.innerHTML = '';
     const items = (order.items && order.items.length > 0) ? order.items : (order.order_items || []);
-    items.forEach(oi => {
+    if (items.length === 0) {
       const tr = document.createElement('tr');
-      const rawTitle = (oi.item_name_snapshot || oi.name || 'Item') + (oi.variant_name_snapshot ? ` (${oi.variant_name_snapshot})` : '');
-      const itemTitle = SpiceClient.escapeHtml(rawTitle);
-      const lineTotal = (oi.line_total !== undefined && oi.line_total !== null) 
-        ? Number(oi.line_total) 
-        : ((Number(oi.unit_price_snapshot || oi.price || 0)) * Number(oi.quantity || 1));
       tr.innerHTML = `
-        <td>${itemTitle}</td>
-        <td style="text-align: center;">${oi.quantity}</td>
-        <td style="text-align: right;">${SpiceClient.formatCurrency(lineTotal)}</td>
+        <td colspan="2" style="color: var(--text-secondary); font-weight: 600;">Cafe Order (Table ${order.table_number})</td>
+        <td style="text-align: right; font-weight: 700;">${SpiceClient.formatCurrency(order.total)}</td>
       `;
       billItemsTbody.appendChild(tr);
-    });
+    } else {
+      items.forEach(oi => {
+        const tr = document.createElement('tr');
+        const rawTitle = (oi.item_name_snapshot || oi.name || 'Item') + (oi.variant_name_snapshot ? ` (${oi.variant_name_snapshot})` : '');
+        const itemTitle = SpiceClient.escapeHtml(rawTitle);
+        const lineTotal = (oi.line_total !== undefined && oi.line_total !== null) 
+          ? Number(oi.line_total) 
+          : ((Number(oi.unit_price_snapshot || oi.price || 0)) * Number(oi.quantity || 1));
+        tr.innerHTML = `
+          <td>${itemTitle}</td>
+          <td style="text-align: center;">${oi.quantity}</td>
+          <td style="text-align: right;">${SpiceClient.formatCurrency(lineTotal)}</td>
+        `;
+        billItemsTbody.appendChild(tr);
+      });
+    }
 
     billModal.classList.add('active');
   }
