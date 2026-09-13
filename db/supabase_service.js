@@ -712,11 +712,18 @@ module.exports = {
       const { data, error } = await query;
       if (!error && data) {
         return data.map(o => {
+          const localO = localStore.getOrderById(o.id);
+          const payment_mode = o.payment_mode || (localO && localO.payment_mode) || (o.notes && o.notes.includes('Payment: ONLINE') ? 'ONLINE' : (o.notes && o.notes.includes('Payment: SPLIT') ? 'SPLIT' : 'CASH'));
+          const cash_amount = (o.cash_amount != null) ? Number(o.cash_amount) : (localO && localO.cash_amount != null ? Number(localO.cash_amount) : (payment_mode === 'ONLINE' ? 0 : Number(o.total)));
+          const online_amount = (o.online_amount != null) ? Number(o.online_amount) : (localO && localO.online_amount != null ? Number(localO.online_amount) : (payment_mode === 'ONLINE' ? Number(o.total) : 0));
           const items = (o.order_items && o.order_items.length > 0)
             ? o.order_items
             : ((o.items && o.items.length > 0) ? o.items : []);
           return {
             ...o,
+            payment_mode,
+            cash_amount,
+            online_amount,
             items,
             order_items: items
           };
@@ -806,26 +813,44 @@ module.exports = {
       }
       const { data, error } = await query.maybeSingle();
       if (!error && data) {
+        const localOrder = localStore.getOrderById(id);
+        const mergedPaymentMode = data.payment_mode || (localOrder && localOrder.payment_mode) || (data.notes && data.notes.includes('Payment: ONLINE') ? 'ONLINE' : (data.notes && data.notes.includes('Payment: SPLIT') ? 'SPLIT' : 'CASH'));
+        const mergedCash = (data.cash_amount != null) ? Number(data.cash_amount) : (localOrder && localOrder.cash_amount != null ? Number(localOrder.cash_amount) : (mergedPaymentMode === 'ONLINE' ? 0 : Number(data.total)));
+        const mergedOnline = (data.online_amount != null) ? Number(data.online_amount) : (localOrder && localOrder.online_amount != null ? Number(localOrder.online_amount) : (mergedPaymentMode === 'ONLINE' ? Number(data.total) : 0));
+
         const remoteItems = data.order_items || [];
         const remoteSubtotal = remoteItems.reduce((s, i) => s + (Number(i.unit_price_snapshot) * Number(i.quantity)), 0);
         // If remote order_items is consistent with authoritative subtotal, sync and return
         if (remoteItems.length > 0 && Math.abs(remoteSubtotal - Number(data.subtotal)) < 0.01) {
-          localStore.recordOrderSnapshot(data, remoteItems);
+          localStore.recordOrderSnapshot({
+            ...data,
+            payment_mode: mergedPaymentMode,
+            cash_amount: mergedCash,
+            online_amount: mergedOnline
+          }, remoteItems);
           return {
             ...data,
+            payment_mode: mergedPaymentMode,
+            cash_amount: mergedCash,
+            online_amount: mergedOnline,
             items: remoteItems
           };
         }
         // If remote items are stale or desynced, synchronize with localStore cache
-        const localOrder = localStore.getOrderById(id);
         if (localOrder && localOrder.items && localOrder.items.length > 0) {
           return {
             ...data,
+            payment_mode: mergedPaymentMode,
+            cash_amount: mergedCash,
+            online_amount: mergedOnline,
             items: localOrder.items
           };
         }
         return {
           ...data,
+          payment_mode: mergedPaymentMode,
+          cash_amount: mergedCash,
+          online_amount: mergedOnline,
           items: remoteItems
         };
       }
@@ -833,26 +858,52 @@ module.exports = {
     return localStore.getOrderById(id);
   },
 
-  // Update Order Status (supports UUID or order_number)
-  async updateOrderStatus(id, status) {
+  // Update Order Status (supports UUID or order_number and paymentData)
+  async updateOrderStatus(id, status, paymentData = {}) {
     if (isConfigured) {
       const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id));
-      let query = supabase.from('orders').update({ status, updated_at: new Date().toISOString() });
+      const updatePayload = { status, updated_at: new Date().toISOString() };
+      
+      if (paymentData && typeof paymentData === 'object') {
+        if (paymentData.payment_mode) updatePayload.payment_mode = String(paymentData.payment_mode).toUpperCase();
+        if (paymentData.cash_amount != null) updatePayload.cash_amount = Number(paymentData.cash_amount) || 0;
+        if (paymentData.online_amount != null) updatePayload.online_amount = Number(paymentData.online_amount) || 0;
+      }
+
+      let query = supabase.from('orders').update(updatePayload);
       if (isUUID) {
         query = query.eq('id', id);
       } else {
         query = query.eq('order_number', Number(id));
       }
-      const { data, error } = await query.select().maybeSingle();
+      let { data, error } = await query.select().maybeSingle();
+
+      // If remote table is missing the payment columns, fallback to status + notes
+      if (error && (error.message.includes('column') || error.code === 'PGRST204')) {
+        let fallbackQuery = supabase.from('orders').update({
+          status,
+          updated_at: new Date().toISOString(),
+          notes: paymentData.payment_mode ? `Payment: ${paymentData.payment_mode} (Cash: ₹${paymentData.cash_amount || 0}, Online: ₹${paymentData.online_amount || 0})` : undefined
+        });
+        if (isUUID) fallbackQuery = fallbackQuery.eq('id', id);
+        else fallbackQuery = fallbackQuery.eq('order_number', Number(id));
+        const fb = await fallbackQuery.select().maybeSingle();
+        data = fb.data;
+        error = fb.error;
+      }
+
       if (!error && data) {
         try {
-          localStore.updateOrderStatus(data.id, status);
+          localStore.updateOrderStatus(data.id, status, paymentData);
         } catch (e) {}
-        return data;
+        return {
+          ...data,
+          ...paymentData
+        };
       }
       if (error) console.error('Supabase updateOrderStatus error:', error.message);
     }
-    return localStore.updateOrderStatus(id, status);
+    return localStore.updateOrderStatus(id, status, paymentData);
   },
 
   // Get Analytics

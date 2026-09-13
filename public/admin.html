@@ -74,6 +74,16 @@
           <span class="kpi-value" id="kpiTodayRev">₹0</span>
           <span class="kpi-sub" id="kpiTodayOrders">0 orders today</span>
         </div>
+        <div class="kpi-card" style="border-left: 4px solid #16a34a; background: linear-gradient(145deg, #ffffff, #f0fdf4);">
+          <span class="kpi-label" style="color: #15803d; font-weight: 700;">💵 Today's Cash</span>
+          <span class="kpi-value" id="kpiTodayCashRev" style="color: #15803d;">₹0</span>
+          <span class="kpi-sub" id="kpiTodayCashOrders">0 cash orders</span>
+        </div>
+        <div class="kpi-card" style="border-left: 4px solid #2563eb; background: linear-gradient(145deg, #ffffff, #eff6ff);">
+          <span class="kpi-label" style="color: #1d4ed8; font-weight: 700;">📱 Today's Online / UPI</span>
+          <span class="kpi-value" id="kpiTodayOnlineRev" style="color: #1d4ed8;">₹0</span>
+          <span class="kpi-sub" id="kpiTodayOnlineOrders">0 online orders</span>
+        </div>
         <div class="kpi-card">
           <span class="kpi-label">Today's Average Bill</span>
           <span class="kpi-value" id="kpiAvgBill">₹0</span>
@@ -130,12 +140,13 @@
                   <th>Status</th>
                   <th>Items</th>
                   <th>Total</th>
+                  <th>Payment</th>
                   <th>Time</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody id="dashboardRecentOrdersTbody">
-                <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Loading orders...</td></tr>
+                <tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Loading orders...</td></tr>
               </tbody>
             </table>
           </div>
@@ -199,11 +210,12 @@
                 <th>Waiter</th>
                 <th>Items (Snapshot)</th>
                 <th>Total</th>
+                <th>Payment Mode</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody id="ordersTableTbody">
-              <tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Loading orders...</td></tr>
+              <tr><td colspan="9" style="text-align: center; color: var(--text-muted);">Loading orders...</td></tr>
             </tbody>
           </table>
         </div>
@@ -253,6 +265,33 @@
 
     <!-- TAB 4: ANALYTICS -->
     <section class="tab-panel" id="tab-analytics">
+      <!-- Per-Day Revenue & Payment Mode Analysis -->
+      <div class="panel-card" style="margin-bottom: 24px;">
+        <div class="panel-header">
+          <div>
+            <h3 class="panel-title">📅 Daily Sales &amp; Payment Analysis</h3>
+            <p style="font-size: 0.82rem; color: var(--text-muted); margin: 3px 0 0 0;">Per-day breakdown of total sales, cash collected, online/UPI received, and payment ratio</p>
+          </div>
+        </div>
+        <div class="data-table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Orders</th>
+                <th>Total Revenue</th>
+                <th>💵 Cash Collected</th>
+                <th>📱 Online / UPI</th>
+                <th>Payment Mix (Cash vs Online)</th>
+              </tr>
+            </thead>
+            <tbody id="analyticsDailyTableBody">
+              <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Loading daily sales analysis...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="admin-grid-2">
         <div class="panel-card">
           <div class="panel-header">
@@ -447,6 +486,22 @@
             </tr>
           </tfoot>
         </table>
+
+        <!-- Payment Breakdown Box (Screen & Print) -->
+        <div class="receipt-payment-box" id="adminBillPaymentBox" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-medium); font-size: 8.5pt;">
+          <div style="display: flex; justify-content: space-between; font-weight: 700;">
+            <span>PAYMENT MODE:</span>
+            <span id="adminBillPaymentModeText">FULL CASH</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-top: 3px;" id="adminBillCashRow">
+            <span>Cash Paid:</span>
+            <span id="adminBillCashPaidText">₹0</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-top: 3px;" id="adminBillOnlineRow">
+            <span>Online / UPI Paid:</span>
+            <span id="adminBillOnlinePaidText">₹0</span>
+          </div>
+        </div>
 
         <div class="receipt-notice">
           NO GST &bull; NO TAX &bull; NO SERVICE CHARGE<br>

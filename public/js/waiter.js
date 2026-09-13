@@ -128,6 +128,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   const printBillBtn = document.getElementById('printBillBtn');
   const newOrderBtn = document.getElementById('newOrderBtn');
 
+  // Payment Mode Modal Elements
+  const paymentModal = document.getElementById('paymentModal');
+  const paymentModalSubtitle = document.getElementById('paymentModalSubtitle');
+  const paymentTotalAmount = document.getElementById('paymentTotalAmount');
+  const payModeCashBtn = document.getElementById('payModeCashBtn');
+  const payModeOnlineBtn = document.getElementById('payModeOnlineBtn');
+  const payModeSplitBtn = document.getElementById('payModeSplitBtn');
+  const splitPaymentSection = document.getElementById('splitPaymentSection');
+  const splitCashInput = document.getElementById('splitCashInput');
+  const splitOnlineInput = document.getElementById('splitOnlineInput');
+  const splitBalanceIndicator = document.getElementById('splitBalanceIndicator');
+  const paymentSummaryNotice = document.getElementById('paymentSummaryNotice');
+  const cancelPaymentBtn = document.getElementById('cancelPaymentBtn');
+  const confirmPaymentBtn = document.getElementById('confirmPaymentBtn');
+  const closePaymentModalBtn = document.getElementById('closePaymentModalBtn');
+
+  const billPaymentBox = document.getElementById('billPaymentBox');
+  const billPaymentModeText = document.getElementById('billPaymentModeText');
+  const billCashRow = document.getElementById('billCashRow');
+  const billCashPaidText = document.getElementById('billCashPaidText');
+  const billOnlineRow = document.getElementById('billOnlineRow');
+  const billOnlinePaidText = document.getElementById('billOnlinePaidText');
+
   // --- MULTI-ORDER HELPERS ---
   function getCurrentCartKey() {
     const orderId = selectedOrderIdByTable[activeTable] || 'new';
@@ -440,10 +463,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  generateBillBtn.addEventListener('click', () => handleGenerateBill());
+  generateBillBtn.addEventListener('click', () => openPaymentModal());
   drawerGenerateBtn.addEventListener('click', () => {
     closeDrawer();
-    handleGenerateBill();
+    openPaymentModal();
   });
 
   cancelVariantBtn.addEventListener('click', () => {
@@ -500,6 +523,169 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateBottomBar();
     renderCatalog();
   });
+
+  // --- PAYMENT MODE MODAL LOGIC ---
+  let currentPaymentMode = 'CASH'; // 'CASH' | 'ONLINE' | 'SPLIT'
+  let orderTotalForPayment = 0;
+
+  function openPaymentModal() {
+    const order = getCurrentOrderItems();
+    if (order.length === 0) {
+      alert('Cart is empty. Please add items to generate bill.');
+      return;
+    }
+
+    orderTotalForPayment = order.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
+
+    if (paymentTotalAmount) {
+      paymentTotalAmount.textContent = SpiceClient.formatCurrency(orderTotalForPayment);
+    }
+    if (paymentModalSubtitle) {
+      paymentModalSubtitle.textContent = `Table ${activeTable} • ${order.length} item(s) • Total: ${SpiceClient.formatCurrency(orderTotalForPayment)}`;
+    }
+
+    setPaymentMode('CASH');
+    if (paymentModal) paymentModal.classList.add('active');
+  }
+
+  function closePaymentModal() {
+    if (paymentModal) paymentModal.classList.remove('active');
+  }
+
+  function setPaymentMode(mode) {
+    currentPaymentMode = mode;
+    if (payModeCashBtn) payModeCashBtn.classList.toggle('active', mode === 'CASH');
+    if (payModeOnlineBtn) payModeOnlineBtn.classList.toggle('active', mode === 'ONLINE');
+    if (payModeSplitBtn) payModeSplitBtn.classList.toggle('active', mode === 'SPLIT');
+
+    if (mode === 'SPLIT') {
+      if (splitPaymentSection) splitPaymentSection.style.display = 'block';
+      const half = Math.round(orderTotalForPayment / 2);
+      if (splitCashInput) splitCashInput.value = half;
+      if (splitOnlineInput) splitOnlineInput.value = (orderTotalForPayment - half);
+      updateSplitBalance();
+    } else {
+      if (splitPaymentSection) splitPaymentSection.style.display = 'none';
+      if (paymentSummaryNotice) {
+        if (mode === 'CASH') {
+          paymentSummaryNotice.innerHTML = `Customer will pay full <strong>${SpiceClient.formatCurrency(orderTotalForPayment)}</strong> in <strong>Cash</strong>.`;
+        } else {
+          paymentSummaryNotice.innerHTML = `Customer will pay full <strong>${SpiceClient.formatCurrency(orderTotalForPayment)}</strong> via <strong>UPI / Online</strong>.`;
+        }
+      }
+      if (confirmPaymentBtn) {
+        confirmPaymentBtn.disabled = false;
+        confirmPaymentBtn.style.opacity = '1';
+        confirmPaymentBtn.style.pointerEvents = 'auto';
+      }
+    }
+  }
+
+  function updateSplitBalance() {
+    if (!splitCashInput || !splitOnlineInput || !splitBalanceIndicator) return;
+    const cashVal = parseFloat(splitCashInput.value) || 0;
+    const onlineVal = parseFloat(splitOnlineInput.value) || 0;
+    const sum = Math.round((cashVal + onlineVal) * 100) / 100;
+    const target = Math.round(orderTotalForPayment * 100) / 100;
+    const diff = Math.round((target - sum) * 100) / 100;
+
+    if (Math.abs(diff) < 0.01) {
+      splitBalanceIndicator.style.color = '#15803d';
+      splitBalanceIndicator.innerHTML = `✅ Total Matched: ₹${cashVal.toFixed(2)} Cash + ₹${onlineVal.toFixed(2)} Online = <strong>₹${target.toFixed(2)}</strong>`;
+      if (paymentSummaryNotice) {
+        paymentSummaryNotice.innerHTML = `Partial payment configured: <strong>₹${cashVal.toFixed(2)} Cash</strong> and <strong>₹${onlineVal.toFixed(2)} Online</strong>.`;
+      }
+      if (confirmPaymentBtn) {
+        confirmPaymentBtn.disabled = false;
+        confirmPaymentBtn.style.opacity = '1';
+        confirmPaymentBtn.style.pointerEvents = 'auto';
+      }
+    } else if (diff > 0) {
+      splitBalanceIndicator.style.color = '#b45309';
+      splitBalanceIndicator.innerHTML = `⚠️ Remaining: ₹${diff.toFixed(2)} still unallocated (Total: ₹${target.toFixed(2)}).`;
+      if (paymentSummaryNotice) {
+        paymentSummaryNotice.innerHTML = `<span style="color: #ef4444;">Please allocate remaining ₹${diff.toFixed(2)} between Cash or Online.</span>`;
+      }
+      if (confirmPaymentBtn) {
+        confirmPaymentBtn.disabled = true;
+        confirmPaymentBtn.style.opacity = '0.5';
+        confirmPaymentBtn.style.pointerEvents = 'none';
+      }
+    } else {
+      splitBalanceIndicator.style.color = '#b91c1c';
+      splitBalanceIndicator.innerHTML = `⚠️ Overallocated by ₹${(-diff).toFixed(2)} (Total exceeds ₹${target.toFixed(2)}).`;
+      if (paymentSummaryNotice) {
+        paymentSummaryNotice.innerHTML = `<span style="color: #ef4444;">Sum is ₹${(-diff).toFixed(2)} higher than total bill. Please adjust.</span>`;
+      }
+      if (confirmPaymentBtn) {
+        confirmPaymentBtn.disabled = true;
+        confirmPaymentBtn.style.opacity = '0.5';
+        confirmPaymentBtn.style.pointerEvents = 'none';
+      }
+    }
+  }
+
+  if (closePaymentModalBtn) closePaymentModalBtn.addEventListener('click', closePaymentModal);
+  if (cancelPaymentBtn) cancelPaymentBtn.addEventListener('click', closePaymentModal);
+  if (paymentModal) {
+    paymentModal.addEventListener('click', (e) => {
+      if (e.target === paymentModal) closePaymentModal();
+    });
+  }
+
+  if (payModeCashBtn) payModeCashBtn.addEventListener('click', () => setPaymentMode('CASH'));
+  if (payModeOnlineBtn) payModeOnlineBtn.addEventListener('click', () => setPaymentMode('ONLINE'));
+  if (payModeSplitBtn) payModeSplitBtn.addEventListener('click', () => setPaymentMode('SPLIT'));
+
+  if (splitCashInput) {
+    splitCashInput.addEventListener('input', () => {
+      const c = parseFloat(splitCashInput.value);
+      if (!isNaN(c) && c >= 0 && c <= orderTotalForPayment && splitOnlineInput) {
+        splitOnlineInput.value = Math.max(0, Math.round((orderTotalForPayment - c) * 100) / 100);
+      }
+      updateSplitBalance();
+    });
+  }
+
+  if (splitOnlineInput) {
+    splitOnlineInput.addEventListener('input', () => {
+      const o = parseFloat(splitOnlineInput.value);
+      if (!isNaN(o) && o >= 0 && o <= orderTotalForPayment && splitCashInput) {
+        splitCashInput.value = Math.max(0, Math.round((orderTotalForPayment - o) * 100) / 100);
+      }
+      updateSplitBalance();
+    });
+  }
+
+  if (confirmPaymentBtn) {
+    confirmPaymentBtn.addEventListener('click', () => {
+      let cashAmount = 0;
+      let onlineAmount = 0;
+      if (currentPaymentMode === 'CASH') {
+        cashAmount = orderTotalForPayment;
+        onlineAmount = 0;
+      } else if (currentPaymentMode === 'ONLINE') {
+        cashAmount = 0;
+        onlineAmount = orderTotalForPayment;
+      } else if (currentPaymentMode === 'SPLIT') {
+        cashAmount = parseFloat(splitCashInput.value) || 0;
+        onlineAmount = parseFloat(splitOnlineInput.value) || 0;
+        const sum = Math.round((cashAmount + onlineAmount) * 100) / 100;
+        const target = Math.round(orderTotalForPayment * 100) / 100;
+        if (Math.abs(sum - target) > 0.01) {
+          alert(`Payment amounts must equal the order total (₹${target}). Current: ₹${sum}`);
+          return;
+        }
+      }
+
+      closePaymentModal();
+      handleGenerateBill({
+        payment_mode: currentPaymentMode,
+        cash_amount: cashAmount,
+        online_amount: onlineAmount
+      });
+    });
+  }
 
   async function loadMenu(showSpinner = true) {
     try {
@@ -1110,7 +1296,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // ATOMIC BILL GENERATION & COMPLETION (Customer is full)
-  async function handleGenerateBill() {
+  async function handleGenerateBill(paymentDetails = { payment_mode: 'CASH', cash_amount: 0, online_amount: 0 }) {
     const order = getCurrentOrderItems();
     if (order.length === 0 || isSubmitting) return;
 
@@ -1147,6 +1333,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           waiter_name: getCurrentStaffUsername(),
           idempotency_key: `order-${activeTable}-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
           status: 'CONFIRMED',
+          payment_mode: paymentDetails.payment_mode || 'CASH',
+          cash_amount: paymentDetails.cash_amount,
+          online_amount: paymentDetails.online_amount,
           items: order.map(i => ({
             menu_item_id: i.menu_item_id,
             variant_id: i.variant_id,
@@ -1166,7 +1355,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Mark order COMPLETED -> permanently enters history & analytics
       const completeRes = await fetch(`/api/orders/${orderIdToComplete}/complete`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          payment_mode: paymentDetails.payment_mode || 'CASH',
+          cash_amount: paymentDetails.cash_amount,
+          online_amount: paymentDetails.online_amount
+        })
       });
       const completeJson = await completeRes.json();
       if (!completeJson.success) throw new Error(completeJson.error || 'Failed to finalize bill.');
@@ -1225,6 +1419,42 @@ document.addEventListener('DOMContentLoaded', async () => {
       billStatusText.style.color = (order.status === 'COMPLETED') ? '#16a34a' : 'var(--spice-gold)';
     }
     billTotalText.textContent = SpiceClient.formatCurrency(order.total);
+
+    // Payment breakdown in bill
+    if (billPaymentBox) {
+      const mode = (order.payment_mode || 'CASH').toUpperCase();
+      const orderTotal = Number(order.total) || 0;
+      const cash = Number(order.cash_amount !== undefined && order.cash_amount !== null ? order.cash_amount : (mode === 'CASH' ? orderTotal : 0));
+      const online = Number(order.online_amount !== undefined && order.online_amount !== null ? order.online_amount : (mode === 'ONLINE' ? orderTotal : 0));
+
+      if (billPaymentModeText) {
+        if (mode === 'SPLIT') {
+          billPaymentModeText.textContent = 'PARTIAL (CASH + UPI)';
+        } else if (mode === 'ONLINE') {
+          billPaymentModeText.textContent = 'UPI / ONLINE';
+        } else {
+          billPaymentModeText.textContent = 'CASH';
+        }
+      }
+
+      if (billCashRow && billCashPaidText) {
+        if (mode === 'SPLIT' || mode === 'CASH') {
+          billCashRow.style.display = 'flex';
+          billCashPaidText.textContent = SpiceClient.formatCurrency(cash);
+        } else {
+          billCashRow.style.display = 'none';
+        }
+      }
+
+      if (billOnlineRow && billOnlinePaidText) {
+        if (mode === 'SPLIT' || mode === 'ONLINE') {
+          billOnlineRow.style.display = 'flex';
+          billOnlinePaidText.textContent = SpiceClient.formatCurrency(online);
+        } else {
+          billOnlineRow.style.display = 'none';
+        }
+      }
+    }
 
     billItemsTbody.innerHTML = '';
     const items = (order.items && order.items.length > 0) ? order.items : (order.order_items || []);

@@ -102,6 +102,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (activeTab === 'menu') loadMenuData();
   });
 
+  // Helper: Render consistent payment mode badge
+  function formatPaymentPill(o) {
+    if (o.status !== 'COMPLETED') {
+      return `<span style="color: var(--text-muted); font-size: 0.78rem;">Pending</span>`;
+    }
+    const mode = (o.payment_mode || 'CASH').toUpperCase();
+    const cash = Number(o.cash_amount != null ? o.cash_amount : (mode === 'CASH' ? o.total : 0));
+    const online = Number(o.online_amount != null ? o.online_amount : (mode === 'ONLINE' ? o.total : 0));
+
+    if (mode === 'SPLIT') {
+      return `<span class="pill" style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 0.72rem; white-space: nowrap;" title="Cash: ₹${cash}, Online: ₹${online}">⚖️ Split (₹${cash} C / ₹${online} O)</span>`;
+    } else if (mode === 'ONLINE') {
+      return `<span class="pill" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 0.72rem; white-space: nowrap;">📱 UPI (₹${online})</span>`;
+    } else {
+      return `<span class="pill" style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; font-size: 0.72rem; white-space: nowrap;">💵 Cash (₹${cash})</span>`;
+    }
+  }
+
   // --- TAB 1: DASHBOARD ---
   async function loadDashboardData() {
     try {
@@ -121,6 +139,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         document.getElementById('kpiTodayRev').textContent = SpiceClient.formatCurrency(a.today?.revenue || 0);
         document.getElementById('kpiTodayOrders').textContent = `${a.today?.count || 0} orders today`;
+
+        const todayCashRevEl = document.getElementById('kpiTodayCashRev');
+        const todayCashOrdersEl = document.getElementById('kpiTodayCashOrders');
+        const todayOnlineRevEl = document.getElementById('kpiTodayOnlineRev');
+        const todayOnlineOrdersEl = document.getElementById('kpiTodayOnlineOrders');
+
+        if (todayCashRevEl) todayCashRevEl.textContent = SpiceClient.formatCurrency(a.today?.cashRevenue || 0);
+        if (todayCashOrdersEl) todayCashOrdersEl.textContent = `${a.today?.cashOrders || 0} cash orders`;
+        if (todayOnlineRevEl) todayOnlineRevEl.textContent = SpiceClient.formatCurrency(a.today?.onlineRevenue || 0);
+        if (todayOnlineOrdersEl) todayOnlineOrdersEl.textContent = `${a.today?.onlineOrders || 0} online orders`;
+
         document.getElementById('kpiAvgBill').textContent = SpiceClient.formatCurrency(a.today?.averageBill || 0);
 
         document.getElementById('kpiWeekRev').textContent = SpiceClient.formatCurrency(a.weekly?.revenue || 0);
@@ -190,7 +219,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           .sort((a, b) => Number(b.order_number || 0) - Number(a.order_number || 0));
 
         if (recents.length === 0) {
-          recentTbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No orders recorded yet.</td></tr>`;
+          recentTbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No orders recorded yet.</td></tr>`;
         } else {
           recents.slice(0, 10).forEach(o => {
             const tr = document.createElement('tr');
@@ -212,6 +241,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               <td>${statusPill}</td>
               <td style="max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${SpiceClient.escapeHtml(rawSummary)}">${itemsSummary}</td>
               <td style="font-weight: 700; color: var(--spice-gold);">${SpiceClient.formatCurrency(o.total)}</td>
+              <td>${formatPaymentPill(o)}</td>
               <td style="font-size: 0.8rem; color: var(--text-muted);">${timeStr}</td>
               <td>
                 <button type="button" class="btn btn-secondary view-dash-order-btn" style="padding: 4px 8px; font-size: 0.8rem;">View</button>
@@ -326,7 +356,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     ordersTableTbody.innerHTML = '';
     if (filtered.length === 0) {
-      ordersTableTbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No matching orders found.</td></tr>`;
+      ordersTableTbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted);">No matching orders found.</td></tr>`;
       return;
     }
 
@@ -351,6 +381,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <td>${SpiceClient.escapeHtml(o.waiter_name_snapshot || 'Staff')}</td>
         <td style="max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${SpiceClient.escapeHtml(rawItemsList)}">${itemsList}</td>
         <td style="font-weight: 700; color: var(--spice-gold); font-family: var(--font-heading);">${SpiceClient.formatCurrency(o.total)}</td>
+        <td>${formatPaymentPill(o)}</td>
         <td>
           <button type="button" class="btn btn-secondary view-order-btn" style="padding: 4px 8px; font-size: 0.8rem;">View Bill</button>
           ${isServing ? `
@@ -507,6 +538,49 @@ document.addEventListener('DOMContentLoaded', async () => {
         `;
         adminModalItemsTbody.appendChild(tr);
       });
+    }
+
+    // Render Payment Details on Admin Printable/Screen Receipt
+    const adminBillPaymentBox = document.getElementById('adminBillPaymentBox');
+    const adminBillPaymentModeText = document.getElementById('adminBillPaymentModeText');
+    const adminBillCashRow = document.getElementById('adminBillCashRow');
+    const adminBillCashPaidText = document.getElementById('adminBillCashPaidText');
+    const adminBillOnlineRow = document.getElementById('adminBillOnlineRow');
+    const adminBillOnlinePaidText = document.getElementById('adminBillOnlinePaidText');
+
+    if (adminBillPaymentBox) {
+      const mode = (order.payment_mode || 'CASH').toUpperCase();
+      const orderTotal = Number(order.total) || 0;
+      const cash = Number(order.cash_amount != null ? order.cash_amount : (mode === 'CASH' ? orderTotal : 0));
+      const online = Number(order.online_amount != null ? order.online_amount : (mode === 'ONLINE' ? orderTotal : 0));
+
+      if (adminBillPaymentModeText) {
+        if (mode === 'SPLIT') {
+          adminBillPaymentModeText.textContent = 'PARTIAL (CASH + UPI)';
+        } else if (mode === 'ONLINE') {
+          adminBillPaymentModeText.textContent = 'UPI / ONLINE';
+        } else {
+          adminBillPaymentModeText.textContent = 'FULL CASH';
+        }
+      }
+
+      if (adminBillCashRow && adminBillCashPaidText) {
+        if (mode === 'SPLIT' || mode === 'CASH') {
+          adminBillCashRow.style.display = 'flex';
+          adminBillCashPaidText.textContent = SpiceClient.formatCurrency(cash);
+        } else {
+          adminBillCashRow.style.display = 'none';
+        }
+      }
+
+      if (adminBillOnlineRow && adminBillOnlinePaidText) {
+        if (mode === 'SPLIT' || mode === 'ONLINE') {
+          adminBillOnlineRow.style.display = 'flex';
+          adminBillOnlinePaidText.textContent = SpiceClient.formatCurrency(online);
+        } else {
+          adminBillOnlineRow.style.display = 'none';
+        }
+      }
     }
 
     adminOrderModal.classList.add('active');
@@ -1213,6 +1287,44 @@ document.addEventListener('DOMContentLoaded', async () => {
             `;
             tableDiv.appendChild(row);
           });
+        }
+
+        // 3. Daily Sales & Payment Mode Breakdown (Per-Day Analysis)
+        const dailyBody = document.getElementById('analyticsDailyTableBody');
+        if (dailyBody) {
+          dailyBody.innerHTML = '';
+          const days = a.dailyBreakdown || [];
+          if (days.length === 0) {
+            dailyBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 16px;">No sales history recorded yet.</td></tr>`;
+          } else {
+            days.forEach(d => {
+              const tr = document.createElement('tr');
+              const total = Number(d.revenue || d.totalRevenue || 0);
+              const cash = Number(d.cashRevenue || 0);
+              const online = Number(d.onlineRevenue || 0);
+              const cashPct = total > 0 ? Math.round((cash / total) * 100) : 0;
+              const onlinePct = total > 0 ? (100 - cashPct) : 0;
+
+              tr.innerHTML = `
+                <td style="font-weight: 700; white-space: nowrap;">📅 ${d.date}</td>
+                <td><span class="pill pill-veg" style="font-size: 0.8rem;">${d.orders || d.count || 0} completed</span></td>
+                <td style="font-weight: 800; color: var(--spice-gold); font-size: 0.95rem;">${SpiceClient.formatCurrency(total)}</td>
+                <td style="color: #15803d; font-weight: 700;">${SpiceClient.formatCurrency(cash)}</td>
+                <td style="color: #2563eb; font-weight: 700;">${SpiceClient.formatCurrency(online)}</td>
+                <td style="min-width: 150px;">
+                  <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700; margin-bottom: 4px;">
+                    <span style="color: #15803d;">Cash ${cashPct}%</span>
+                    <span style="color: #2563eb;">Online ${onlinePct}%</span>
+                  </div>
+                  <div style="background: #e2e8f0; border-radius: 9999px; height: 6px; overflow: hidden; display: flex; width: 100%;">
+                    <div style="background: #16a34a; width: ${cashPct}%; height: 100%;"></div>
+                    <div style="background: #2563eb; width: ${onlinePct}%; height: 100%;"></div>
+                  </div>
+                </td>
+              `;
+              dailyBody.appendChild(tr);
+            });
+          }
         }
       }
     } catch (err) {

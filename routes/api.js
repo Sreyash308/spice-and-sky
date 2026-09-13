@@ -357,7 +357,10 @@ router.post('/orders', requireAuth(['WAITER', 'ADMIN']), async (req, res) => {
       notes,
       idempotency_key,
       waiter_id: waiter_id || req.user?.id,
-      waiter_name: waiter_name || req.user?.username || req.user?.display_name || 'waiter'
+      waiter_name: waiter_name || req.user?.username || req.user?.display_name || 'waiter',
+      payment_mode: req.body.payment_mode,
+      cash_amount: req.body.cash_amount,
+      online_amount: req.body.online_amount
     });
 
     res.status(201).json({
@@ -422,12 +425,59 @@ router.put('/orders/:id', requireAuth(['WAITER', 'ADMIN']), async (req, res) => 
   }
 });
 
-// POST /api/orders/:id/complete - Complete order & finalize bill
+// POST /api/orders/:id/complete - Complete order & finalize bill with payment breakdown
 router.post('/orders/:id/complete', requireAuth(['WAITER', 'ADMIN']), async (req, res) => {
   try {
-    await dbService.updateOrderStatus(req.params.id, 'COMPLETED');
+    const existingOrder = await dbService.getOrderById(req.params.id);
+    if (!existingOrder) {
+      return res.status(404).json({ success: false, error: 'Order not found.' });
+    }
+
+    let payment_mode = req.body.payment_mode ? String(req.body.payment_mode).toUpperCase() : 'CASH';
+    const validModes = ['CASH', 'ONLINE', 'SPLIT'];
+    if (!validModes.includes(payment_mode)) {
+      payment_mode = 'CASH';
+    }
+
+    const orderTotal = Number(existingOrder.total || 0);
+    let cash_amount = 0;
+    let online_amount = 0;
+
+    if (payment_mode === 'CASH') {
+      cash_amount = orderTotal;
+      online_amount = 0;
+    } else if (payment_mode === 'ONLINE') {
+      cash_amount = 0;
+      online_amount = orderTotal;
+    } else if (payment_mode === 'SPLIT') {
+      cash_amount = Number(req.body.cash_amount) || 0;
+      online_amount = Number(req.body.online_amount) || 0;
+
+      // Validate split sum equals order total
+      if (Math.abs((cash_amount + online_amount) - orderTotal) > 0.01) {
+        return res.status(400).json({
+          success: false,
+          error: `Split amounts (Cash: ₹${cash_amount} + Online: ₹${online_amount} = ₹${cash_amount + online_amount}) must equal total order amount (₹${orderTotal}).`
+        });
+      }
+    }
+
+    const paymentData = {
+      payment_mode,
+      cash_amount,
+      online_amount,
+      payment_status: 'PAID'
+    };
+
+    await dbService.updateOrderStatus(req.params.id, 'COMPLETED', paymentData);
     const order = await dbService.getOrderById(req.params.id);
-    res.json({ success: true, data: order });
+    res.json({
+      success: true,
+      data: {
+        ...(order || {}),
+        ...paymentData
+      }
+    });
   } catch (err) {
     console.error('API POST /orders/:id/complete error:', err);
     res.status(400).json({ success: false, error: err.message });

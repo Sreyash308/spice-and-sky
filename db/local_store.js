@@ -326,7 +326,7 @@ class CafeStore extends EventEmitter {
   }
 
   // --- ATOMIC ORDER CREATION ---
-  createOrderAtomic({ table_number, items, notes, idempotency_key, waiter_id, waiter_name, status }) {
+  createOrderAtomic({ table_number, items, notes, idempotency_key, waiter_id, waiter_name, status, payment_mode, cash_amount, online_amount }) {
     const tableNum = Number(table_number);
     if (!tableNum || tableNum < 1 || tableNum > 9) {
       throw new Error(`Invalid table number: ${table_number}. Must be between 1 and 9.`);
@@ -414,6 +414,9 @@ class CafeStore extends EventEmitter {
       total: calculatedTotal, // STRICT: NO TAX, NO GST, NO SERVICE CHARGE
       notes: notes ? String(notes).replace(/<[^>]*>?/gm, '').trim() : null,
       idempotency_key: idempotency_key || null,
+      payment_mode: payment_mode ? String(payment_mode).toUpperCase() : (status === 'COMPLETED' ? 'CASH' : null),
+      cash_amount: cash_amount != null ? Number(cash_amount) : (status === 'COMPLETED' ? calculatedTotal : 0),
+      online_amount: online_amount != null ? Number(online_amount) : 0,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -619,6 +622,9 @@ class CafeStore extends EventEmitter {
       total: Number(orderData.total),
       notes: orderData.notes || null,
       idempotency_key: orderData.idempotency_key || null,
+      payment_mode: orderData.payment_mode || (existingIndex >= 0 && this.orders[existingIndex].payment_mode) || (orderData.notes && orderData.notes.includes('Payment: ONLINE') ? 'ONLINE' : (orderData.notes && orderData.notes.includes('Payment: SPLIT') ? 'SPLIT' : 'CASH')),
+      cash_amount: orderData.cash_amount != null ? Number(orderData.cash_amount) : (existingIndex >= 0 && this.orders[existingIndex].cash_amount != null ? this.orders[existingIndex].cash_amount : (orderData.payment_mode === 'ONLINE' ? 0 : Number(orderData.total))),
+      online_amount: orderData.online_amount != null ? Number(orderData.online_amount) : (existingIndex >= 0 && this.orders[existingIndex].online_amount != null ? this.orders[existingIndex].online_amount : (orderData.payment_mode === 'ONLINE' ? Number(orderData.total) : 0)),
       created_at: normalizedCreatedAt,
       updated_at: orderData.updated_at || new Date().toISOString()
     };
@@ -814,13 +820,44 @@ class CafeStore extends EventEmitter {
     };
   }
 
-  updateOrderStatus(id, status) {
+  updateOrderStatus(id, status, paymentData = {}) {
     const order = this.orders.find(o => o.id === id || String(o.order_number) === String(id));
     if (!order) {
       return null;
     }
     order.status = status;
     order.updated_at = new Date().toISOString();
+
+    if (paymentData && typeof paymentData === 'object') {
+      if (paymentData.payment_mode) {
+        order.payment_mode = String(paymentData.payment_mode).toUpperCase();
+      }
+      if (paymentData.cash_amount != null) {
+        order.cash_amount = Number(paymentData.cash_amount) || 0;
+      }
+      if (paymentData.online_amount != null) {
+        order.online_amount = Number(paymentData.online_amount) || 0;
+      }
+      if (paymentData.payment_status) {
+        order.payment_status = paymentData.payment_status;
+      }
+    }
+
+    if (status === 'COMPLETED') {
+      if (!order.payment_mode) {
+        order.payment_mode = 'CASH';
+      }
+      if (order.cash_amount == null && order.online_amount == null) {
+        if (order.payment_mode === 'CASH') {
+          order.cash_amount = Number(order.total) || 0;
+          order.online_amount = 0;
+        } else if (order.payment_mode === 'ONLINE') {
+          order.cash_amount = 0;
+          order.online_amount = Number(order.total) || 0;
+        }
+      }
+    }
+
     this.emit('order_updated', { order });
     return order;
   }
@@ -847,10 +884,27 @@ class CafeStore extends EventEmitter {
     startOfMonth.setUTCHours(0, 0, 0, 0);
 
     const getMetricsForOrders = (orderList) => {
-      const revenue = orderList.reduce((sum, o) => sum + Number(o.total), 0);
+      const revenue = orderList.reduce((sum, o) => sum + Number(o.total || 0), 0);
       const count = orderList.length;
       const averageBill = count > 0 ? Math.round(revenue / count) : 0;
-      return { revenue, count, averageBill };
+      let cashOrders = 0;
+      let onlineOrders = 0;
+      let splitOrders = 0;
+
+      const cashRevenue = orderList.reduce((sum, o) => {
+        const c = (o.cash_amount != null) ? Number(o.cash_amount) : (o.payment_mode === 'ONLINE' ? 0 : Number(o.total || 0));
+        const on = (o.online_amount != null) ? Number(o.online_amount) : (o.payment_mode === 'ONLINE' ? Number(o.total || 0) : 0);
+        if (c > 0 && on > 0) splitOrders += 1;
+        else if (on > 0) onlineOrders += 1;
+        else if (c > 0) cashOrders += 1;
+        return sum + c;
+      }, 0);
+
+      const onlineRevenue = orderList.reduce((sum, o) => {
+        return sum + ((o.online_amount != null) ? Number(o.online_amount) : (o.payment_mode === 'ONLINE' ? Number(o.total || 0) : 0));
+      }, 0);
+
+      return { revenue, count, averageBill, cashRevenue, onlineRevenue, cashOrders, onlineOrders, splitOrders };
     };
 
     const isOrderInDateRange = (o, fromDate) => {
@@ -863,6 +917,37 @@ class CafeStore extends EventEmitter {
     const todayOrders = validOrders.filter(o => isOrderInDateRange(o, startOfToday));
     const weekOrders = validOrders.filter(o => isOrderInDateRange(o, startOfWeek));
     const monthOrders = validOrders.filter(o => isOrderInDateRange(o, startOfMonth));
+
+    // Per-day analysis in Asia/Kolkata timezone
+    const dailyMap = {};
+    validOrders.forEach(o => {
+      const raw = o.created_at || '';
+      const normalized = (String(raw).includes('Z') || String(raw).includes('+')) ? raw : (raw + 'Z');
+      const orderKolkataDate = new Date(new Date(normalized).getTime() + kolkataOffsetMs);
+      const dateKey = orderKolkataDate.toISOString().split('T')[0]; // YYYY-MM-DD
+      if (!dailyMap[dateKey]) {
+        dailyMap[dateKey] = {
+          date: dateKey,
+          orders: 0,
+          revenue: 0,
+          cashRevenue: 0,
+          onlineRevenue: 0
+        };
+      }
+      const cash = (o.cash_amount != null)
+        ? Number(o.cash_amount)
+        : (o.payment_mode === 'ONLINE' ? 0 : Number(o.total || 0));
+      const online = (o.online_amount != null)
+        ? Number(o.online_amount)
+        : (o.payment_mode === 'ONLINE' ? Number(o.total || 0) : 0);
+
+      dailyMap[dateKey].orders += 1;
+      dailyMap[dateKey].revenue += Number(o.total || 0);
+      dailyMap[dateKey].cashRevenue += cash;
+      dailyMap[dateKey].onlineRevenue += online;
+    });
+
+    const dailyBreakdown = Object.values(dailyMap).sort((a, b) => b.date.localeCompare(a.date));
 
     // Sales by Table (Table 1 through 9) - strictly completed orders
     const salesByTable = {};
@@ -913,6 +998,7 @@ class CafeStore extends EventEmitter {
       weekly: getMetricsForOrders(weekOrders),
       monthly: getMetricsForOrders(monthOrders),
       allTime: getMetricsForOrders(validOrders),
+      dailyBreakdown,
       salesByTable: Object.values(salesByTable),
       topSellingItems,
       activeServing,
