@@ -1243,80 +1243,124 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // --- ORDER HISTORY MANAGEMENT ---
+  // --- ORDER HISTORY MANAGEMENT WITH IN-PAGE CONFIRMATION MODAL ---
+  const confirmResetModal = document.getElementById('confirmResetModal');
+  const confirmResetIcon = document.getElementById('confirmResetIcon');
+  const confirmResetTitle = document.getElementById('confirmResetTitle');
+  const confirmResetSubtitle = document.getElementById('confirmResetSubtitle');
+  const confirmResetMessage = document.getElementById('confirmResetMessage');
+  const cancelResetModalBtn = document.getElementById('cancelResetModalBtn');
+  const executeResetModalBtn = document.getElementById('executeResetModalBtn');
 
-  // 1. Erase Today's History Only
-  async function triggerResetToday() {
-    const confirmed = window.confirm(
-      "📅 ERASE TODAY'S ORDER HISTORY ONLY?\n\n" +
-      "• All orders placed TODAY will be permanently deleted from the database.\n" +
-      "• Today's sales and revenue metrics will reset to ₹0.\n" +
-      "• Historical orders from previous days will NOT be affected.\n\n" +
-      "Click OK to proceed with erasing today's history."
-    );
-    if (!confirmed) return;
+  let pendingResetAction = null; // 'TODAY' or 'ALL'
 
-    try {
-      const res = await fetch('/api/admin/orders/reset-today', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert(data.message || "Today's order history has been successfully erased.");
-        await loadDashboardData();
-        await loadOrdersData();
-      } else {
-        alert('Failed to erase today\'s orders: ' + (data.error || 'Unknown error'));
+  function openResetModal(type) {
+    if (!confirmResetModal) return;
+    pendingResetAction = type;
+    if (type === 'TODAY') {
+      if (confirmResetIcon) confirmResetIcon.textContent = '📅';
+      if (confirmResetTitle) confirmResetTitle.textContent = "Erase Today's History Only";
+      if (confirmResetSubtitle) confirmResetSubtitle.textContent = 'Only orders placed today will be deleted';
+      if (confirmResetMessage) {
+        confirmResetMessage.innerHTML = `
+          <div style="font-weight: 700; color: #c2410c; margin-bottom: 8px;">Are you sure you want to erase today's orders?</div>
+          <ul style="margin: 0; padding-left: 20px; line-height: 1.6;">
+            <li>All orders placed <strong>TODAY</strong> will be deleted from the database.</li>
+            <li>Today's sales count and revenue will reset to <strong>₹0</strong>.</li>
+            <li>Orders from previous days will remain safe and unaffected.</li>
+          </ul>
+        `;
       }
-    } catch (err) {
-      alert('Error erasing today\'s orders: ' + err.message);
+      if (executeResetModalBtn) {
+        executeResetModalBtn.style.background = '#ea580c';
+        executeResetModalBtn.textContent = "Yes, Erase Today's History";
+      }
+    } else {
+      if (confirmResetIcon) confirmResetIcon.textContent = '🚨';
+      if (confirmResetTitle) confirmResetTitle.textContent = 'Reset Entire Order History';
+      if (confirmResetSubtitle) confirmResetSubtitle.textContent = 'Permanent wipe of all historical orders';
+      if (confirmResetMessage) {
+        confirmResetMessage.innerHTML = `
+          <div style="font-weight: 700; color: #dc2626; margin-bottom: 8px;">Are you sure you want to reset ALL order history?</div>
+          <ul style="margin: 0; padding-left: 20px; line-height: 1.6;">
+            <li><strong>ALL</strong> past and current orders will be permanently wiped.</li>
+            <li>All active table orders will be cleared.</li>
+            <li>Fresh orders will start sequentially from <strong>#1</strong>.</li>
+            <li>Menu items, categories, and staff accounts remain preserved.</li>
+          </ul>
+        `;
+      }
+      if (executeResetModalBtn) {
+        executeResetModalBtn.style.background = '#dc2626';
+        executeResetModalBtn.textContent = 'Yes, Wipe Everything to #1';
+      }
     }
+
+    if (executeResetModalBtn) executeResetModalBtn.disabled = false;
+    confirmResetModal.classList.add('active');
   }
 
-  // 2. Reset All Order History
-  async function triggerResetAll() {
-    const confirmed = window.confirm(
-      "🚨 RESET ENTIRE ORDER HISTORY?\n\n" +
-      "• This will permanently wipe ALL historical order records from the database.\n" +
-      "• All active serving tables, bills, and lifetime revenue analytics will reset to ₹0.\n" +
-      "• Fresh orders will start sequentially from #1.\n" +
-      "• Menu items, categories, and staff accounts will remain preserved.\n\n" +
-      "Click OK to confirm permanent reset."
-    );
-    if (!confirmed) return;
+  function closeResetModal() {
+    pendingResetAction = null;
+    if (confirmResetModal) confirmResetModal.classList.remove('active');
+  }
 
-    try {
-      const res = await fetch('/api/admin/orders/reset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert(data.message || 'All order history has been completely reset to #1.');
-        await loadDashboardData();
-        await loadOrdersData();
-      } else {
-        alert('Failed to reset orders: ' + (data.error || 'Unknown error'));
+  if (cancelResetModalBtn) {
+    cancelResetModalBtn.addEventListener('click', closeResetModal);
+  }
+
+  if (confirmResetModal) {
+    confirmResetModal.addEventListener('click', (e) => {
+      if (e.target === confirmResetModal) closeResetModal();
+    });
+  }
+
+  if (executeResetModalBtn) {
+    executeResetModalBtn.addEventListener('click', async () => {
+      const isToday = pendingResetAction === 'TODAY';
+      const endpoint = isToday ? '/api/admin/orders/reset-today' : '/api/admin/orders/reset';
+
+      try {
+        executeResetModalBtn.disabled = true;
+        executeResetModalBtn.textContent = 'Processing...';
+
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          closeResetModal();
+          await loadDashboardData();
+          await loadOrdersData();
+          alert(data.message || (isToday ? "Today's order history erased successfully." : 'All order history reset to #1.'));
+        } else {
+          alert('Action failed: ' + (data.error || 'Unknown error'));
+          executeResetModalBtn.disabled = false;
+          executeResetModalBtn.textContent = isToday ? "Yes, Erase Today's History" : 'Yes, Wipe Everything to #1';
+        }
+      } catch (err) {
+        alert('Request error: ' + err.message);
+        executeResetModalBtn.disabled = false;
+        executeResetModalBtn.textContent = isToday ? "Yes, Erase Today's History" : 'Yes, Wipe Everything to #1';
       }
-    } catch (err) {
-      alert('Error resetting orders: ' + err.message);
-    }
+    });
   }
 
   const resetOrdersBtn = document.getElementById('resetOrdersBtn');
   if (resetOrdersBtn) {
-    resetOrdersBtn.addEventListener('click', triggerResetAll);
+    resetOrdersBtn.addEventListener('click', () => openResetModal('ALL'));
   }
 
   const resetTodayOrdersBtn = document.getElementById('resetTodayOrdersBtn');
   if (resetTodayOrdersBtn) {
-    resetTodayOrdersBtn.addEventListener('click', triggerResetToday);
+    resetTodayOrdersBtn.addEventListener('click', () => openResetModal('TODAY'));
   }
 
   const ordersTabResetTodayBtn = document.getElementById('ordersTabResetTodayBtn');
   if (ordersTabResetTodayBtn) {
-    ordersTabResetTodayBtn.addEventListener('click', triggerResetToday);
+    ordersTabResetTodayBtn.addEventListener('click', () => openResetModal('TODAY'));
   }
 
   // Initial Load

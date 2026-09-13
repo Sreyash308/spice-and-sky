@@ -72,11 +72,17 @@ app.use('/images', express.static(path.join(__dirname, 'public', 'images'), {
   maxAge: THIRTY_DAYS_MS,
   immutable: true
 }));
-app.use('/public', express.static(path.join(__dirname, 'public'), { maxAge: '1d' }));
-app.use('/css', express.static(path.join(__dirname, 'public', 'css'), { maxAge: '1d' }));
-app.use('/js', express.static(path.join(__dirname, 'public', 'js'), { maxAge: '1d' }));
-app.use('/assets', express.static(path.join(__dirname, 'public', 'assets'), { maxAge: '7d' }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use('/public', express.static(path.join(__dirname, 'public'), { maxAge: 0 }));
+app.use('/css', express.static(path.join(__dirname, 'public', 'css'), {
+  maxAge: 0,
+  setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+}));
+app.use('/js', express.static(path.join(__dirname, 'public', 'js'), {
+  maxAge: 0,
+  setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+}));
+app.use('/assets', express.static(path.join(__dirname, 'public', 'assets'), { maxAge: '1d' }));
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: 0 }));
 
 // Health Check
 app.get('/api/health', (req, res) => {
