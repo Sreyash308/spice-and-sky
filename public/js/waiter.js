@@ -877,7 +877,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         row.className = 'drawer-item-row';
         row.innerHTML = `
           <div>
-            <div style="font-weight: 600; color: var(--text-white);">${oi.name} ${oi.variant_name ? `<span style="color: var(--spice-gold); font-size: 0.8rem;">(${oi.variant_name})</span>` : ''}</div>
+            <div style="font-weight: 600; color: var(--text-white);">${SpiceClient.escapeHtml(oi.name)} ${oi.variant_name ? `<span style="color: var(--spice-gold); font-size: 0.8rem;">(${SpiceClient.escapeHtml(oi.variant_name)})</span>` : ''}</div>
             <div style="font-size: 0.8rem; color: var(--text-muted);">${SpiceClient.formatCurrency(oi.price)} each</div>
           </div>
           <div style="display: flex; align-items: center; gap: 10px;">
@@ -1185,7 +1185,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const items = (order.items && order.items.length > 0) ? order.items : (order.order_items || []);
     items.forEach(oi => {
       const tr = document.createElement('tr');
-      const itemTitle = (oi.item_name_snapshot || oi.name || 'Item') + (oi.variant_name_snapshot ? ` (${oi.variant_name_snapshot})` : '');
+      const rawTitle = (oi.item_name_snapshot || oi.name || 'Item') + (oi.variant_name_snapshot ? ` (${oi.variant_name_snapshot})` : '');
+      const itemTitle = SpiceClient.escapeHtml(rawTitle);
       const lineTotal = (oi.line_total !== undefined && oi.line_total !== null) 
         ? Number(oi.line_total) 
         : ((Number(oi.unit_price_snapshot || oi.price || 0)) * Number(oi.quantity || 1));

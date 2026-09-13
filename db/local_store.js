@@ -40,7 +40,7 @@ class CafeStore extends EventEmitter {
         email: 'waiter@spiceandsky.com'
       }
     ];
-    this.orderSequence = 1000;
+    this.orderSequence = 0;
     this.initDefaultData();
   }
 
@@ -347,10 +347,11 @@ class CafeStore extends EventEmitter {
         throw new Error(`Item "${dbItem.name}" is currently unavailable.`);
       }
 
-      const qty = parseInt(reqItem.quantity, 10);
-      if (isNaN(qty) || qty <= 0) {
-        throw new Error(`Invalid quantity for item "${dbItem.name}".`);
+      const numQty = Number(reqItem.quantity);
+      if (isNaN(numQty) || !Number.isInteger(numQty) || numQty <= 0) {
+        throw new Error(`Invalid quantity for item "${dbItem.name}". Quantity must be a positive whole integer.`);
       }
+      const qty = numQty;
 
       let unitPrice = dbItem.price;
       let variantName = null;
@@ -390,11 +391,11 @@ class CafeStore extends EventEmitter {
       order_number: this.orderSequence,
       table_number: tableNum,
       waiter_id: waiter_id || null,
-      waiter_name_snapshot: waiter_name || 'Staff',
+      waiter_name_snapshot: waiter_name ? String(waiter_name).replace(/<[^>]*>?/gm, '').trim() : 'Staff',
       status: status || 'CONFIRMED',
       subtotal: calculatedTotal,
       total: calculatedTotal, // STRICT: NO TAX, NO GST, NO SERVICE CHARGE
-      notes: notes || null,
+      notes: notes ? String(notes).replace(/<[^>]*>?/gm, '').trim() : null,
       idempotency_key: idempotency_key || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -437,8 +438,11 @@ class CafeStore extends EventEmitter {
       if (!dbItem.is_active) throw new Error(`Item "${dbItem.name}" is no longer on the menu.`);
       if (!dbItem.is_available) throw new Error(`Item "${dbItem.name}" is currently unavailable.`);
 
-      const qty = parseInt(reqItem.quantity, 10);
-      if (isNaN(qty) || qty <= 0) throw new Error(`Invalid quantity for item "${dbItem.name}".`);
+      const numQty = Number(reqItem.quantity);
+      if (isNaN(numQty) || !Number.isInteger(numQty) || numQty <= 0) {
+        throw new Error(`Invalid quantity for item "${dbItem.name}". Quantity must be a positive whole integer.`);
+      }
+      const qty = numQty;
 
       let unitPrice = dbItem.price;
       let variantName = null;
@@ -470,9 +474,9 @@ class CafeStore extends EventEmitter {
     const order = this.orders[orderIndex];
     order.subtotal = calculatedTotal;
     order.total = calculatedTotal;
-    if (notes !== undefined) order.notes = notes;
+    if (notes !== undefined) order.notes = notes ? String(notes).replace(/<[^>]*>?/gm, '').trim() : null;
     if (waiter_id) order.waiter_id = waiter_id;
-    if (waiter_name) order.waiter_name_snapshot = waiter_name;
+    if (waiter_name) order.waiter_name_snapshot = String(waiter_name).replace(/<[^>]*>?/gm, '').trim();
     if (status) order.status = status;
     order.updated_at = new Date().toISOString();
 
@@ -517,11 +521,24 @@ class CafeStore extends EventEmitter {
     }
   }
 
+  resetOrderHistory() {
+    this.orders = [];
+    this.orderItems = [];
+    this.orderSequence = 0;
+    this.emit('orders_reset');
+    return { success: true };
+  }
+
   recordOrderSnapshot(orderData, itemsData = []) {
     const orderId = orderData.order_id || orderData.id;
     const existingIndex = this.orders.findIndex(o => o.id === orderId);
     const rawCreatedAt = orderData.created_at || new Date().toISOString();
     const normalizedCreatedAt = (String(rawCreatedAt).includes('Z') || String(rawCreatedAt).includes('+')) ? rawCreatedAt : (rawCreatedAt + 'Z');
+
+    const orderNum = Number(orderData.order_number);
+    if (!isNaN(orderNum) && orderNum > this.orderSequence) {
+      this.orderSequence = orderNum;
+    }
 
     const order = {
       id: orderId,

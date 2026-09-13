@@ -120,14 +120,11 @@ window.SpiceClient = (function () {
       console.warn('Session check notice:', e);
     }
 
-    // Check localStorage fallback
-    const stored = getStoredUser();
-    const storedSess = localStorage.getItem('spice_session_id');
-    if (stored) {
-      currentUser = stored;
-      currentSessionId = storedSess;
-      return { authenticated: true, user: currentUser, sessionId: currentSessionId };
-    }
+    // If session endpoint responded and user is not authenticated, clear localStorage
+    localStorage.removeItem('spice_auth_user');
+    localStorage.removeItem('spice_session_id');
+    currentUser = null;
+    currentSessionId = null;
 
     return { authenticated: false, user: null, sessionId: null };
   }
@@ -160,26 +157,8 @@ window.SpiceClient = (function () {
         throw new Error(json.error || 'Authentication failed.');
       }
     } catch (err) {
-      // Fallback in case server network glitch
-      if (normalizedEmail === 'admin@spiceandsky.com' || normalizedEmail.includes('admin')) {
-        currentUser = {
-          id: '497c557a-0182-4d22-a3e7-1a929415c947',
-          email: normalizedEmail,
-          role: 'ADMIN',
-          display_name: 'Owner Admin'
-        };
-      } else {
-        currentUser = {
-          id: 'f80da808-79e6-45e0-801c-19064070a9a8',
-          email: normalizedEmail,
-          role: 'WAITER',
-          display_name: 'Rooftop Waiter'
-        };
-      }
-      currentSessionId = 'sess_local_' + Date.now();
-      localStorage.setItem('spice_auth_user', JSON.stringify(currentUser));
-      localStorage.setItem('spice_session_id', currentSessionId);
-      return { success: true, user: currentUser, sessionId: currentSessionId };
+      console.error('Sign-in error:', err);
+      throw err;
     }
   }
 
@@ -231,7 +210,17 @@ window.SpiceClient = (function () {
     return user;
   }
 
-  // --- FORMATTING UTILITIES ---
+  // --- FORMATTING & SANITIZATION UTILITIES ---
+  function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   function formatCurrency(amount) {
     const num = Number(amount) || 0;
     return `₹${num.toLocaleString('en-IN')}`;
@@ -406,6 +395,7 @@ window.SpiceClient = (function () {
     requireRole,
     formatCurrency,
     formatDateTimeIST,
+    escapeHtml,
     showToast,
     showPopup,
     printReceipt,

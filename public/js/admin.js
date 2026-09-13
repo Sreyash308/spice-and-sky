@@ -184,7 +184,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
           recents.slice(0, 10).forEach(o => {
             const tr = document.createElement('tr');
-            const itemsSummary = (o.items || o.order_items || []).map(i => `${i.quantity}x ${i.item_name_snapshot}`).join(', ') || 'No items';
+            const rawSummary = (o.items || o.order_items || []).map(i => `${i.quantity}x ${i.item_name_snapshot}`).join(', ') || 'No items';
+            const itemsSummary = (o.items || o.order_items || []).map(i => `${i.quantity}x ${SpiceClient.escapeHtml(i.item_name_snapshot)}`).join(', ') || 'No items';
             const timeStr = SpiceClient.formatDateTimeIST(o.created_at).split(',')[1] || '';
             const isCompleted = o.status === 'COMPLETED';
             const isServing = !isCompleted && o.status !== 'CANCELLED';
@@ -198,7 +199,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               <td><strong>#${o.order_number}</strong></td>
               <td><span class="pill pill-drink">Table ${o.table_number}</span></td>
               <td>${statusPill}</td>
-              <td style="max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${itemsSummary}">${itemsSummary}</td>
+              <td style="max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${SpiceClient.escapeHtml(rawSummary)}">${itemsSummary}</td>
               <td style="font-weight: 700; color: var(--spice-gold);">${SpiceClient.formatCurrency(o.total)}</td>
               <td style="font-size: 0.8rem; color: var(--text-muted);">${timeStr}</td>
               <td>
@@ -320,7 +321,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     filtered.forEach(o => {
       const tr = document.createElement('tr');
-      const itemsList = (o.items || []).map(i => `${i.quantity}x ${i.item_name_snapshot}${i.variant_name_snapshot ? ` (${i.variant_name_snapshot})` : ''}`).join(', ') || '<span style="color: var(--text-muted); font-style: italic;">No items recorded</span>';
+      const rawItemsList = (o.items || []).map(i => `${i.quantity}x ${i.item_name_snapshot}${i.variant_name_snapshot ? ` (${i.variant_name_snapshot})` : ''}`).join(', ') || 'No items recorded';
+      const itemsList = (o.items || []).map(i => `${i.quantity}x ${SpiceClient.escapeHtml(i.item_name_snapshot)}${i.variant_name_snapshot ? ` (${SpiceClient.escapeHtml(i.variant_name_snapshot)})` : ''}`).join(', ') || '<span style="color: var(--text-muted); font-style: italic;">No items recorded</span>';
       const isCompleted = o.status === 'COMPLETED';
       const isServing = !isCompleted && o.status !== 'CANCELLED';
       const statusPill = isCompleted
@@ -334,8 +336,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         <td>${SpiceClient.formatDateTimeIST(o.created_at)}</td>
         <td><span class="pill pill-drink">Table ${o.table_number}</span></td>
         <td>${statusPill}</td>
-        <td>${o.waiter_name_snapshot || 'Staff'}</td>
-        <td style="max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${(o.items || []).map(i => `${i.quantity}x ${i.item_name_snapshot}`).join(', ')}">${itemsList}</td>
+        <td>${SpiceClient.escapeHtml(o.waiter_name_snapshot || 'Staff')}</td>
+        <td style="max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${SpiceClient.escapeHtml(rawItemsList)}">${itemsList}</td>
         <td style="font-weight: 700; color: var(--spice-gold); font-family: var(--font-heading);">${SpiceClient.formatCurrency(o.total)}</td>
         <td>
           <button type="button" class="btn btn-secondary view-order-btn" style="padding: 4px 8px; font-size: 0.8rem;">View Bill</button>
@@ -476,7 +478,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
       items.forEach(oi => {
         const tr = document.createElement('tr');
-        const itemTitle = oi.item_name_snapshot + (oi.variant_name_snapshot ? ` (${oi.variant_name_snapshot})` : '');
+        const rawTitle = oi.item_name_snapshot + (oi.variant_name_snapshot ? ` (${oi.variant_name_snapshot})` : '');
+        const itemTitle = SpiceClient.escapeHtml(rawTitle);
         tr.innerHTML = `
           <td>${itemTitle}</td>
           <td style="text-align: center;">${oi.quantity}</td>
@@ -948,19 +951,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       tr.innerHTML = `
         <td>
           <div style="display: flex; align-items: center; gap: 10px;">
-            <img src="${tableImgUrl}" alt="${item.name}" style="width: 38px; height: 38px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border-subtle); flex-shrink: 0; background: #faf8f5;" onerror="this.src='/images/menu/fallbacks/food.webp'">
+            <img src="${tableImgUrl}" alt="${SpiceClient.escapeHtml(item.name)}" style="width: 38px; height: 38px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border-subtle); flex-shrink: 0; background: #faf8f5;" onerror="this.src='/images/menu/fallbacks/food.webp'">
             <div>
               <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                 <span class="badge-diet ${dietClass}"></span>
-                <strong>${item.name}</strong>
+                <strong>${SpiceClient.escapeHtml(item.name)}</strong>
                 ${!item.is_available ? `<span class="pill pill-unavailable" style="font-size: 0.72rem; padding: 2px 6px;">UNAVAILABLE</span>` : ''}
               </div>
-              ${item.verification_note && !item.verification_note.startsWith('http') && !item.verification_note.startsWith('/images/') ? `<div class="verification-alert">⚠️ ${item.verification_note}</div>` : ''}
+              ${item.verification_note && !item.verification_note.startsWith('http') && !item.verification_note.startsWith('/images/') ? `<div class="verification-alert">⚠️ ${SpiceClient.escapeHtml(item.verification_note)}</div>` : ''}
               ${!item.is_active ? `<span class="pill pill-unavailable" style="margin-top: 4px;">ARCHIVED</span>` : ''}
             </div>
           </div>
         </td>
-        <td>${cat ? cat.name : '--'}</td>
+        <td>${cat ? SpiceClient.escapeHtml(cat.name) : '--'}</td>
         <td><span class="pill pill-${dietClass}">${dietLabel}</span></td>
         <td style="font-weight: 700; color: var(--spice-gold); font-family: var(--font-heading);">${SpiceClient.formatCurrency(item.price)}</td>
         <td>
@@ -1234,6 +1237,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (err) {
       console.warn('Failed to check Supabase status:', err);
     }
+  }
+
+  // Reset All Order History Button
+  const resetOrdersBtn = document.getElementById('resetOrdersBtn');
+  if (resetOrdersBtn) {
+    resetOrdersBtn.addEventListener('click', async () => {
+      const confirmed = window.confirm(
+        'Are you sure you want to reset all order history?\n\nThis will permanently delete all order records, active tables, bills, and reset revenue analytics to ₹0. Menu items and staff accounts will not be affected.'
+      );
+      if (!confirmed) return;
+
+      const doubleCheck = window.prompt('Type "RESET" to confirm:');
+      if (doubleCheck !== 'RESET') {
+        alert('Action cancelled.');
+        return;
+      }
+
+      try {
+        resetOrdersBtn.disabled = true;
+        resetOrdersBtn.textContent = 'Resetting...';
+
+        const res = await SpiceClient.api('/api/admin/orders/reset', { method: 'POST' });
+        if (res.success) {
+          alert('Order history has been completely reset to 0.');
+          loadDashboardData();
+          loadOrdersData();
+        } else {
+          alert('Failed to reset orders: ' + (res.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Error resetting orders: ' + err.message);
+      } finally {
+        resetOrdersBtn.disabled = false;
+        resetOrdersBtn.innerHTML = '<span>🗑️</span> Reset All Order History';
+      }
+    });
   }
 
   // Initial Load

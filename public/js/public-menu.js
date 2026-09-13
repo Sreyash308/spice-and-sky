@@ -362,7 +362,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <img
             src="${imgUrl}"
             alt="${item.name}"
-            loading="${isAboveFold ? 'eager' : 'lazy'}"
+            ${isAboveFold ? 'loading="eager"' : 'loading="lazy"'}
             decoding="async"
             ${isAboveFold ? 'fetchpriority="high"' : 'fetchpriority="low"'}
             width="104"

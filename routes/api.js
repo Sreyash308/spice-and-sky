@@ -58,6 +58,30 @@ function getSession(req) {
   return session;
 }
 
+// Authentication & Role Authorization Middleware
+function requireAuth(allowedRoles = []) {
+  return (req, res, next) => {
+    const session = getSession(req);
+    if (!session || !session.user) {
+      return res.status(401).json({
+        success: false,
+        error: 'Authentication required. Please sign in with staff or admin credentials.'
+      });
+    }
+
+    if (allowedRoles.length > 0 && !allowedRoles.includes(session.user.role)) {
+      return res.status(403).json({
+        success: false,
+        error: `Access denied. Requires one of the following roles: [${allowedRoles.join(', ')}].`
+      });
+    }
+
+    req.user = session.user;
+    req.session = session;
+    next();
+  };
+}
+
 // POST /api/auth/login - Authenticate staff/owner and issue persistent 30-day session
 router.post('/auth/login', async (req, res) => {
   try {
@@ -69,9 +93,9 @@ router.post('/auth/login', async (req, res) => {
 
     let normalizedEmail = rawIdentifier;
     if (!normalizedEmail.includes('@')) {
-      if (normalizedEmail.includes('admin') || normalizedEmail.includes('owner')) {
+      if (normalizedEmail === 'admin' || normalizedEmail === 'owner') {
         normalizedEmail = 'admin@spiceandsky.com';
-      } else {
+      } else if (normalizedEmail === 'waiter' || normalizedEmail === 'staff') {
         normalizedEmail = 'waiter@spiceandsky.com';
       }
     }
@@ -92,7 +116,7 @@ router.post('/auth/login', async (req, res) => {
             .eq('id', data.user.id)
             .maybeSingle();
 
-          const role = profile?.role || data.user.user_metadata?.role || (normalizedEmail.includes('admin') ? 'ADMIN' : 'WAITER');
+          const role = profile?.role || data.user.user_metadata?.role || (normalizedEmail === 'admin@spiceandsky.com' ? 'ADMIN' : 'WAITER');
           const displayName = profile?.display_name || data.user.user_metadata?.display_name || (role === 'ADMIN' ? 'Owner Admin' : 'Rooftop Waiter');
 
           authUser = {
@@ -107,35 +131,21 @@ router.post('/auth/login', async (req, res) => {
       }
     }
 
-    // 2. Staff directory validation fallback
+    // 2. Staff directory validation fallback (Strict credentials only)
     if (!authUser) {
-      if (normalizedEmail === 'admin@spiceandsky.com' && (password === 'SpiceSkyAdmin2026!' || password.length >= 4)) {
+      if (normalizedEmail === 'admin@spiceandsky.com' && password === 'SpiceSkyAdmin2026!') {
         authUser = {
           id: '497c557a-0182-4d22-a3e7-1a929415c947',
           email: 'admin@spiceandsky.com',
           role: 'ADMIN',
           display_name: 'Owner Admin'
         };
-      } else if (normalizedEmail === 'waiter@spiceandsky.com' && (password === 'SpiceSkyWaiter2026!' || password.length >= 4)) {
+      } else if (normalizedEmail === 'waiter@spiceandsky.com' && password === 'SpiceSkyWaiter2026!') {
         authUser = {
           id: 'f80da808-79e6-45e0-801c-19064070a9a8',
           email: 'waiter@spiceandsky.com',
           role: 'WAITER',
           display_name: 'Rooftop Waiter'
-        };
-      } else if (normalizedEmail.includes('admin')) {
-        authUser = {
-          id: '497c557a-0182-4d22-a3e7-1a929415c947',
-          email: normalizedEmail,
-          role: 'ADMIN',
-          display_name: 'Admin Staff'
-        };
-      } else if (normalizedEmail.includes('waiter') || normalizedEmail.includes('staff')) {
-        authUser = {
-          id: 'f80da808-79e6-45e0-801c-19064070a9a8',
-          email: normalizedEmail,
-          role: 'WAITER',
-          display_name: 'Rooftop Staff'
         };
       }
     }
@@ -146,17 +156,19 @@ router.post('/auth/login', async (req, res) => {
 
     const session = createSession(authUser);
 
-    // Set 30-day persistent cookie
+    // Set 30-day persistent cookie with secure attributes
     res.cookie('spice_session_id', session.sessionId, {
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      httpOnly: false, // accessible to client for cross-checking
+      httpOnly: true,
       sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
       path: '/'
     });
 
     res.json({
       success: true,
       sessionId: session.sessionId,
+      session_id: session.sessionId,
       user: session.user
     });
   } catch (err) {
@@ -263,7 +275,7 @@ router.get('/menu', async (req, res) => {
 });
 
 // POST /api/orders - Waiter atomic order submission
-router.post('/orders', async (req, res) => {
+router.post('/orders', requireAuth(['WAITER', 'ADMIN']), async (req, res) => {
   try {
     const { table_number, items, notes, idempotency_key, waiter_name, waiter_id } = req.body;
 
@@ -279,8 +291,8 @@ router.post('/orders', async (req, res) => {
       items,
       notes,
       idempotency_key,
-      waiter_id,
-      waiter_name
+      waiter_id: waiter_id || req.user?.id,
+      waiter_name: waiter_name || req.user?.display_name || 'Staff'
     });
 
     res.status(201).json({
@@ -294,7 +306,7 @@ router.post('/orders', async (req, res) => {
 });
 
 // GET /api/orders/active - List currently serving active orders
-router.get('/orders/active', async (req, res) => {
+router.get('/orders/active', requireAuth(['WAITER', 'ADMIN']), async (req, res) => {
   try {
     const active = await dbService.getActiveServingOrders();
     res.json({ success: true, data: active });
@@ -304,7 +316,7 @@ router.get('/orders/active', async (req, res) => {
 });
 
 // GET /api/orders - Staff/Admin order listing
-router.get('/orders', async (req, res) => {
+router.get('/orders', requireAuth(['WAITER', 'ADMIN']), async (req, res) => {
   try {
     const orders = await dbService.getOrders(req.query);
     res.json({ success: true, data: orders });
@@ -314,7 +326,7 @@ router.get('/orders', async (req, res) => {
 });
 
 // GET /api/orders/:id - Order details
-router.get('/orders/:id', async (req, res) => {
+router.get('/orders/:id', requireAuth(['WAITER', 'ADMIN']), async (req, res) => {
   try {
     const order = await dbService.getOrderById(req.params.id);
     if (!order) return res.status(404).json({ success: false, error: 'Order not found.' });
@@ -325,7 +337,7 @@ router.get('/orders/:id', async (req, res) => {
 });
 
 // PUT /api/orders/:id - Edit order items / bill
-router.put('/orders/:id', async (req, res) => {
+router.put('/orders/:id', requireAuth(['WAITER', 'ADMIN']), async (req, res) => {
   try {
     const { items, notes, waiter_id, waiter_name, status } = req.body;
     if (!items || !items.length) {
@@ -334,8 +346,8 @@ router.put('/orders/:id', async (req, res) => {
     const updated = await dbService.updateOrderItems(req.params.id, {
       items,
       notes,
-      waiter_id,
-      waiter_name,
+      waiter_id: waiter_id || req.user?.id,
+      waiter_name: waiter_name || req.user?.display_name,
       status
     });
     res.json({ success: true, data: updated });
@@ -346,7 +358,7 @@ router.put('/orders/:id', async (req, res) => {
 });
 
 // POST /api/orders/:id/complete - Complete order & finalize bill
-router.post('/orders/:id/complete', async (req, res) => {
+router.post('/orders/:id/complete', requireAuth(['WAITER', 'ADMIN']), async (req, res) => {
   try {
     await dbService.updateOrderStatus(req.params.id, 'COMPLETED');
     const order = await dbService.getOrderById(req.params.id);
@@ -358,7 +370,7 @@ router.post('/orders/:id/complete', async (req, res) => {
 });
 
 // PATCH /api/orders/:id/status - Update status
-router.patch('/orders/:id/status', async (req, res) => {
+router.patch('/orders/:id/status', requireAuth(['WAITER', 'ADMIN']), async (req, res) => {
   try {
     const { status } = req.body;
     const validStatuses = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'COMPLETED', 'CANCELLED'];
@@ -373,7 +385,7 @@ router.patch('/orders/:id/status', async (req, res) => {
 });
 
 // POST /api/admin/menu/upload-image - Upload menu item image
-router.post('/admin/menu/upload-image', async (req, res) => {
+router.post('/admin/menu/upload-image', requireAuth(['ADMIN']), async (req, res) => {
   try {
     const { image_data, filename, content_type } = req.body;
     if (!image_data) {
@@ -406,7 +418,7 @@ router.post('/admin/menu/upload-image', async (req, res) => {
 });
 
 // POST /api/admin/menu - Admin add menu item
-router.post('/admin/menu', async (req, res) => {
+router.post('/admin/menu', requireAuth(['ADMIN']), async (req, res) => {
   try {
     const item = await dbService.addMenuItem(req.body);
     broadcastEvent('MENU_UPDATED', { type: 'INSERT', item });
@@ -417,7 +429,7 @@ router.post('/admin/menu', async (req, res) => {
 });
 
 // PATCH /api/admin/menu/:id - Admin update menu item
-router.patch('/admin/menu/:id', async (req, res) => {
+router.patch('/admin/menu/:id', requireAuth(['ADMIN']), async (req, res) => {
   try {
     const updated = await dbService.updateMenuItem(req.params.id, req.body);
     broadcastEvent('MENU_UPDATED', { type: 'UPDATE', item: updated });
@@ -428,7 +440,7 @@ router.patch('/admin/menu/:id', async (req, res) => {
 });
 
 // DELETE /api/admin/menu/:id - Admin archive menu item (soft delete) or permanent delete
-router.delete('/admin/menu/:id', async (req, res) => {
+router.delete('/admin/menu/:id', requireAuth(['ADMIN']), async (req, res) => {
   try {
     if (req.query.permanent === 'true') {
       const deleted = await dbService.deleteMenuItem(req.params.id);
@@ -444,7 +456,7 @@ router.delete('/admin/menu/:id', async (req, res) => {
 });
 
 // DELETE /api/admin/menu/:id/permanent - Admin permanent delete menu item
-router.delete('/admin/menu/:id/permanent', async (req, res) => {
+router.delete('/admin/menu/:id/permanent', requireAuth(['ADMIN']), async (req, res) => {
   try {
     const deleted = await dbService.deleteMenuItem(req.params.id);
     broadcastEvent('MENU_UPDATED', { type: 'DELETE', id: req.params.id });
@@ -455,7 +467,7 @@ router.delete('/admin/menu/:id/permanent', async (req, res) => {
 });
 
 // POST /api/admin/menu/:id/restore - Admin restore archived menu item
-router.post('/admin/menu/:id/restore', async (req, res) => {
+router.post('/admin/menu/:id/restore', requireAuth(['ADMIN']), async (req, res) => {
   try {
     const restored = await dbService.restoreMenuItem(req.params.id);
     broadcastEvent('MENU_UPDATED', { type: 'RESTORE', item: restored });
@@ -466,7 +478,7 @@ router.post('/admin/menu/:id/restore', async (req, res) => {
 });
 
 // POST /api/admin/categories - Admin create new menu category
-router.post('/admin/categories', async (req, res) => {
+router.post('/admin/categories', requireAuth(['ADMIN']), async (req, res) => {
   try {
     const { name, slug, display_order } = req.body;
     if (!name || !name.trim()) {
@@ -480,7 +492,7 @@ router.post('/admin/categories', async (req, res) => {
 });
 
 // GET /api/admin/analytics - Admin analytics data
-router.get('/admin/analytics', async (req, res) => {
+router.get('/admin/analytics', requireAuth(['ADMIN']), async (req, res) => {
   try {
     const analytics = await dbService.getAnalytics();
     res.json({ success: true, data: analytics });
@@ -489,4 +501,16 @@ router.get('/admin/analytics', async (req, res) => {
   }
 });
 
+// POST /api/admin/orders/reset - Reset all order history (Admin only)
+router.post('/admin/orders/reset', requireAuth(['ADMIN']), async (req, res) => {
+  try {
+    await dbService.resetAllOrderHistory();
+    broadcastEvent('ORDER_UPDATED', { type: 'RESET' });
+    res.json({ success: true, message: 'All order history has been successfully reset.' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;
+

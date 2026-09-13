@@ -23,6 +23,11 @@ AS $$
 DECLARE
   v_updated RECORD;
 BEGIN
+  -- Strict admin authorization check
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Access denied. Administrator role required to modify menu items.';
+  END IF;
+
   UPDATE public.menu_items
   SET
     name = COALESCE(p_name, name),
@@ -45,5 +50,7 @@ BEGIN
 END;
 $$;
 
--- Grant execution to public / anon / authenticated
-GRANT EXECUTE ON FUNCTION public.admin_update_menu_item TO anon, authenticated;
+-- Revoke execution from anonymous public; restrict strictly to authenticated staff with admin rights
+REVOKE EXECUTE ON FUNCTION public.admin_update_menu_item FROM anon;
+GRANT EXECUTE ON FUNCTION public.admin_update_menu_item TO authenticated;
+

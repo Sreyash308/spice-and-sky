@@ -34,6 +34,41 @@ if (supabaseUrl && supabaseAnonKey && !supabaseUrl.includes('your-project-ref'))
   console.log('ℹ️ Supabase credentials not set in .env. Operating in local mode.');
 }
 
+// Per-order concurrency lock to prevent asynchronous race conditions on concurrent bill updates
+const orderUpdateLocks = new Map();
+
+async function withOrderLock(orderId, fn) {
+  const key = String(orderId);
+  const prevLock = orderUpdateLocks.get(key) || Promise.resolve();
+  let release;
+  const currentLock = new Promise(resolve => { release = resolve; });
+  orderUpdateLocks.set(key, currentLock);
+  try {
+    await prevLock;
+    return await fn();
+  } finally {
+    if (orderUpdateLocks.get(key) === currentLock) {
+      orderUpdateLocks.delete(key);
+    }
+    release();
+  }
+}
+
+let orderCreationLockPromise = Promise.resolve();
+async function withOrderCreationLock(fn) {
+  const prevLock = orderCreationLockPromise;
+  let release;
+  const currentLock = new Promise(resolve => { release = resolve; });
+  orderCreationLockPromise = currentLock;
+  try {
+    await prevLock;
+    return await fn();
+  } finally {
+    release();
+  }
+}
+
+
 module.exports = {
   isConfigured: () => isConfigured,
   getSupabaseClient: () => supabase,
@@ -96,6 +131,15 @@ module.exports = {
 
   // Atomic Order Creation
   async createOrderAtomic(params) {
+    const tableNum = Number(params.table_number);
+    if (isNaN(tableNum) || !Number.isInteger(tableNum) || tableNum < 1 || tableNum > 9) {
+      throw new Error(`Invalid table number: ${params.table_number}. Must be an integer between 1 and 9.`);
+    }
+
+    if (!Array.isArray(params.items) || params.items.length === 0) {
+      throw new Error('Order items are required and must not be empty.');
+    }
+
     if (isConfigured) {
       // Validate waiter_id against public.profiles to prevent foreign key errors
       let validatedWaiterId = null;
@@ -127,20 +171,48 @@ module.exports = {
       const allItems = await this.getMenuItems(true);
       let calculatedSubtotal = 0;
       const itemSnapshots = (params.items || []).map(oi => {
+        const rawQty = oi.quantity;
+        const numQty = Number(rawQty);
+        if (isNaN(numQty) || !Number.isInteger(numQty) || numQty <= 0) {
+          throw new Error(`Invalid quantity: ${rawQty}. Quantity must be a positive whole integer.`);
+        }
+
         const item = allItems.find(i => i.id === oi.menu_item_id);
-        const variants = item ? (item.menu_item_variants || []) : [];
-        const variant = oi.variant_id ? variants.find(v => v.id === oi.variant_id) : null;
-        const unitPrice = variant ? Number(variant.price) : (item ? Number(item.price) : 0);
-        const qty = Math.max(1, Number(oi.quantity) || 1);
-        const lineTotal = unitPrice * qty;
+        if (!item) {
+          throw new Error(`Menu item not found: ${oi.menu_item_id}`);
+        }
+        if (!item.is_active) {
+          throw new Error(`Item "${item.name}" is no longer on the menu.`);
+        }
+        if (!item.is_available) {
+          throw new Error(`Item "${item.name}" is currently unavailable.`);
+        }
+
+        const variants = item.menu_item_variants || [];
+        let variant = null;
+        if (oi.variant_id && String(oi.variant_id) !== 'null' && String(oi.variant_id) !== 'undefined') {
+          variant = variants.find(v => v.id === oi.variant_id);
+          if (!variant) {
+            throw new Error(`Variant not found for item "${item.name}".`);
+          }
+          if (variant.menu_item_id && variant.menu_item_id !== item.id) {
+            throw new Error(`Variant "${variant.name}" does not belong to "${item.name}".`);
+          }
+          if (!variant.is_available) {
+            throw new Error(`Variant "${variant.name}" is currently unavailable.`);
+          }
+        }
+
+        const unitPrice = variant ? Number(variant.price) : Number(item.price);
+        const lineTotal = unitPrice * numQty;
         calculatedSubtotal += lineTotal;
         return {
-          menu_item_id: oi.menu_item_id,
-          variant_id: oi.variant_id || null,
-          item_name_snapshot: item ? item.name : 'Item',
+          menu_item_id: item.id,
+          variant_id: variant ? variant.id : null,
+          item_name_snapshot: item.name,
           variant_name_snapshot: variant ? variant.name : null,
           unit_price_snapshot: unitPrice,
-          quantity: qty,
+          quantity: numQty,
           line_total: lineTotal
         };
       });
@@ -163,53 +235,89 @@ module.exports = {
         }
       }
 
-      // 3. Authoritative Direct Insert into Supabase (Guaranteeing subtotal & total are never null)
+      // 3. Authoritative Direct Insert into Supabase (Guaranteeing subtotal & total are never null and sequential #1, #2, ...)
       try {
-        const orderPayload = {
-          table_number: Number(params.table_number),
-          waiter_id: validatedWaiterId,
-          waiter_name_snapshot: params.waiter_name || 'Staff',
-          status: params.status || 'CONFIRMED',
-          subtotal: calculatedSubtotal,
-          total: calculatedSubtotal, // Zero Tax, Zero GST, Zero Service Charges
-          notes: params.notes || null,
-          idempotency_key: params.idempotency_key || null
-        };
+        return await withOrderCreationLock(async () => {
+          let nextOrderNumber = 1;
+          try {
+            const { data: latestOrder } = await supabase
+              .from('orders')
+              .select('order_number')
+              .order('order_number', { ascending: false })
+              .limit(1)
+              .maybeSingle();
 
-        const { data: insertedOrder, error: orderErr } = await supabase
-          .from('orders')
-          .insert([orderPayload])
-          .select()
-          .single();
-
-        if (!orderErr && insertedOrder) {
-          const itemsToInsert = itemSnapshots.map(s => ({
-            order_id: insertedOrder.id,
-            menu_item_id: s.menu_item_id,
-            item_name_snapshot: s.item_name_snapshot,
-            variant_name_snapshot: s.variant_name_snapshot,
-            unit_price_snapshot: s.unit_price_snapshot,
-            quantity: s.quantity,
-            line_total: s.line_total
-          }));
-
-          const { error: itemsErr } = await supabase
-            .from('order_items')
-            .insert(itemsToInsert);
-
-          if (itemsErr) {
-            console.warn('Supabase order_items insert warning:', itemsErr.message);
+            if (latestOrder && typeof latestOrder.order_number === 'number' && !isNaN(latestOrder.order_number) && latestOrder.order_number >= 1) {
+              nextOrderNumber = Number(latestOrder.order_number) + 1;
+            }
+          } catch (seqErr) {
+            nextOrderNumber = Math.max(1, (localStore.orderSequence || 0) + 1);
           }
 
-          insertedOrder.items = itemSnapshots;
-          insertedOrder.order_items = itemSnapshots;
-          const fullOrder = localStore.recordOrderSnapshot(insertedOrder, itemSnapshots);
-          return fullOrder;
-        }
+          const orderPayload = {
+            order_number: nextOrderNumber,
+            table_number: Number(params.table_number),
+            waiter_id: validatedWaiterId,
+            waiter_name_snapshot: params.waiter_name ? String(params.waiter_name).replace(/<[^>]*>?/gm, '').trim() : 'Staff',
+            status: params.status || 'CONFIRMED',
+            subtotal: calculatedSubtotal,
+            total: calculatedSubtotal, // Zero Tax, Zero GST, Zero Service Charges
+            notes: params.notes ? String(params.notes).replace(/<[^>]*>?/gm, '').trim() : null,
+            idempotency_key: params.idempotency_key || null
+          };
 
-        if (orderErr) {
-          console.warn('Direct order insert warning:', orderErr.message);
-        }
+          let { data: insertedOrder, error: orderErr } = await supabase
+            .from('orders')
+            .insert([orderPayload])
+            .select()
+            .single();
+
+          if (orderErr && orderErr.code === '23505') {
+            const { data: retryLatest } = await supabase
+              .from('orders')
+              .select('order_number')
+              .order('order_number', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            orderPayload.order_number = (retryLatest && retryLatest.order_number ? Number(retryLatest.order_number) : nextOrderNumber) + 1;
+            const retryRes = await supabase.from('orders').insert([orderPayload]).select().single();
+            if (!retryRes.error && retryRes.data) {
+              insertedOrder = retryRes.data;
+              orderErr = null;
+            }
+          }
+
+          if (!orderErr && insertedOrder) {
+            const itemsToInsert = itemSnapshots.map(s => ({
+              order_id: insertedOrder.id,
+              menu_item_id: s.menu_item_id,
+              item_name_snapshot: s.item_name_snapshot,
+              variant_name_snapshot: s.variant_name_snapshot,
+              unit_price_snapshot: s.unit_price_snapshot,
+              quantity: s.quantity,
+              line_total: s.line_total
+            }));
+
+            const { error: itemsErr } = await supabase
+              .from('order_items')
+              .insert(itemsToInsert);
+
+            if (itemsErr) {
+              console.warn('Supabase order_items insert warning:', itemsErr.message);
+            }
+
+            insertedOrder.items = itemSnapshots;
+            insertedOrder.order_items = itemSnapshots;
+            localStore.orderSequence = Math.max(localStore.orderSequence || 0, Number(insertedOrder.order_number) || 0);
+            const fullOrder = localStore.recordOrderSnapshot(insertedOrder, itemSnapshots);
+            return fullOrder;
+          }
+
+          if (orderErr) {
+            console.warn('Direct order insert warning:', orderErr.message);
+          }
+          throw new Error(orderErr ? orderErr.message : 'Order insert failed');
+        });
       } catch (directErr) {
         console.warn('Direct order insert exception:', directErr.message);
       }
@@ -245,26 +353,59 @@ module.exports = {
 
   // Update Order Items (Edit Bill / Multi-Round Serving)
   async updateOrderItems(orderId, params) {
-    if (isConfigured) {
-      try {
-        const allItems = await this.getMenuItems(true);
-        let calculatedSubtotal = 0;
+    if (!Array.isArray(params.items) || params.items.length === 0) {
+      throw new Error('Order items are required and must not be empty.');
+    }
+
+    return withOrderLock(orderId, async () => {
+      if (isConfigured) {
+        try {
+          const allItems = await this.getMenuItems(true);
+          let calculatedSubtotal = 0;
         const itemSnapshots = (params.items || []).map(oi => {
+          const rawQty = oi.quantity;
+          const numQty = Number(rawQty);
+          if (isNaN(numQty) || !Number.isInteger(numQty) || numQty <= 0) {
+            throw new Error(`Invalid quantity: ${rawQty}. Quantity must be a positive whole integer.`);
+          }
+
           const item = allItems.find(i => i.id === oi.menu_item_id);
-          const variants = item ? (item.menu_item_variants || []) : [];
-          const variant = oi.variant_id ? variants.find(v => v.id === oi.variant_id) : null;
-          const unitPrice = variant ? Number(variant.price) : (item ? Number(item.price) : 0);
-          const qty = Math.max(1, Number(oi.quantity) || 1);
-          const lineTotal = unitPrice * qty;
+          if (!item) {
+            throw new Error(`Menu item not found: ${oi.menu_item_id}`);
+          }
+          if (!item.is_active) {
+            throw new Error(`Item "${item.name}" is no longer on the menu.`);
+          }
+          if (!item.is_available) {
+            throw new Error(`Item "${item.name}" is currently unavailable.`);
+          }
+
+          const variants = item.menu_item_variants || [];
+          let variant = null;
+          if (oi.variant_id && String(oi.variant_id) !== 'null' && String(oi.variant_id) !== 'undefined') {
+            variant = variants.find(v => v.id === oi.variant_id);
+            if (!variant) {
+              throw new Error(`Variant not found for item "${item.name}".`);
+            }
+            if (variant.menu_item_id && variant.menu_item_id !== item.id) {
+              throw new Error(`Variant "${variant.name}" does not belong to "${item.name}".`);
+            }
+            if (!variant.is_available) {
+              throw new Error(`Variant "${variant.name}" is currently unavailable.`);
+            }
+          }
+
+          const unitPrice = variant ? Number(variant.price) : Number(item.price);
+          const lineTotal = unitPrice * numQty;
           calculatedSubtotal += lineTotal;
           return {
             order_id: orderId,
-            menu_item_id: oi.menu_item_id,
-            variant_id: (oi.variant_id && String(oi.variant_id) !== 'null') ? oi.variant_id : null,
-            item_name_snapshot: item ? item.name : 'Item',
+            menu_item_id: item.id,
+            variant_id: variant ? variant.id : null,
+            item_name_snapshot: item.name,
             variant_name_snapshot: variant ? variant.name : null,
             unit_price_snapshot: unitPrice,
-            quantity: qty,
+            quantity: numQty,
             line_total: lineTotal
           };
         });
@@ -292,6 +433,7 @@ module.exports = {
           await supabase.from('order_items').insert(itemSnapshots.map(s => ({
             order_id: updatedOrder.id,
             menu_item_id: s.menu_item_id,
+            variant_id: s.variant_id,
             item_name_snapshot: s.item_name_snapshot,
             variant_name_snapshot: s.variant_name_snapshot,
             unit_price_snapshot: s.unit_price_snapshot,
@@ -300,17 +442,28 @@ module.exports = {
           })));
 
           updatedOrder.items = itemSnapshots;
+          updatedOrder.subtotal = calculatedSubtotal;
+          updatedOrder.total = calculatedSubtotal;
           try {
-            localStore.updateOrderItems(updatedOrder.id, params);
+            localStore.updateOrderItems(updatedOrder.id, {
+              ...params,
+              items: itemSnapshots.map(s => ({
+                menu_item_id: s.menu_item_id,
+                variant_id: s.variant_id,
+                quantity: s.quantity
+              }))
+            });
           } catch (e) {}
           return updatedOrder;
         }
       } catch (err) {
         console.warn('Supabase updateOrderItems error:', err.message);
+        throw err;
       }
     }
     return localStore.updateOrderItems(orderId, params);
-  },
+  });
+},
 
   // Get Active Serving Orders
   async getActiveServingOrders() {
@@ -547,7 +700,7 @@ module.exports = {
       }
 
       const { data, error } = await query;
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         return data.map(o => ({
           ...o,
           items: o.order_items || []
@@ -558,6 +711,32 @@ module.exports = {
       }
     }
     return localStore.getOrders(filters);
+  },
+
+  // Reset All Order History
+  async resetAllOrderHistory() {
+    localStore.resetOrderHistory();
+    if (isConfigured) {
+      try {
+        // Delete order items first due to foreign key constraints
+        const { error: itemsErr } = await supabase
+          .from('order_items')
+          .delete()
+          .neq('id', '00000000-0000-0000-0000-000000000000');
+        if (itemsErr) console.warn('Supabase reset order_items warning:', itemsErr.message);
+
+        // Delete orders
+        const { error: ordersErr } = await supabase
+          .from('orders')
+          .delete()
+          .neq('id', '00000000-0000-0000-0000-000000000000');
+        if (ordersErr) console.warn('Supabase reset orders warning:', ordersErr.message);
+      } catch (err) {
+        console.error('Supabase resetAllOrderHistory error:', err.message);
+        throw err;
+      }
+    }
+    return { success: true };
   },
 
   // Get Order By ID (supports UUID or order_number)
@@ -572,9 +751,27 @@ module.exports = {
       }
       const { data, error } = await query.maybeSingle();
       if (!error && data) {
+        const remoteItems = data.order_items || [];
+        const remoteSubtotal = remoteItems.reduce((s, i) => s + (Number(i.unit_price_snapshot) * Number(i.quantity)), 0);
+        // If remote order_items is consistent with authoritative subtotal, sync and return
+        if (remoteItems.length > 0 && Math.abs(remoteSubtotal - Number(data.subtotal)) < 0.01) {
+          localStore.recordOrderSnapshot(data, remoteItems);
+          return {
+            ...data,
+            items: remoteItems
+          };
+        }
+        // If remote items are stale or desynced, synchronize with localStore cache
+        const localOrder = localStore.getOrderById(id);
+        if (localOrder && localOrder.items && localOrder.items.length > 0) {
+          return {
+            ...data,
+            items: localOrder.items
+          };
+        }
         return {
           ...data,
-          items: data.order_items || []
+          items: remoteItems
         };
       }
     }
