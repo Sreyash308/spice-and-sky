@@ -18,24 +18,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  const quickBtn = document.getElementById('quickAdminLoginBtn');
-  if (quickBtn) {
-    quickBtn.addEventListener('click', async () => {
-      quickBtn.disabled = true;
-      quickBtn.textContent = '⚡ Signing in as Owner...';
-      try {
-        const res = await SpiceClient.signIn('admin@spiceandsky.com', 'SpiceSkyAdmin2026!');
-        if (res.success && res.user.role === 'ADMIN') {
-          window.location.href = '/admin';
-        }
-      } catch (err) {
-        alert('Quick login error: ' + err.message);
-        quickBtn.disabled = false;
-        quickBtn.textContent = '⚡ 1-Click Quick Login as Owner';
-      }
-    });
-  }
-
   const form = document.getElementById('adminLoginForm');
   const errBanner = document.getElementById('adminErrorBanner');
   const loginBtn = document.getElementById('adminLoginBtn');

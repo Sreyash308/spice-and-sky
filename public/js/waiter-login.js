@@ -39,24 +39,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  const quickWaiterBtn = document.getElementById('quickWaiterLoginBtn');
-  if (quickWaiterBtn) {
-    quickWaiterBtn.addEventListener('click', async () => {
-      quickWaiterBtn.disabled = true;
-      quickWaiterBtn.textContent = '⚡ Signing in as Waiter...';
-      try {
-        const res = await SpiceClient.signIn('waiter@spiceandsky.com', 'SpiceSkyWaiter2026!');
-        if (res.success) {
-          window.location.href = '/waiter';
-        }
-      } catch (err) {
-        alert('Quick login error: ' + err.message);
-        quickWaiterBtn.disabled = false;
-        quickWaiterBtn.textContent = '⚡ 1-Click Quick Login as Waiter';
-      }
-    });
-  }
-
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     errBanner.style.display = 'none';
