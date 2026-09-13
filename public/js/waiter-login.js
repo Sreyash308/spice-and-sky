@@ -7,13 +7,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   const adminSessionBox = document.getElementById('adminSessionBox');
   const switchAsWaiterBtn = document.getElementById('switchAsWaiterBtn');
 
-  // If already logged in as WAITER, redirect directly to /waiter
+  // If already logged in as WAITER, redirect directly to /waiter only if authorized
   const existingUser = SpiceClient.getStoredUser();
   if (existingUser && existingUser.role === 'WAITER') {
-    if (window.location.pathname !== '/waiter') {
-      window.location.href = '/waiter';
+    const allowed = ['shan', 'yawar', 'nawaz'];
+    const uname = (existingUser.username || existingUser.display_name || '').toLowerCase();
+    if (allowed.includes(uname)) {
+      if (window.location.pathname !== '/waiter') {
+        window.location.href = '/waiter';
+      }
+      return;
+    } else {
+      await SpiceClient.signOut();
     }
-    return;
   }
 
   // If logged in as ADMIN, show choice card rather than trapping

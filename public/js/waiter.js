@@ -27,9 +27,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (drawerServer) drawerServer.textContent = username;
   }
 
+  const ALLOWED_WAITER_USERS = ['shan', 'yawar', 'nawaz', 'admin@143'];
+
   // Instant synchronous hydration before async init
   const initialUser = (typeof SpiceClient !== 'undefined' && SpiceClient.getStoredUser) ? SpiceClient.getStoredUser() : null;
-  if (initialUser) {
+  if (initialUser && ALLOWED_WAITER_USERS.includes(((initialUser.username || initialUser.display_name) || '').toLowerCase())) {
     updateWaiterDisplay(initialUser);
   }
 
@@ -38,6 +40,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Guard: Require WAITER or ADMIN role
   const currentUser = SpiceClient.requireRole('WAITER', '/waiter/login');
   if (!currentUser) return;
+
+  const currentUname = ((currentUser.username || currentUser.display_name) || '').toLowerCase();
+  if (!ALLOWED_WAITER_USERS.includes(currentUname)) {
+    await SpiceClient.signOut();
+    window.location.replace('/waiter/login');
+    return;
+  }
 
   updateWaiterDisplay(currentUser);
 

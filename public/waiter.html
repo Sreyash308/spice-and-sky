@@ -228,7 +228,10 @@
         const raw = localStorage.getItem('spice_auth_user');
         if (raw) {
           const u = JSON.parse(raw);
-          const name = u.username || u.display_name || (u.email ? u.email.split('@')[0] : 'Staff');
+          const allowed = ['shan', 'yawar', 'nawaz', 'admin@143'];
+          const uname = (u.username || u.display_name || '').toLowerCase();
+          if (!allowed.includes(uname)) return;
+          const name = u.username || u.display_name || 'Staff';
           const badgeText = document.getElementById('waiterUsernameText');
           if (badgeText) badgeText.textContent = name;
           const greet = document.getElementById('waiterGreetingName');

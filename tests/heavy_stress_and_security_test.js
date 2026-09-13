@@ -201,8 +201,8 @@ async function runHeavyTests() {
   // -------------------------------------------------------------
   console.log('\n--- 🔑 Authenticating Test Sessions for Authorized Functionality ---');
   const waiterLogin = await request('POST', '/api/auth/login', {
-    email: 'waiter@spiceandsky.com',
-    password: 'SpiceSkyWaiter2026!'
+    username: 'Shan',
+    password: 'waiter'
   });
   assert(waiterLogin.data?.success, 'Waiter login should succeed with valid credentials');
   const waiterHeaders = { 'x-session-id': waiterLogin.data.session_id };

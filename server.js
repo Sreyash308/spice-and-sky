@@ -112,6 +112,13 @@ app.get('/waiter/login', (req, res) => {
 });
 
 app.get('/waiter', (req, res) => {
+  const auth = apiRouter.verifyUserToken ? apiRouter.verifyUserToken(req) : null;
+  const ALLOWED_USERS = ['shan', 'yawar', 'nawaz', 'admin@143'];
+  const uname = auth?.user?.username ? auth.user.username.toLowerCase() : (auth?.user?.display_name ? auth.user.display_name.toLowerCase() : '');
+
+  if (!auth || !auth.user || (auth.user.role !== 'WAITER' && auth.user.role !== 'ADMIN') || !ALLOWED_USERS.includes(uname)) {
+    return res.redirect('/waiter/login');
+  }
   res.sendFile(path.join(__dirname, 'public', 'waiter.html'));
 });
 
@@ -121,6 +128,11 @@ app.get('/admin/login', (req, res) => {
 });
 
 app.get(['/admin', '/admin/orders', '/admin/menu', '/admin/analytics', '/admin/tables', '/admin/settings'], (req, res) => {
+  const auth = apiRouter.verifyUserToken ? apiRouter.verifyUserToken(req) : null;
+  const uname = auth?.user?.username ? auth.user.username.toLowerCase() : (auth?.user?.display_name ? auth.user.display_name.toLowerCase() : '');
+  if (!auth || !auth.user || auth.user.role !== 'ADMIN' || uname !== 'admin@143') {
+    return res.redirect('/admin/login');
+  }
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 

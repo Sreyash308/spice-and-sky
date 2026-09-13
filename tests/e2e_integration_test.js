@@ -68,7 +68,7 @@ async function testAll() {
   const waiterLoginRes = await fetch(`${BASE_URL}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'waiter@spiceandsky.com', password: 'SpiceSkyWaiter2026!' })
+    body: JSON.stringify({ username: 'Shan', password: 'waiter' })
   });
   const waiterLoginJson = await waiterLoginRes.json();
   assert(waiterLoginJson.success, 'Waiter login must succeed');

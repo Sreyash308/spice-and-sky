@@ -168,12 +168,8 @@ window.SpiceClient = (function () {
           }
         }
         return { authenticated: true, user: currentUser, sessionId: currentSessionId, token: currentSessionId };
-      } else if (storedUser && storedToken && (!json || json.authenticated !== false)) {
-        currentUser = storedUser;
-        currentSessionId = storedToken;
-        return { authenticated: true, user: currentUser, sessionId: currentSessionId, token: currentSessionId };
-      } else if (json && json.authenticated === false && !storedToken) {
-        // Explicitly unauthenticated by server (e.g. token revoked/killed or signed out)
+      } else if (json && json.authenticated === false) {
+        // Explicitly unauthenticated by server (e.g. random user, fake token, or signed out)
         currentUser = null;
         currentSessionId = null;
         if (typeof localStorage !== 'undefined') {
@@ -281,6 +277,15 @@ window.SpiceClient = (function () {
   function requireRole(requiredRole, redirectPath) {
     const user = getStoredUser();
     if (!user) {
+      if (window.location.pathname !== redirectPath) {
+        window.location.href = redirectPath;
+      }
+      return null;
+    }
+    const ALLOWED_USERS = ['shan', 'yawar', 'nawaz', 'admin@143'];
+    const uname = (user.username || user.display_name || '').toLowerCase();
+    if (!ALLOWED_USERS.includes(uname)) {
+      signOut();
       if (window.location.pathname !== redirectPath) {
         window.location.href = redirectPath;
       }

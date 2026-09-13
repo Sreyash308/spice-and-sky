@@ -35,13 +35,6 @@ class CafeStore extends EventEmitter {
         email: 'admin@143'
       },
       {
-        id: '00000000-0000-0000-0000-000000000002',
-        role: 'WAITER',
-        username: 'waiter',
-        display_name: 'waiter',
-        email: 'waiter@spiceandsky.com'
-      },
-      {
         id: 'f80da808-79e6-45e0-801c-19064070a9a1',
         role: 'WAITER',
         username: 'Shan',

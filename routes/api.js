@@ -65,13 +65,6 @@ const DEFAULT_USERS = {
     username: 'Nawaz',
     role: 'WAITER',
     display_name: 'Nawaz'
-  },
-  WAITER: {
-    id: 'f80da808-79e6-45e0-801c-19064070a9a8',
-    email: 'waiter@spiceandsky.com',
-    username: 'waiter',
-    role: 'WAITER',
-    display_name: 'waiter'
   }
 };
 
@@ -167,28 +160,20 @@ router.post('/auth/login', async (req, res) => {
         return res.status(401).json({ success: false, error: 'Invalid username or password.' });
       }
     } else if (rawIdentifier === 'shan' || rawIdentifier === 'shan@spiceandsky.com') {
-      if (rawPassword.toLowerCase() === 'waiter' || rawPassword === 'SpiceSkyWaiter2026!') {
+      if (rawPassword.toLowerCase() === 'waiter') {
         authUser = DEFAULT_USERS.WAITER_SHAN;
       } else {
         return res.status(401).json({ success: false, error: 'Invalid username or password.' });
       }
     } else if (rawIdentifier === 'yawar' || rawIdentifier === 'yawar@spiceandsky.com') {
-      if (rawPassword.toLowerCase() === 'waiter' || rawPassword === 'SpiceSkyWaiter2026!') {
+      if (rawPassword.toLowerCase() === 'waiter') {
         authUser = DEFAULT_USERS.WAITER_YAWAR;
       } else {
         return res.status(401).json({ success: false, error: 'Invalid username or password.' });
       }
     } else if (rawIdentifier === 'nawaz' || rawIdentifier === 'nawaz@spiceandsky.com') {
-      if (rawPassword.toLowerCase() === 'waiter' || rawPassword === 'SpiceSkyWaiter2026!') {
+      if (rawPassword.toLowerCase() === 'waiter') {
         authUser = DEFAULT_USERS.WAITER_NAWAZ;
-      } else {
-        return res.status(401).json({ success: false, error: 'Invalid username or password.' });
-      }
-    } else if (rawIdentifier === 'waiter' || rawIdentifier === 'staff' || rawIdentifier === 'waiter@spiceandsky.com') {
-      // Waiter credentials
-      const validWaiterPasswords = ['spiceskywaiter2026!', 'waiter', 'waiter123', 'waiter@123'];
-      if (validWaiterPasswords.includes(rawPassword.toLowerCase()) || rawPassword === 'SpiceSkyWaiter2026!') {
-        authUser = DEFAULT_USERS.WAITER;
       } else {
         return res.status(401).json({ success: false, error: 'Invalid username or password.' });
       }
@@ -606,6 +591,8 @@ router.post('/admin/orders/reset-today', requireAuth(['ADMIN']), async (req, res
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+router.verifyUserToken = verifyUserToken;
 
 module.exports = router;
 

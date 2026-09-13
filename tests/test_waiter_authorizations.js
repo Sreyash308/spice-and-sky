@@ -39,14 +39,44 @@ async function testWaiters() {
   assert.strictEqual(failRes.status, 401, 'Wrong password must return 401');
   console.log('  ✅ Shan with wrong password correctly rejected with 401');
 
-  // Test unknown user
-  const unknownRes = await fetch(`${BASE_URL}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: 'UnknownPerson', password: 'waiter' })
+  // Test random / unknown users
+  const randomUsers = ['UnknownPerson', 'hacker', 'guest', 'random_waiter', 'server_1', '12345'];
+  for (const rUser of randomUsers) {
+    const unknownRes = await fetch(`${BASE_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: rUser, password: 'waiter' })
+    });
+    assert.strictEqual(unknownRes.status, 401, `Random user "${rUser}" must return 401`);
+  }
+  console.log('  ✅ All random usernames correctly rejected with 401');
+
+  // Test legacy generic waiter accounts (waiter, staff) are strictly disallowed
+  const legacyUsers = ['waiter', 'staff', 'waiter@spiceandsky.com'];
+  for (const legUser of legacyUsers) {
+    const legRes = await fetch(`${BASE_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: legUser, password: 'waiter' })
+    });
+    assert.strictEqual(legRes.status, 401, `Legacy user "${legUser}" must return 401`);
+  }
+  console.log('  ✅ Legacy generic waiter/staff usernames strictly disallowed');
+
+  // Test Route-level protection for /waiter: Unauthenticated requests MUST redirect to /waiter/login
+  const unauthWaiterPageRes = await fetch(`${BASE_URL}/waiter`, { redirect: 'manual' });
+  assert([301, 302, 307, 308].includes(unauthWaiterPageRes.status), `Unauthenticated /waiter should redirect (got ${unauthWaiterPageRes.status})`);
+  assert(unauthWaiterPageRes.headers.get('location')?.includes('/waiter/login'), 'Unauthenticated /waiter must redirect to /waiter/login');
+  console.log('  ✅ Unauthenticated access to /waiter is blocked and 302 redirected to /waiter/login');
+
+  // Test Route-level protection with random fake token cookie: MUST redirect to /waiter/login
+  const fakeTokenWaiterRes = await fetch(`${BASE_URL}/waiter`, {
+    headers: { 'Cookie': 'spice_token=fake_random_token_123' },
+    redirect: 'manual'
   });
-  assert.strictEqual(unknownRes.status, 401, 'Unknown user must return 401');
-  console.log('  ✅ Unknown user correctly rejected with 401');
+  assert([301, 302, 307, 308].includes(fakeTokenWaiterRes.status), 'Random fake token /waiter must redirect');
+  assert(fakeTokenWaiterRes.headers.get('location')?.includes('/waiter/login'), 'Random fake token must redirect to /waiter/login');
+  console.log('  ✅ Random fake token access to /waiter is blocked and 302 redirected');
 
   // Test order placement with waiter attribution
   console.log('Testing order placement attributed to Shan and Nawaz...');
@@ -57,6 +87,13 @@ async function testWaiters() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username: 'Shan', password: 'waiter' })
   }).then(r => r.json());
+
+  // Verify authenticated Shan cookie successfully accesses /waiter (200 OK)
+  const authWaiterPageRes = await fetch(`${BASE_URL}/waiter`, {
+    headers: { 'Cookie': `spice_token=${shanLogin.token}` }
+  });
+  assert.strictEqual(authWaiterPageRes.status, 200, 'Authenticated waiter should receive 200 OK on /waiter');
+  console.log('  ✅ Authenticated waiter Shan successfully accesses /waiter with 200 OK');
 
   const menuRes = await fetch(`${BASE_URL}/api/menu`).then(r => r.json());
   const sampleItem = menuRes.data.items[0];
