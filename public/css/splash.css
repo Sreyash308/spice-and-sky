@@ -255,16 +255,11 @@
   letter-spacing: 5px;
   color: var(--spice-terracotta);
   text-transform: uppercase;
-  margin-bottom: 8px;
+  margin-bottom: 22px;
 }
 
 .splash-brand-tagline {
-  font-family: var(--font-script);
-  font-size: 1.35rem;
-  color: var(--text-secondary);
-  margin: 0 0 22px 0;
-  font-weight: 600;
-  letter-spacing: 0.5px;
+  display: none;
 }
 
 /* Progress Section */
@@ -368,8 +363,6 @@
   .splash-brand-sub {
     font-size: 0.7rem;
     letter-spacing: 4px;
-  }
-  .splash-brand-tagline {
-    font-size: 1.2rem;
+    margin-bottom: 18px;
   }
 }
