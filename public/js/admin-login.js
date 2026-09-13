@@ -9,15 +9,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     return;
   }
-
-  const fillBtn = document.getElementById('fillAdminBtn');
-  if (fillBtn) {
-    fillBtn.addEventListener('click', () => {
-      document.getElementById('adminEmail').value = 'admin@spiceandsky.com';
-      document.getElementById('adminPassword').value = 'SpiceSkyAdmin2026!';
-    });
-  }
-
   const form = document.getElementById('adminLoginForm');
   const errBanner = document.getElementById('adminErrorBanner');
   const loginBtn = document.getElementById('adminLoginBtn');

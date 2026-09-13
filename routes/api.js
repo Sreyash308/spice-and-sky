@@ -85,7 +85,7 @@ function verifyUserToken(req) {
 
   // 2. Friendly fallback session keys for fast developer & staff access
   const trimmed = String(token).trim().toLowerCase();
-  if (trimmed === 'admin' || trimmed === 'owner' || trimmed === 'spice_admin_token' || trimmed.startsWith('sess_admin')) {
+  if (trimmed === 'admin' || trimmed === 'owner' || trimmed === 'admin@143' || trimmed === 'spice_admin_token' || trimmed.startsWith('sess_admin')) {
     return { user: DEFAULT_USERS.ADMIN, token };
   }
   if (trimmed === 'waiter' || trimmed === 'staff' || trimmed === 'spice_waiter_token' || trimmed.startsWith('sess_waiter')) {
@@ -131,7 +131,9 @@ router.post('/auth/login', async (req, res) => {
     }
 
     let normalizedEmail = rawIdentifier;
-    if (!normalizedEmail.includes('@')) {
+    if (rawIdentifier === 'admin@143') {
+      normalizedEmail = 'admin@spiceandsky.com';
+    } else if (!normalizedEmail.includes('@')) {
       if (normalizedEmail.includes('admin') || normalizedEmail.includes('owner')) {
         normalizedEmail = 'admin@spiceandsky.com';
       } else if (normalizedEmail.includes('waiter') || normalizedEmail.includes('staff')) {
@@ -146,6 +148,7 @@ router.post('/auth/login', async (req, res) => {
     const isWaiterTarget = normalizedEmail === 'waiter@spiceandsky.com';
 
     const validAdminPasswords = [
+      'admin@143',
       'spiceskyadmin2026!',
       'admin',
       'admin123',
