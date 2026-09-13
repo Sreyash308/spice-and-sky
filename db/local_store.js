@@ -522,11 +522,62 @@ class CafeStore extends EventEmitter {
     }
   }
 
+  getTodayKolkataRange() {
+    const now = new Date();
+    const kolkataOffsetMs = 5.5 * 60 * 60 * 1000;
+    const kolkataNow = new Date(now.getTime() + kolkataOffsetMs);
+    const year = kolkataNow.getUTCFullYear();
+    const month = kolkataNow.getUTCMonth();
+    const date = kolkataNow.getUTCDate();
+
+    const startUtcMs = Date.UTC(year, month, date, 0, 0, 0, 0) - kolkataOffsetMs;
+    const endUtcMs = Date.UTC(year, month, date, 23, 59, 59, 999) - kolkataOffsetMs;
+
+    return {
+      startUtc: new Date(startUtcMs),
+      endUtc: new Date(endUtcMs),
+      startUtcIso: new Date(startUtcMs).toISOString(),
+      endUtcIso: new Date(endUtcMs).toISOString()
+    };
+  }
+
+  resetTodayOrderHistory() {
+    const { startUtc, endUtc } = this.getTodayKolkataRange();
+    const startMs = startUtc.getTime();
+    const endMs = endUtc.getTime();
+
+    const todayOrderIds = new Set();
+    const remainingOrders = [];
+
+    for (const o of this.orders) {
+      const raw = o.created_at || '';
+      const normalized = (String(raw).includes('Z') || String(raw).includes('+')) ? raw : (raw + 'Z');
+      const orderMs = new Date(normalized).getTime();
+      if (orderMs >= startMs && orderMs <= endMs) {
+        todayOrderIds.add(o.id);
+      } else {
+        remainingOrders.push(o);
+      }
+    }
+
+    this.orderItems = this.orderItems.filter(oi => !todayOrderIds.has(oi.order_id));
+    this.orders = remainingOrders;
+
+    if (this.orders.length > 0) {
+      this.orderSequence = Math.max(0, ...this.orders.map(o => Number(o.order_number) || 0));
+    } else {
+      this.orderSequence = 0;
+    }
+
+    this.emit('orders_reset', { type: 'TODAY', erasedCount: todayOrderIds.size });
+    return { success: true, erasedCount: todayOrderIds.size, remainingCount: this.orders.length };
+  }
+
   resetOrderHistory() {
     this.orders = [];
     this.orderItems = [];
     this.orderSequence = 0;
-    this.emit('orders_reset');
+    this.emit('orders_reset', { type: 'ALL' });
     return { success: true };
   }
 

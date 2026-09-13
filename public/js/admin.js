@@ -1243,40 +1243,80 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Reset All Order History Button
+  // --- ORDER HISTORY MANAGEMENT ---
+
+  // 1. Erase Today's History Only
+  async function triggerResetToday() {
+    const confirmed = window.confirm(
+      "📅 ERASE TODAY'S ORDER HISTORY ONLY?\n\n" +
+      "• All orders placed TODAY will be permanently deleted from the database.\n" +
+      "• Today's sales and revenue metrics will reset to ₹0.\n" +
+      "• Historical orders from previous days will NOT be affected.\n\n" +
+      "Click OK to proceed with erasing today's history."
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch('/api/admin/orders/reset-today', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message || "Today's order history has been successfully erased.");
+        await loadDashboardData();
+        await loadOrdersData();
+      } else {
+        alert('Failed to erase today\'s orders: ' + (data.error || 'Unknown error'));
+      }
+    } catch (err) {
+      alert('Error erasing today\'s orders: ' + err.message);
+    }
+  }
+
+  // 2. Reset All Order History
+  async function triggerResetAll() {
+    const confirmed = window.confirm(
+      "🚨 RESET ENTIRE ORDER HISTORY?\n\n" +
+      "• This will permanently wipe ALL historical order records from the database.\n" +
+      "• All active serving tables, bills, and lifetime revenue analytics will reset to ₹0.\n" +
+      "• Fresh orders will start sequentially from #1.\n" +
+      "• Menu items, categories, and staff accounts will remain preserved.\n\n" +
+      "Click OK to confirm permanent reset."
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch('/api/admin/orders/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message || 'All order history has been completely reset to #1.');
+        await loadDashboardData();
+        await loadOrdersData();
+      } else {
+        alert('Failed to reset orders: ' + (data.error || 'Unknown error'));
+      }
+    } catch (err) {
+      alert('Error resetting orders: ' + err.message);
+    }
+  }
+
   const resetOrdersBtn = document.getElementById('resetOrdersBtn');
   if (resetOrdersBtn) {
-    resetOrdersBtn.addEventListener('click', async () => {
-      const confirmed = window.confirm(
-        'Are you sure you want to reset all order history?\n\nThis will permanently delete all order records, active tables, bills, and reset revenue analytics to ₹0. Menu items and staff accounts will not be affected.'
-      );
-      if (!confirmed) return;
+    resetOrdersBtn.addEventListener('click', triggerResetAll);
+  }
 
-      const doubleCheck = window.prompt('Type "RESET" to confirm:');
-      if (doubleCheck !== 'RESET') {
-        alert('Action cancelled.');
-        return;
-      }
+  const resetTodayOrdersBtn = document.getElementById('resetTodayOrdersBtn');
+  if (resetTodayOrdersBtn) {
+    resetTodayOrdersBtn.addEventListener('click', triggerResetToday);
+  }
 
-      try {
-        resetOrdersBtn.disabled = true;
-        resetOrdersBtn.textContent = 'Resetting...';
-
-        const res = await SpiceClient.api('/api/admin/orders/reset', { method: 'POST' });
-        if (res.success) {
-          alert('Order history has been completely reset to 0.');
-          loadDashboardData();
-          loadOrdersData();
-        } else {
-          alert('Failed to reset orders: ' + (res.error || 'Unknown error'));
-        }
-      } catch (err) {
-        alert('Error resetting orders: ' + err.message);
-      } finally {
-        resetOrdersBtn.disabled = false;
-        resetOrdersBtn.innerHTML = '<span>🗑️</span> Reset All Order History';
-      }
-    });
+  const ordersTabResetTodayBtn = document.getElementById('ordersTabResetTodayBtn');
+  if (ordersTabResetTodayBtn) {
+    ordersTabResetTodayBtn.addEventListener('click', triggerResetToday);
   }
 
   // Initial Load

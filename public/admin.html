@@ -178,7 +178,12 @@
               <option value="CANCELLED">❌ Cancelled</option>
             </select>
           </div>
-          <button type="button" class="btn btn-secondary" id="reloadOrdersBtn">Refresh Orders</button>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button type="button" class="btn btn-secondary" id="reloadOrdersBtn">Refresh Orders</button>
+            <button type="button" class="btn" id="ordersTabResetTodayBtn" style="background: #ea580c; color: white; border: none; font-size: 0.85rem; padding: 7px 14px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+              <span>📅</span> Erase Today's History
+            </button>
+          </div>
         </div>
       </div>
 
@@ -282,16 +287,21 @@
       </div>
 
       <!-- Danger Zone / Data Management -->
-      <div class="panel-card" style="max-width: 600px; margin-top: 20px; border: 1px solid rgba(220, 38, 38, 0.3); background: #fffcfc;">
+      <div class="panel-card" style="max-width: 680px; margin-top: 20px; border: 1.5px solid rgba(220, 38, 38, 0.35); background: #fffcfc;">
         <h3 class="panel-title" style="margin-bottom: 8px; color: #dc2626; display: flex; align-items: center; gap: 8px;">
           <span>⚠️</span> Order History Management
         </h3>
-        <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 16px;">
-          Permanently reset and wipe all order records, active tables, bills, and analytics history from Supabase and memory. Menu items, categories, and staff accounts remain preserved.
+        <p style="font-size: 0.86rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 18px;">
+          Manage and wipe restaurant order records. Menu items, categories, and staff accounts will not be affected.
         </p>
-        <button type="button" class="btn btn-danger" id="resetOrdersBtn" style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.88rem; padding: 8px 16px;">
-          <span>🗑️</span> Reset All Order History
-        </button>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <button type="button" class="btn" id="resetTodayOrdersBtn" style="background: #ea580c; color: white; border: none; display: inline-flex; align-items: center; gap: 8px; font-size: 0.88rem; padding: 10px 18px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer;">
+            <span>📅</span> Erase Today's History Only
+          </button>
+          <button type="button" class="btn btn-danger" id="resetOrdersBtn" style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.88rem; padding: 10px 18px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer;">
+            <span>🗑️</span> Reset All Order History
+          </button>
+        </div>
       </div>
     </section>
   </main>

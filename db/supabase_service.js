@@ -739,6 +739,45 @@ module.exports = {
     return { success: true };
   },
 
+  // Erase Only Today's Order History
+  async resetTodayOrderHistory() {
+    const localResult = localStore.resetTodayOrderHistory();
+    if (isConfigured) {
+      try {
+        const { startUtcIso, endUtcIso } = localStore.getTodayKolkataRange();
+
+        // 1. Find orders placed today in Supabase
+        const { data: todayOrders, error: findErr } = await supabase
+          .from('orders')
+          .select('id')
+          .gte('created_at', startUtcIso)
+          .lte('created_at', endUtcIso);
+
+        if (!findErr && todayOrders && todayOrders.length > 0) {
+          const ids = todayOrders.map(o => o.id);
+
+          // 2. Delete corresponding order_items
+          const { error: itemsErr } = await supabase
+            .from('order_items')
+            .delete()
+            .in('order_id', ids);
+          if (itemsErr) console.warn('Supabase delete today order_items warning:', itemsErr.message);
+
+          // 3. Delete orders
+          const { error: ordersErr } = await supabase
+            .from('orders')
+            .delete()
+            .in('id', ids);
+          if (ordersErr) console.warn('Supabase delete today orders warning:', ordersErr.message);
+        }
+      } catch (err) {
+        console.error('Supabase resetTodayOrderHistory error:', err.message);
+        throw err;
+      }
+    }
+    return localResult;
+  },
+
   // Get Order By ID (supports UUID or order_number)
   async getOrderById(id) {
     if (isConfigured) {

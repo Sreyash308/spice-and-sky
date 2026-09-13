@@ -548,5 +548,20 @@ router.post('/admin/orders/reset', requireAuth(['ADMIN']), async (req, res) => {
   }
 });
 
+// POST /api/admin/orders/reset-today - Erase today's order history only (Admin only)
+router.post('/admin/orders/reset-today', requireAuth(['ADMIN']), async (req, res) => {
+  try {
+    const result = await dbService.resetTodayOrderHistory();
+    broadcastEvent('ORDER_UPDATED', { type: 'RESET_TODAY' });
+    res.json({
+      success: true,
+      message: `Today's order history (${result.erasedCount || 0} orders) has been successfully erased.`,
+      data: result
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;
 
