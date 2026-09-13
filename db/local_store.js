@@ -30,30 +30,35 @@ class CafeStore extends EventEmitter {
       {
         id: '00000000-0000-0000-0000-000000000001',
         role: 'ADMIN',
-        display_name: 'Owner Admin',
+        username: 'admin@143',
+        display_name: 'admin@143',
         email: 'admin@143'
       },
       {
         id: '00000000-0000-0000-0000-000000000002',
         role: 'WAITER',
-        display_name: 'Rooftop Waiter',
+        username: 'waiter',
+        display_name: 'waiter',
         email: 'waiter@spiceandsky.com'
       },
       {
         id: 'f80da808-79e6-45e0-801c-19064070a9a1',
         role: 'WAITER',
+        username: 'Shan',
         display_name: 'Shan',
         email: 'shan@spiceandsky.com'
       },
       {
         id: 'f80da808-79e6-45e0-801c-19064070a9a2',
         role: 'WAITER',
+        username: 'Yawar',
         display_name: 'Yawar',
         email: 'yawar@spiceandsky.com'
       },
       {
         id: 'f80da808-79e6-45e0-801c-19064070a9a3',
         role: 'WAITER',
+        username: 'Nawaz',
         display_name: 'Nawaz',
         email: 'nawaz@spiceandsky.com'
       }

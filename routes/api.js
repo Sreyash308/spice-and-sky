@@ -41,32 +41,37 @@ const DEFAULT_USERS = {
   ADMIN: {
     id: '497c557a-0182-4d22-a3e7-1a929415c947',
     email: 'admin@143',
+    username: 'admin@143',
     role: 'ADMIN',
-    display_name: 'Owner Admin'
+    display_name: 'admin@143'
   },
   WAITER_SHAN: {
     id: 'f80da808-79e6-45e0-801c-19064070a9a1',
     email: 'shan@spiceandsky.com',
+    username: 'Shan',
     role: 'WAITER',
     display_name: 'Shan'
   },
   WAITER_YAWAR: {
     id: 'f80da808-79e6-45e0-801c-19064070a9a2',
     email: 'yawar@spiceandsky.com',
+    username: 'Yawar',
     role: 'WAITER',
     display_name: 'Yawar'
   },
   WAITER_NAWAZ: {
     id: 'f80da808-79e6-45e0-801c-19064070a9a3',
     email: 'nawaz@spiceandsky.com',
+    username: 'Nawaz',
     role: 'WAITER',
     display_name: 'Nawaz'
   },
   WAITER: {
     id: 'f80da808-79e6-45e0-801c-19064070a9a8',
     email: 'waiter@spiceandsky.com',
+    username: 'waiter',
     role: 'WAITER',
-    display_name: 'Rooftop Waiter'
+    display_name: 'waiter'
   }
 };
 
@@ -76,7 +81,8 @@ function createSessionToken(user) {
       id: user.id,
       email: user.email,
       role: user.role,
-      display_name: user.display_name,
+      username: user.username || user.display_name,
+      display_name: user.display_name || user.username,
       jti: crypto.randomUUID()
     },
     JWT_SECRET,
@@ -366,7 +372,7 @@ router.post('/orders', requireAuth(['WAITER', 'ADMIN']), async (req, res) => {
       notes,
       idempotency_key,
       waiter_id: waiter_id || req.user?.id,
-      waiter_name: waiter_name || req.user?.display_name || 'Staff'
+      waiter_name: waiter_name || req.user?.username || req.user?.display_name || 'waiter'
     });
 
     res.status(201).json({
@@ -421,7 +427,7 @@ router.put('/orders/:id', requireAuth(['WAITER', 'ADMIN']), async (req, res) => 
       items,
       notes,
       waiter_id: waiter_id || req.user?.id,
-      waiter_name: waiter_name || req.user?.display_name,
+      waiter_name: waiter_name || req.user?.username || req.user?.display_name || 'waiter',
       status
     });
     res.json({ success: true, data: updated });

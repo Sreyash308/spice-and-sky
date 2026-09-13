@@ -12,8 +12,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const waiterStaffBadge = document.getElementById('waiterStaffBadge');
   if (waiterStaffBadge && currentUser) {
-    const roleIcon = currentUser.role === 'ADMIN' ? '👑 ' : '👔 ';
-    waiterStaffBadge.textContent = roleIcon + (currentUser.display_name || 'Staff');
+    const username = currentUser.username || currentUser.display_name || (currentUser.email ? currentUser.email.split('@')[0] : 'waiter');
+    waiterStaffBadge.textContent = username;
+    waiterStaffBadge.style.display = 'inline-flex';
+  }
+
+  function getCurrentStaffUsername() {
+    return currentUser.username || currentUser.display_name || (currentUser.email ? currentUser.email.split('@')[0] : 'waiter');
   }
 
   const waiterSignOutBtn = document.getElementById('waiterSignOutBtn');
@@ -1007,7 +1012,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               quantity: i.quantity
             })),
             waiter_id: currentUser.id,
-            waiter_name: currentUser.role === 'WAITER' ? (currentUser.display_name || 'Staff') : 'Staff',
+            waiter_name: getCurrentStaffUsername(),
             status: 'CONFIRMED'
           })
         });
@@ -1025,7 +1030,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const payload = {
           table_number: activeTable,
           waiter_id: currentUser.id,
-          waiter_name: currentUser.role === 'WAITER' ? (currentUser.display_name || 'Staff') : 'Staff',
+          waiter_name: getCurrentStaffUsername(),
           idempotency_key: `order-${activeTable}-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
           status: 'CONFIRMED',
           items: order.map(i => ({
@@ -1097,7 +1102,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               quantity: i.quantity
             })),
             waiter_id: currentUser.id,
-            waiter_name: currentUser.role === 'WAITER' ? (currentUser.display_name || 'Staff') : 'Staff'
+            waiter_name: getCurrentStaffUsername()
           })
         });
         orderIdToComplete = activeOrder.id;
@@ -1106,7 +1111,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const payload = {
           table_number: activeTable,
           waiter_id: currentUser.id,
-          waiter_name: currentUser.role === 'WAITER' ? (currentUser.display_name || 'Staff') : 'Staff',
+          waiter_name: getCurrentStaffUsername(),
           idempotency_key: `order-${activeTable}-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
           status: 'CONFIRMED',
           items: order.map(i => ({
@@ -1181,7 +1186,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     billOrderNumText.textContent = `Order #${order.order_number}`;
     billDateText.textContent = `Date: ${SpiceClient.formatDateTimeIST(order.created_at).split(',')[0]}`;
     billTimeText.textContent = `Time: ${SpiceClient.formatDateTimeIST(order.created_at).split(',')[1] || ''}`;
-    billWaiterText.textContent = `Server: ${order.waiter_name_snapshot || 'Staff'}`;
+    billWaiterText.textContent = `Server: ${order.waiter_name_snapshot || getCurrentStaffUsername()}`;
     if (billStatusText) {
       billStatusText.textContent = `Status: ${order.status || 'COMPLETED'}`;
       billStatusText.style.color = (order.status === 'COMPLETED') ? '#16a34a' : 'var(--spice-gold)';
