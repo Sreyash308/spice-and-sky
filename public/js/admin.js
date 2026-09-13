@@ -181,7 +181,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (recents.length === 0) {
           recentTbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No orders recorded yet.</td></tr>`;
         } else {
-          recents.slice(0, 8).forEach(o => {
+          recents.slice(0, 10).forEach(o => {
             const tr = document.createElement('tr');
             const itemsSummary = (o.items || o.order_items || []).map(i => `${i.quantity}x ${i.item_name_snapshot}`).join(', ') || 'No items';
             const timeStr = SpiceClient.formatDateTimeIST(o.created_at).split(',')[1] || '';
