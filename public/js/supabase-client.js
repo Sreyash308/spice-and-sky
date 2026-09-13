@@ -3,6 +3,28 @@
  */
 
 window.SpiceClient = (function () {
+  // Transparent fetch interceptor: auto-attaches JWT & session key to all /api/ requests
+  if (typeof window !== 'undefined' && window.fetch) {
+    const _origFetch = window.fetch;
+    window.fetch = function (resource, init) {
+      try {
+        const urlStr = typeof resource === 'string' ? resource : (resource ? resource.url : '');
+        if (urlStr && (urlStr.startsWith('/api') || urlStr.includes('/api/'))) {
+          init = init || {};
+          const headers = new Headers(init.headers || {});
+          const token = localStorage.getItem('spice_token') || localStorage.getItem('spice_session_id');
+          if (token) {
+            if (!headers.has('Authorization')) headers.set('Authorization', 'Bearer ' + token);
+            if (!headers.has('x-session-id')) headers.set('x-session-id', token);
+          }
+          init.headers = headers;
+          init.credentials = init.credentials || 'same-origin';
+        }
+      } catch (e) {}
+      return _origFetch(resource, init);
+    };
+  }
+
   let config = null;
   let supabaseClient = null;
   const eventListeners = {
@@ -104,66 +126,14 @@ window.SpiceClient = (function () {
   let currentUser = null;
   let currentSessionId = null;
 
-  // --- AUTHENTICATION & SESSION ID HELPERS ---
-  async function checkSession() {
-    try {
-      const res = await fetch('/api/auth/session');
-      const json = await res.json();
-      if (json.success && json.authenticated && json.user) {
-        currentUser = json.user;
-        currentSessionId = json.sessionId;
-        localStorage.setItem('spice_auth_user', JSON.stringify(currentUser));
-        if (currentSessionId) localStorage.setItem('spice_session_id', currentSessionId);
-        return { authenticated: true, user: currentUser, sessionId: currentSessionId };
-      }
-    } catch (e) {
-      console.warn('Session check notice:', e);
-    }
-
-    // If session endpoint responded and user is not authenticated, clear localStorage
-    localStorage.removeItem('spice_auth_user');
-    localStorage.removeItem('spice_session_id');
-    currentUser = null;
-    currentSessionId = null;
-
-    return { authenticated: false, user: null, sessionId: null };
-  }
-
-  async function signIn(email, password) {
-    const normalizedEmail = email.trim().toLowerCase();
-
-    // 1. Authenticate with server to establish 30-day session
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: normalizedEmail, password })
-      });
-      const json = await res.json();
-
-      if (json.success && json.user) {
-        currentUser = json.user;
-        currentSessionId = json.sessionId;
-        localStorage.setItem('spice_auth_user', JSON.stringify(currentUser));
-        if (currentSessionId) localStorage.setItem('spice_session_id', currentSessionId);
-
-        // Also sync client-side Supabase if present
-        if (supabaseClient) {
-          supabaseClient.auth.signInWithPassword({ email: normalizedEmail, password }).catch(() => {});
-        }
-
-        return { success: true, user: currentUser, sessionId: currentSessionId };
-      } else {
-        throw new Error(json.error || 'Authentication failed.');
-      }
-    } catch (err) {
-      console.error('Sign-in error:', err);
-      throw err;
-    }
+  function getStoredToken() {
+    return currentSessionId ||
+           (typeof localStorage !== 'undefined' ? (localStorage.getItem('spice_token') || localStorage.getItem('spice_session_id')) : null);
   }
 
   function getStoredUser() {
     if (currentUser) return currentUser;
+    if (typeof localStorage === 'undefined') return null;
     const raw = localStorage.getItem('spice_auth_user');
     if (!raw) return null;
     try {
@@ -174,15 +144,103 @@ window.SpiceClient = (function () {
     }
   }
 
+  // --- AUTHENTICATION & JWT SESSION HELPERS ---
+  async function checkSession() {
+    const storedUser = getStoredUser();
+    const storedToken = getStoredToken();
+
+    if (storedUser && storedToken) {
+      currentUser = storedUser;
+      currentSessionId = storedToken;
+    }
+
+    try {
+      const res = await fetch('/api/auth/session');
+      const json = await res.json();
+      if (json.success && json.authenticated && json.user) {
+        currentUser = json.user;
+        currentSessionId = json.token || json.sessionId || storedToken;
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('spice_auth_user', JSON.stringify(currentUser));
+          if (currentSessionId) {
+            localStorage.setItem('spice_token', currentSessionId);
+            localStorage.setItem('spice_session_id', currentSessionId);
+          }
+        }
+        return { authenticated: true, user: currentUser, sessionId: currentSessionId, token: currentSessionId };
+      }
+    } catch (e) {
+      console.warn('Session check notice:', e);
+      // On network failure or offline mode, retain valid stored session!
+      if (currentUser && currentSessionId) {
+        return { authenticated: true, user: currentUser, sessionId: currentSessionId, token: currentSessionId };
+      }
+    }
+
+    // If server explicitly returned authenticated: false AND user has no stored token
+    if (!storedUser || !storedToken) {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('spice_auth_user');
+        localStorage.removeItem('spice_token');
+        localStorage.removeItem('spice_session_id');
+      }
+      currentUser = null;
+      currentSessionId = null;
+      return { authenticated: false, user: null, sessionId: null, token: null };
+    }
+
+    return { authenticated: true, user: currentUser, sessionId: currentSessionId, token: currentSessionId };
+  }
+
+  async function signIn(email, password) {
+    const rawIdentifier = (email || '').trim().toLowerCase();
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: rawIdentifier, password })
+      });
+      const json = await res.json();
+
+      if (json.success && json.user) {
+        currentUser = json.user;
+        currentSessionId = json.token || json.sessionId || json.session_id;
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('spice_auth_user', JSON.stringify(currentUser));
+          if (currentSessionId) {
+            localStorage.setItem('spice_token', currentSessionId);
+            localStorage.setItem('spice_session_id', currentSessionId);
+          }
+        }
+
+        // Also sync client-side Supabase if present
+        if (supabaseClient && rawIdentifier.includes('@')) {
+          supabaseClient.auth.signInWithPassword({ email: rawIdentifier, password }).catch(() => {});
+        }
+
+        return { success: true, user: currentUser, sessionId: currentSessionId, token: currentSessionId };
+      } else {
+        throw new Error(json.error || 'Authentication failed.');
+      }
+    } catch (err) {
+      console.error('Sign-in error:', err);
+      throw err;
+    }
+  }
+
   function getSessionId() {
-    return currentSessionId || localStorage.getItem('spice_session_id') || null;
+    return getStoredToken();
   }
 
   async function signOut() {
     currentUser = null;
     currentSessionId = null;
-    localStorage.removeItem('spice_auth_user');
-    localStorage.removeItem('spice_session_id');
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('spice_auth_user');
+      localStorage.removeItem('spice_token');
+      localStorage.removeItem('spice_session_id');
+    }
 
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
@@ -202,6 +260,12 @@ window.SpiceClient = (function () {
       return null;
     }
     if (requiredRole === 'ADMIN' && user.role !== 'ADMIN') {
+      if (window.location.pathname !== redirectPath) {
+        window.location.href = redirectPath;
+      }
+      return null;
+    }
+    if (requiredRole === 'WAITER' && user.role !== 'WAITER' && user.role !== 'ADMIN') {
       if (window.location.pathname !== redirectPath) {
         window.location.href = redirectPath;
       }
@@ -392,6 +456,7 @@ window.SpiceClient = (function () {
     checkSession,
     getSessionId,
     getStoredUser,
+    getStoredToken,
     requireRole,
     formatCurrency,
     formatDateTimeIST,
