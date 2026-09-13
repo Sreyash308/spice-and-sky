@@ -151,13 +151,13 @@ document.addEventListener('DOMContentLoaded', async () => {
               `;
 
               card.querySelector('.view-serving-btn').addEventListener('click', async () => {
-                const fullOrder = await fetchOrderDetails(t.order_number);
+                const fullOrder = await fetchOrderDetails(t.id || t.order_number);
                 if (fullOrder) openOrderModal(fullOrder);
               });
 
               card.querySelector('.complete-serving-btn').addEventListener('click', async () => {
                 if (confirm(`Complete bill for Table ${t.table_number} (Order #${t.order_number})?`)) {
-                  await completeOrderDirect(t.order_number);
+                  await completeOrderDirect(t.id || t.order_number);
                 }
               });
 

@@ -278,17 +278,19 @@ module.exports = {
         if (params.status) updatePayload.status = params.status;
         if (params.waiter_name) updatePayload.waiter_name_snapshot = params.waiter_name;
 
-        const { data: updatedOrder, error: updateErr } = await supabase
-          .from('orders')
-          .update(updatePayload)
-          .eq('id', orderId)
-          .select()
-          .single();
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(orderId));
+        let query = supabase.from('orders').update(updatePayload);
+        if (isUUID) {
+          query = query.eq('id', orderId);
+        } else {
+          query = query.eq('order_number', Number(orderId));
+        }
+        const { data: updatedOrder, error: updateErr } = await query.select().maybeSingle();
 
         if (!updateErr && updatedOrder) {
-          await supabase.from('order_items').delete().eq('order_id', orderId);
+          await supabase.from('order_items').delete().eq('order_id', updatedOrder.id);
           await supabase.from('order_items').insert(itemSnapshots.map(s => ({
-            order_id: orderId,
+            order_id: updatedOrder.id,
             menu_item_id: s.menu_item_id,
             item_name_snapshot: s.item_name_snapshot,
             variant_name_snapshot: s.variant_name_snapshot,
@@ -298,7 +300,9 @@ module.exports = {
           })));
 
           updatedOrder.items = itemSnapshots;
-          localStore.updateOrderItems(orderId, params);
+          try {
+            localStore.updateOrderItems(updatedOrder.id, params);
+          } catch (e) {}
           return updatedOrder;
         }
       } catch (err) {
@@ -556,14 +560,17 @@ module.exports = {
     return localStore.getOrders(filters);
   },
 
-  // Get Order By ID
+  // Get Order By ID (supports UUID or order_number)
   async getOrderById(id) {
     if (isConfigured) {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*, order_items(*)')
-        .eq('id', id)
-        .single();
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id));
+      let query = supabase.from('orders').select('*, order_items(*)');
+      if (isUUID) {
+        query = query.eq('id', id);
+      } else {
+        query = query.eq('order_number', Number(id));
+      }
+      const { data, error } = await query.maybeSingle();
       if (!error && data) {
         return {
           ...data,
@@ -574,17 +581,21 @@ module.exports = {
     return localStore.getOrderById(id);
   },
 
-  // Update Order Status
+  // Update Order Status (supports UUID or order_number)
   async updateOrderStatus(id, status) {
     if (isConfigured) {
-      const { data, error } = await supabase
-        .from('orders')
-        .update({ status, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .select()
-        .single();
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id));
+      let query = supabase.from('orders').update({ status, updated_at: new Date().toISOString() });
+      if (isUUID) {
+        query = query.eq('id', id);
+      } else {
+        query = query.eq('order_number', Number(id));
+      }
+      const { data, error } = await query.select().maybeSingle();
       if (!error && data) {
-        localStore.updateOrderStatus(id, status);
+        try {
+          localStore.updateOrderStatus(data.id, status);
+        } catch (e) {}
         return data;
       }
       if (error) console.error('Supabase updateOrderStatus error:', error.message);

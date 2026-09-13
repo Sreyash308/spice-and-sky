@@ -713,8 +713,10 @@ class CafeStore extends EventEmitter {
   }
 
   updateOrderStatus(id, status) {
-    const order = this.orders.find(o => o.id === id);
-    if (!order) throw new Error('Order not found.');
+    const order = this.orders.find(o => o.id === id || String(o.order_number) === String(id));
+    if (!order) {
+      return null;
+    }
     order.status = status;
     order.updated_at = new Date().toISOString();
     this.emit('order_updated', { order });

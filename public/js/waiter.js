@@ -292,17 +292,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         activeOrdersByTable = newGrouped;
 
-        // Ensure selectedOrderIdByTable is valid
+        // Ensure selectedOrderIdByTable is valid and never forcefully hijack user intent
         for (let t = 1; t <= 9; t++) {
           const orders = activeOrdersByTable[t];
           const currSelected = selectedOrderIdByTable[t];
-          if (currSelected !== 'new') {
+          if (currSelected && currSelected !== 'new') {
             const exists = orders.some(o => String(o.id) === String(currSelected));
             if (!exists) {
-              selectedOrderIdByTable[t] = orders.length > 0 ? orders[0].id : 'new';
+              selectedOrderIdByTable[t] = 'new';
             }
-          } else if (orders.length > 0 && (!orderCarts[`new_${t}`] || orderCarts[`new_${t}`].length === 0)) {
-            selectedOrderIdByTable[t] = orders[0].id;
           }
         }
 
@@ -1057,17 +1055,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!completeJson.success) throw new Error(completeJson.error || 'Failed to finalize bill.');
 
       const finalizedOrder = completeJson.data;
+      if (!finalizedOrder.items || finalizedOrder.items.length === 0) {
+        finalizedOrder.items = (finalizedOrder.order_items && finalizedOrder.order_items.length > 0)
+          ? finalizedOrder.order_items
+          : order.map(i => ({
+              item_name_snapshot: i.name,
+              variant_name_snapshot: i.variant_name,
+              quantity: i.quantity,
+              unit_price_snapshot: i.price,
+              line_total: i.price * i.quantity
+            }));
+      }
       lastBilledOrder = finalizedOrder;
 
       // Remove completed order from active orders on this table
       const list = activeOrdersByTable[activeTable] || [];
       activeOrdersByTable[activeTable] = list.filter(o => String(o.id) !== String(orderIdToComplete));
       delete orderCarts[String(orderIdToComplete)];
-      orderCarts[`new_${activeTable}`] = [];
+      if (!activeOrder) {
+        orderCarts[`new_${activeTable}`] = [];
+      }
 
-      // Switch to remaining active order on this table if one exists, otherwise 'new'
-      const remaining = activeOrdersByTable[activeTable];
-      selectedOrderIdByTable[activeTable] = (remaining && remaining.length > 0) ? remaining[0].id : 'new';
+      // Reset selection for this table to 'new' so subsequent orders start cleanly
+      selectedOrderIdByTable[activeTable] = 'new';
+      orderCarts[`new_${activeTable}`] = [];
 
       updateTableGridIndicators();
       renderOrderTabs();
@@ -1099,14 +1110,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     billTotalText.textContent = SpiceClient.formatCurrency(order.total);
 
     billItemsTbody.innerHTML = '';
-    const items = order.items || order.order_items || [];
+    const items = (order.items && order.items.length > 0) ? order.items : (order.order_items || []);
     items.forEach(oi => {
       const tr = document.createElement('tr');
-      const itemTitle = oi.item_name_snapshot + (oi.variant_name_snapshot ? ` (${oi.variant_name_snapshot})` : '');
+      const itemTitle = (oi.item_name_snapshot || oi.name || 'Item') + (oi.variant_name_snapshot ? ` (${oi.variant_name_snapshot})` : '');
+      const lineTotal = (oi.line_total !== undefined && oi.line_total !== null) 
+        ? Number(oi.line_total) 
+        : ((Number(oi.unit_price_snapshot || oi.price || 0)) * Number(oi.quantity || 1));
       tr.innerHTML = `
         <td>${itemTitle}</td>
         <td style="text-align: center;">${oi.quantity}</td>
-        <td style="text-align: right;">${SpiceClient.formatCurrency(oi.line_total)}</td>
+        <td style="text-align: right;">${SpiceClient.formatCurrency(lineTotal)}</td>
       `;
       billItemsTbody.appendChild(tr);
     });
