@@ -147,7 +147,18 @@
 .venue-action-chip .action-icon {
   font-size: 0.95rem;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: transform 0.2s ease;
+}
+
+.chip-insta-img {
+  width: 17px;
+  height: 17px;
+  object-fit: contain;
+  display: block;
+  border-radius: 4px;
 }
 
 .venue-action-chip:hover {
@@ -658,13 +669,21 @@
   font-weight: 700;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   box-shadow: var(--shadow-sm);
   transition: all var(--transition-fast);
 }
 .btn-insta:hover {
   background: #e11d48;
   color: #ffffff;
+}
+.btn-insta-img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  display: inline-block;
+  vertical-align: middle;
+  border-radius: 4px;
 }
 
 .footer-disclaimer {
