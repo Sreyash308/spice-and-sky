@@ -554,8 +554,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       breakdownTotalText.textContent = SpiceClient.formatCurrency(orderTotalForPayment);
     }
 
-    // Default to Full Cash (can easily opt for Partial Cash or Full Online)
-    setPaymentMode('CASH');
+    // Default to Full UPI (can easily opt for Partial Cash or Full Cash)
+    setPaymentMode('ONLINE');
     if (paymentModal) paymentModal.classList.add('active');
   }
 

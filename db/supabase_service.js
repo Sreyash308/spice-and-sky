@@ -712,9 +712,10 @@ module.exports = {
       if (!error && data) {
         return data.map(o => {
           const localO = localStore.getOrderById(o.id) || localStore.getOrderById(o.order_number);
-          const payment_mode = o.payment_mode || (localO && localO.payment_mode) || (o.notes && o.notes.includes('Payment: ONLINE') ? 'ONLINE' : (o.notes && o.notes.includes('Payment: SPLIT') ? 'SPLIT' : 'CASH'));
-          const cash_amount = (o.cash_amount != null) ? Number(o.cash_amount) : (localO && localO.cash_amount != null ? Number(localO.cash_amount) : (payment_mode === 'ONLINE' ? 0 : Number(o.total)));
-          const online_amount = (o.online_amount != null) ? Number(o.online_amount) : (localO && localO.online_amount != null ? Number(localO.online_amount) : (payment_mode === 'ONLINE' ? Number(o.total) : 0));
+          const payment_mode = o.payment_mode || (localO && localO.payment_mode) || (o.notes && o.notes.includes('Payment: ONLINE') ? 'ONLINE' : (o.notes && o.notes.includes('Payment: SPLIT') ? 'SPLIT' : 'ONLINE'));
+          const payment_status = o.payment_status || (localO && localO.payment_status) || (o.status === 'COMPLETED' ? 'PAID' : (o.status === 'CANCELLED' ? 'CANCELLED' : 'PENDING'));
+          const cash_amount = (o.cash_amount != null) ? Number(o.cash_amount) : (localO && localO.cash_amount != null ? Number(localO.cash_amount) : (payment_mode === 'CASH' ? Number(o.total) : 0));
+          const online_amount = (o.online_amount != null) ? Number(o.online_amount) : (localO && localO.online_amount != null ? Number(localO.online_amount) : (payment_mode === 'CASH' ? 0 : Number(o.total)));
           const localItems = (localO && localO.items && localO.items.length > 0)
             ? localO.items
             : (localStore.orderItems ? localStore.orderItems.filter(i => i.order_id === o.id) : []);
@@ -724,6 +725,7 @@ module.exports = {
           return {
             ...o,
             payment_mode,
+            payment_status,
             cash_amount,
             online_amount,
             items,
@@ -893,9 +895,10 @@ module.exports = {
       const { data, error } = await query.maybeSingle();
       if (!error && data) {
         const localOrder = localStore.getOrderById(id);
-        const mergedPaymentMode = data.payment_mode || (localOrder && localOrder.payment_mode) || (data.notes && data.notes.includes('Payment: ONLINE') ? 'ONLINE' : (data.notes && data.notes.includes('Payment: SPLIT') ? 'SPLIT' : 'CASH'));
-        const mergedCash = (data.cash_amount != null) ? Number(data.cash_amount) : (localOrder && localOrder.cash_amount != null ? Number(localOrder.cash_amount) : (mergedPaymentMode === 'ONLINE' ? 0 : Number(data.total)));
-        const mergedOnline = (data.online_amount != null) ? Number(data.online_amount) : (localOrder && localOrder.online_amount != null ? Number(localOrder.online_amount) : (mergedPaymentMode === 'ONLINE' ? Number(data.total) : 0));
+        const mergedPaymentMode = data.payment_mode || (localOrder && localOrder.payment_mode) || (data.notes && data.notes.includes('Payment: ONLINE') ? 'ONLINE' : (data.notes && data.notes.includes('Payment: SPLIT') ? 'SPLIT' : 'ONLINE'));
+        const mergedPaymentStatus = data.payment_status || (localOrder && localOrder.payment_status) || (data.status === 'COMPLETED' ? 'PAID' : (data.status === 'CANCELLED' ? 'CANCELLED' : 'PENDING'));
+        const mergedCash = (data.cash_amount != null) ? Number(data.cash_amount) : (localOrder && localOrder.cash_amount != null ? Number(localOrder.cash_amount) : (mergedPaymentMode === 'CASH' ? Number(data.total) : 0));
+        const mergedOnline = (data.online_amount != null) ? Number(data.online_amount) : (localOrder && localOrder.online_amount != null ? Number(localOrder.online_amount) : (mergedPaymentMode === 'CASH' ? 0 : Number(data.total)));
 
         const remoteItems = data.order_items || [];
         const remoteSubtotal = remoteItems.reduce((s, i) => s + (Number(i.unit_price_snapshot) * Number(i.quantity)), 0);
@@ -904,12 +907,14 @@ module.exports = {
           localStore.recordOrderSnapshot({
             ...data,
             payment_mode: mergedPaymentMode,
+            payment_status: mergedPaymentStatus,
             cash_amount: mergedCash,
             online_amount: mergedOnline
           }, remoteItems);
           return {
             ...data,
             payment_mode: mergedPaymentMode,
+            payment_status: mergedPaymentStatus,
             cash_amount: mergedCash,
             online_amount: mergedOnline,
             items: remoteItems
@@ -920,6 +925,7 @@ module.exports = {
           return {
             ...data,
             payment_mode: mergedPaymentMode,
+            payment_status: mergedPaymentStatus,
             cash_amount: mergedCash,
             online_amount: mergedOnline,
             items: localOrder.items
@@ -928,6 +934,7 @@ module.exports = {
         return {
           ...data,
           payment_mode: mergedPaymentMode,
+          payment_status: mergedPaymentStatus,
           cash_amount: mergedCash,
           online_amount: mergedOnline,
           items: remoteItems
@@ -939,14 +946,22 @@ module.exports = {
 
   // Update Order Status (supports UUID or order_number and paymentData)
   async updateOrderStatus(id, status, paymentData = {}) {
+    let mergedPaymentData = { ...(paymentData || {}) };
+    if (status === 'CANCELLED') {
+      mergedPaymentData.payment_status = 'CANCELLED';
+    } else if (status === 'COMPLETED' && !mergedPaymentData.payment_status) {
+      mergedPaymentData.payment_status = 'PAID';
+    }
+
     if (isConfigured) {
       const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id));
       const updatePayload = { status, updated_at: new Date().toISOString() };
       
-      if (paymentData && typeof paymentData === 'object') {
-        if (paymentData.payment_mode) updatePayload.payment_mode = String(paymentData.payment_mode).toUpperCase();
-        if (paymentData.cash_amount != null) updatePayload.cash_amount = Number(paymentData.cash_amount) || 0;
-        if (paymentData.online_amount != null) updatePayload.online_amount = Number(paymentData.online_amount) || 0;
+      if (mergedPaymentData && typeof mergedPaymentData === 'object') {
+        if (mergedPaymentData.payment_mode) updatePayload.payment_mode = String(mergedPaymentData.payment_mode).toUpperCase();
+        if (mergedPaymentData.cash_amount != null) updatePayload.cash_amount = Number(mergedPaymentData.cash_amount) || 0;
+        if (mergedPaymentData.online_amount != null) updatePayload.online_amount = Number(mergedPaymentData.online_amount) || 0;
+        if (mergedPaymentData.payment_status) updatePayload.payment_status = mergedPaymentData.payment_status;
       }
 
       let query = supabase.from('orders').update(updatePayload);
@@ -962,7 +977,9 @@ module.exports = {
         let fallbackQuery = supabase.from('orders').update({
           status,
           updated_at: new Date().toISOString(),
-          notes: paymentData.payment_mode ? `Payment: ${paymentData.payment_mode} (Cash: ₹${paymentData.cash_amount || 0}, Online: ₹${paymentData.online_amount || 0})` : undefined
+          notes: mergedPaymentData.payment_mode 
+            ? `Payment: ${mergedPaymentData.payment_mode} (Cash: ₹${mergedPaymentData.cash_amount || 0}, Online: ₹${mergedPaymentData.online_amount || 0})` 
+            : (status === 'CANCELLED' ? 'Status: CANCELLED' : undefined)
         });
         if (isUUID) fallbackQuery = fallbackQuery.eq('id', id);
         else fallbackQuery = fallbackQuery.eq('order_number', Number(id));
@@ -973,16 +990,16 @@ module.exports = {
 
       if (!error && data) {
         try {
-          localStore.updateOrderStatus(data.id, status, paymentData);
+          localStore.updateOrderStatus(data.id, status, mergedPaymentData);
         } catch (e) {}
         return {
           ...data,
-          ...paymentData
+          ...mergedPaymentData
         };
       }
       if (error) console.error('Supabase updateOrderStatus error:', error.message);
     }
-    return localStore.updateOrderStatus(id, status, paymentData);
+    return localStore.updateOrderStatus(id, status, mergedPaymentData);
   },
 
   // Get Analytics

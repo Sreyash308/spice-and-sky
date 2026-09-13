@@ -414,9 +414,10 @@ class CafeStore extends EventEmitter {
       total: calculatedTotal, // STRICT: NO TAX, NO GST, NO SERVICE CHARGE
       notes: notes ? String(notes).replace(/<[^>]*>?/gm, '').trim() : null,
       idempotency_key: idempotency_key || null,
-      payment_mode: payment_mode ? String(payment_mode).toUpperCase() : (status === 'COMPLETED' ? 'CASH' : null),
-      cash_amount: cash_amount != null ? Number(cash_amount) : (status === 'COMPLETED' ? calculatedTotal : 0),
-      online_amount: online_amount != null ? Number(online_amount) : 0,
+      payment_mode: payment_mode ? String(payment_mode).toUpperCase() : (status === 'COMPLETED' ? 'ONLINE' : null),
+      payment_status: status === 'COMPLETED' ? 'PAID' : (status === 'CANCELLED' ? 'CANCELLED' : 'PENDING'),
+      cash_amount: cash_amount != null ? Number(cash_amount) : 0,
+      online_amount: online_amount != null ? Number(online_amount) : (status === 'COMPLETED' && payment_mode !== 'CASH' ? calculatedTotal : 0),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -622,9 +623,10 @@ class CafeStore extends EventEmitter {
       total: Number(orderData.total),
       notes: orderData.notes || null,
       idempotency_key: orderData.idempotency_key || null,
-      payment_mode: orderData.payment_mode || (existingIndex >= 0 && this.orders[existingIndex].payment_mode) || (orderData.notes && orderData.notes.includes('Payment: ONLINE') ? 'ONLINE' : (orderData.notes && orderData.notes.includes('Payment: SPLIT') ? 'SPLIT' : 'CASH')),
-      cash_amount: orderData.cash_amount != null ? Number(orderData.cash_amount) : (existingIndex >= 0 && this.orders[existingIndex].cash_amount != null ? this.orders[existingIndex].cash_amount : (orderData.payment_mode === 'ONLINE' ? 0 : Number(orderData.total))),
-      online_amount: orderData.online_amount != null ? Number(orderData.online_amount) : (existingIndex >= 0 && this.orders[existingIndex].online_amount != null ? this.orders[existingIndex].online_amount : (orderData.payment_mode === 'ONLINE' ? Number(orderData.total) : 0)),
+      payment_mode: orderData.payment_mode || (existingIndex >= 0 && this.orders[existingIndex].payment_mode) || (orderData.notes && orderData.notes.includes('Payment: ONLINE') ? 'ONLINE' : (orderData.notes && orderData.notes.includes('Payment: SPLIT') ? 'SPLIT' : 'ONLINE')),
+      payment_status: orderData.payment_status || (existingIndex >= 0 && this.orders[existingIndex].payment_status) || (orderData.status === 'COMPLETED' ? 'PAID' : (orderData.status === 'CANCELLED' ? 'CANCELLED' : 'PENDING')),
+      cash_amount: orderData.cash_amount != null ? Number(orderData.cash_amount) : (existingIndex >= 0 && this.orders[existingIndex].cash_amount != null ? this.orders[existingIndex].cash_amount : (orderData.payment_mode === 'CASH' ? Number(orderData.total) : 0)),
+      online_amount: orderData.online_amount != null ? Number(orderData.online_amount) : (existingIndex >= 0 && this.orders[existingIndex].online_amount != null ? this.orders[existingIndex].online_amount : (orderData.payment_mode === 'CASH' ? 0 : Number(orderData.total))),
       created_at: normalizedCreatedAt,
       updated_at: orderData.updated_at || new Date().toISOString()
     };
@@ -828,6 +830,12 @@ class CafeStore extends EventEmitter {
     order.status = status;
     order.updated_at = new Date().toISOString();
 
+    if (status === 'CANCELLED') {
+      order.payment_status = 'CANCELLED';
+    } else if (status === 'COMPLETED') {
+      order.payment_status = 'PAID';
+    }
+
     if (paymentData && typeof paymentData === 'object') {
       if (paymentData.payment_mode) {
         order.payment_mode = String(paymentData.payment_mode).toUpperCase();
@@ -845,15 +853,15 @@ class CafeStore extends EventEmitter {
 
     if (status === 'COMPLETED') {
       if (!order.payment_mode) {
-        order.payment_mode = 'CASH';
+        order.payment_mode = 'ONLINE';
       }
-      if (order.cash_amount == null && order.online_amount == null) {
-        if (order.payment_mode === 'CASH') {
-          order.cash_amount = Number(order.total) || 0;
-          order.online_amount = 0;
-        } else if (order.payment_mode === 'ONLINE') {
+      if ((order.cash_amount == null && order.online_amount == null) || (order.cash_amount === 0 && order.online_amount === 0)) {
+        if (order.payment_mode === 'ONLINE') {
           order.cash_amount = 0;
           order.online_amount = Number(order.total) || 0;
+        } else if (order.payment_mode === 'CASH') {
+          order.cash_amount = Number(order.total) || 0;
+          order.online_amount = 0;
         }
       }
     }

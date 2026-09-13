@@ -474,6 +474,45 @@ runTest('Multiple Concurrent Orders on a Single Table', () => {
   store.updateOrderStatus(orderB.id, 'CANCELLED');
 });
 
+console.log('\n--- Test Suite 6: Payment Modes & Cancellation Status Lifecycle ---');
+
+runTest('Default Payment to Full UPI and Payment Status CANCELLED upon Cancellation', () => {
+  const items = store.getMenuItems();
+  const testItem = items[0];
+
+  // 1. Create a fresh order
+  const order = store.createOrderAtomic({
+    table_number: 4,
+    items: [{ menu_item_id: testItem.id, quantity: 2 }],
+    status: 'CONFIRMED'
+  });
+
+  assert.strictEqual(order.payment_status, 'PENDING', 'Fresh order must have payment_status PENDING');
+
+  // 2. Cancel order -> payment_status MUST become CANCELLED
+  const cancelledOrder = store.updateOrderStatus(order.id, 'CANCELLED');
+  assert.strictEqual(cancelledOrder.status, 'CANCELLED', 'Order status must be CANCELLED');
+  assert.strictEqual(cancelledOrder.payment_status, 'CANCELLED', 'Cancelled order payment_status must be CANCELLED, not PENDING');
+
+  // Verify fetch by ID also reflects CANCELLED payment_status
+  const fetched = store.getOrderById(order.id);
+  assert.strictEqual(fetched.payment_status, 'CANCELLED', 'Fetched cancelled order must have payment_status CANCELLED');
+
+  // 3. Test default completion mode is ONLINE (Full UPI)
+  const order2 = store.createOrderAtomic({
+    table_number: 4,
+    items: [{ menu_item_id: testItem.id, quantity: 1 }],
+    status: 'CONFIRMED'
+  });
+
+  const completedOrder = store.updateOrderStatus(order2.id, 'COMPLETED');
+  assert.strictEqual(completedOrder.status, 'COMPLETED', 'Order status must be COMPLETED');
+  assert.strictEqual(completedOrder.payment_mode, 'ONLINE', 'Default payment mode must be ONLINE (Full UPI)');
+  assert.strictEqual(completedOrder.payment_status, 'PAID', 'Completed order must have payment_status PAID');
+  assert.strictEqual(completedOrder.cash_amount, 0, 'Full UPI default must have cash_amount = 0');
+  assert.strictEqual(completedOrder.online_amount, order2.total, 'Full UPI default must have online_amount = total');
+});
+
 console.log('\n============================================================');
 console.log(`📊 TEST RESULTS: ${testsPassed} PASSED, ${testsFailed} FAILED`);
 console.log('============================================================\n');

@@ -434,7 +434,7 @@ router.post('/orders/:id/complete', requireAuth(['WAITER', 'ADMIN']), async (req
     }
 
     const orderTotal = Number(existingOrder.total || 0);
-    let payment_mode = req.body.payment_mode ? String(req.body.payment_mode).toUpperCase() : 'CASH';
+    let payment_mode = req.body.payment_mode ? String(req.body.payment_mode).toUpperCase() : 'ONLINE';
     let cash_amount = 0;
     let online_amount = 0;
 
@@ -480,7 +480,7 @@ router.post('/orders/:id/complete', requireAuth(['WAITER', 'ADMIN']), async (req
     } else {
       const validModes = ['CASH', 'ONLINE', 'SPLIT'];
       if (!validModes.includes(payment_mode)) {
-        payment_mode = 'CASH';
+        payment_mode = 'ONLINE';
       }
 
       if (payment_mode === 'CASH') {
@@ -532,7 +532,13 @@ router.patch('/orders/:id/status', requireAuth(['WAITER', 'ADMIN']), async (req,
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ success: false, error: 'Invalid status.' });
     }
-    const updated = await dbService.updateOrderStatus(req.params.id, status);
+    const paymentData = {};
+    if (status === 'CANCELLED') {
+      paymentData.payment_status = 'CANCELLED';
+    } else if (status === 'COMPLETED') {
+      paymentData.payment_status = 'PAID';
+    }
+    const updated = await dbService.updateOrderStatus(req.params.id, status, paymentData);
     res.json({ success: true, data: updated });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });

@@ -104,19 +104,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Helper: Render consistent payment mode badge
   function formatPaymentPill(o) {
+    if (o.status === 'CANCELLED' || o.payment_status === 'CANCELLED') {
+      return `<span class="pill" style="background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; font-size: 0.72rem; white-space: nowrap;">🚫 Cancelled</span>`;
+    }
     if (o.status !== 'COMPLETED') {
       return `<span style="color: var(--text-muted); font-size: 0.78rem;">Pending</span>`;
     }
-    const mode = (o.payment_mode || 'CASH').toUpperCase();
+    const mode = (o.payment_mode || 'ONLINE').toUpperCase();
     const cash = Number(o.cash_amount != null ? o.cash_amount : (mode === 'CASH' ? o.total : 0));
     const online = Number(o.online_amount != null ? o.online_amount : (mode === 'ONLINE' ? o.total : 0));
 
     if (mode === 'SPLIT') {
       return `<span class="pill" style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 0.72rem; white-space: nowrap;" title="Cash: ₹${cash}, Online: ₹${online}">⚖️ Split (₹${cash} C / ₹${online} O)</span>`;
-    } else if (mode === 'ONLINE') {
-      return `<span class="pill" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 0.72rem; white-space: nowrap;">📱 UPI (₹${online})</span>`;
-    } else {
+    } else if (mode === 'CASH') {
       return `<span class="pill" style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; font-size: 0.72rem; white-space: nowrap;">💵 Cash (₹${cash})</span>`;
+    } else {
+      return `<span class="pill" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 0.72rem; white-space: nowrap;">📱 UPI (₹${online})</span>`;
     }
   }
 
@@ -493,8 +496,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (adminModalStatus) {
       const isCompleted = order.status === 'COMPLETED';
-      adminModalStatus.textContent = isCompleted ? 'Status: COMPLETED' : 'Status: CURRENTLY SERVING';
-      adminModalStatus.style.color = isCompleted ? '#16a34a' : 'var(--spice-gold)';
+      const isCancelled = order.status === 'CANCELLED' || order.payment_status === 'CANCELLED';
+      if (isCancelled) {
+        adminModalStatus.textContent = 'Status: CANCELLED (Payment: Cancelled)';
+        adminModalStatus.style.color = '#dc2626';
+      } else if (isCompleted) {
+        adminModalStatus.textContent = 'Status: COMPLETED';
+        adminModalStatus.style.color = '#16a34a';
+      } else {
+        adminModalStatus.textContent = 'Status: CURRENTLY SERVING';
+        adminModalStatus.style.color = 'var(--spice-gold)';
+      }
     }
 
     if (adminCompleteBillBtn) {

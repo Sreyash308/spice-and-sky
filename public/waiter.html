@@ -185,7 +185,7 @@
           Is Cash payment applicable?
         </label>
         <div class="payment-mode-tabs" style="display: grid; grid-template-columns: 1fr 1.15fr 1fr; gap: 8px;">
-          <button type="button" class="payment-mode-btn active" data-mode="CASH" id="payModeCashBtn" title="Customer pays full amount in Cash">
+          <button type="button" class="payment-mode-btn" data-mode="CASH" id="payModeCashBtn" title="Customer pays full amount in Cash">
             <span style="font-size: 1.3rem;">💵</span>
             <span style="font-weight: 800; font-size: 0.85rem; margin-top: 2px;">Full Cash</span>
             <span style="font-size: 0.7rem; color: var(--text-muted); margin-top: 1px;">100% Cash</span>
@@ -195,7 +195,7 @@
             <span style="font-weight: 800; font-size: 0.85rem; margin-top: 2px;">Partial Cash</span>
             <span style="font-size: 0.7rem; color: var(--text-muted); margin-top: 1px;">Cash + Online</span>
           </button>
-          <button type="button" class="payment-mode-btn" data-mode="ONLINE" id="payModeOnlineBtn" title="Customer pays full amount via UPI / Online">
+          <button type="button" class="payment-mode-btn active" data-mode="ONLINE" id="payModeOnlineBtn" title="Customer pays full amount via UPI / Online">
             <span style="font-size: 1.3rem;">📱</span>
             <span style="font-weight: 800; font-size: 0.85rem; margin-top: 2px;">Full Online</span>
             <span style="font-size: 0.7rem; color: var(--text-muted); margin-top: 1px;">100% UPI</span>
@@ -255,7 +255,7 @@
 
       <!-- Mode Summary Preview -->
       <div id="paymentSummaryNotice" style="font-size: 0.84rem; color: var(--text-secondary); line-height: 1.4; margin-bottom: 16px; padding: 10px 12px; background: var(--bg-secondary); border-radius: var(--radius-sm);">
-        Entire bill amount will be paid in <strong>Cash</strong>.
+        Entire bill amount will be paid via <strong>Full UPI / Online</strong>.
       </div>
 
       <!-- Actions -->
