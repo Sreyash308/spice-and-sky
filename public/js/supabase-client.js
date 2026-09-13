@@ -149,11 +149,6 @@ window.SpiceClient = (function () {
     const storedUser = getStoredUser();
     const storedToken = getStoredToken();
 
-    if (storedUser && storedToken) {
-      currentUser = storedUser;
-      currentSessionId = storedToken;
-    }
-
     try {
       const res = await fetch('/api/auth/session');
       const json = await res.json();
@@ -168,28 +163,30 @@ window.SpiceClient = (function () {
           }
         }
         return { authenticated: true, user: currentUser, sessionId: currentSessionId, token: currentSessionId };
+      } else {
+        // Explicitly unauthenticated by server (e.g. token revoked/killed or signed out)
+        currentUser = null;
+        currentSessionId = null;
+        if (typeof localStorage !== 'undefined') {
+          localStorage.removeItem('spice_auth_user');
+          localStorage.removeItem('spice_token');
+          localStorage.removeItem('spice_session_id');
+        }
+        return { authenticated: false, user: null, sessionId: null, token: null };
       }
     } catch (e) {
       console.warn('Session check notice:', e);
-      // On network failure or offline mode, retain valid stored session!
-      if (currentUser && currentSessionId) {
+      // On network failure or offline mode, retain valid stored session
+      if (storedUser && storedToken) {
+        currentUser = storedUser;
+        currentSessionId = storedToken;
         return { authenticated: true, user: currentUser, sessionId: currentSessionId, token: currentSessionId };
       }
     }
 
-    // If server explicitly returned authenticated: false AND user has no stored token
-    if (!storedUser || !storedToken) {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.removeItem('spice_auth_user');
-        localStorage.removeItem('spice_token');
-        localStorage.removeItem('spice_session_id');
-      }
-      currentUser = null;
-      currentSessionId = null;
-      return { authenticated: false, user: null, sessionId: null, token: null };
-    }
-
-    return { authenticated: true, user: currentUser, sessionId: currentSessionId, token: currentSessionId };
+    currentUser = null;
+    currentSessionId = null;
+    return { authenticated: false, user: null, sessionId: null, token: null };
   }
 
   async function signIn(email, password) {
@@ -234,20 +231,41 @@ window.SpiceClient = (function () {
   }
 
   async function signOut() {
+    const tokenToRevoke = getStoredToken();
     currentUser = null;
     currentSessionId = null;
+
     if (typeof localStorage !== 'undefined') {
       localStorage.removeItem('spice_auth_user');
       localStorage.removeItem('spice_token');
       localStorage.removeItem('spice_session_id');
+      try { localStorage.clear(); } catch (e) {}
+    }
+    if (typeof sessionStorage !== 'undefined') {
+      try { sessionStorage.clear(); } catch (e) {}
     }
 
+    // Force expire client-accessible cookies
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      document.cookie = 'spice_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax';
+      document.cookie = 'spice_session_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax';
+    } catch (e) {}
+
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(tokenToRevoke ? { 'Authorization': 'Bearer ' + tokenToRevoke, 'x-session-id': tokenToRevoke } : {})
+        },
+        body: JSON.stringify({ token: tokenToRevoke })
+      });
     } catch (e) {}
 
     if (supabaseClient) {
-      supabaseClient.auth.signOut().catch(() => {});
+      try {
+        await supabaseClient.auth.signOut();
+      } catch (e) {}
     }
   }
 

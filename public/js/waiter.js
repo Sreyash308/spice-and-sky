@@ -13,9 +13,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const waiterSignOutBtn = document.getElementById('waiterSignOutBtn');
 
   if (waiterSignOutBtn) {
-    waiterSignOutBtn.addEventListener('click', async () => {
+    waiterSignOutBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
       await SpiceClient.signOut();
-      window.location.href = '/waiter/login';
+      window.location.replace('/waiter/login');
     });
   }
 

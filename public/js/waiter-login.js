@@ -25,17 +25,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     switchAsWaiterBtn.addEventListener('click', async () => {
       await SpiceClient.signOut();
       if (adminSessionBox) adminSessionBox.style.display = 'none';
-      document.getElementById('staffEmail').value = 'waiter@spiceandsky.com';
-      document.getElementById('staffPassword').value = 'SpiceSkyWaiter2026!';
-      loginBtn.focus();
-    });
-  }
-
-  const fillBtn = document.getElementById('fillWaiterBtn');
-  if (fillBtn) {
-    fillBtn.addEventListener('click', () => {
-      document.getElementById('staffEmail').value = 'waiter@spiceandsky.com';
-      document.getElementById('staffPassword').value = 'SpiceSkyWaiter2026!';
+      document.getElementById('staffEmail').value = '';
+      document.getElementById('staffPassword').value = '';
+      document.getElementById('staffEmail').focus();
     });
   }
 

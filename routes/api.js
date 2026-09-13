@@ -32,6 +32,7 @@ localStore.on('order_updated', (data) => broadcastEvent('ORDER_UPDATED', data));
 // Supports multiple concurrent logins, persistent 365-day tokens,
 // and survives all server restarts without re-authenticating.
 // ============================================================
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET || 'spice_sky_rooftop_cafe_secret_key_2026_jwt_token';
 
@@ -57,7 +58,8 @@ function createSessionToken(user) {
       id: user.id,
       email: user.email,
       role: user.role,
-      display_name: user.display_name
+      display_name: user.display_name,
+      jti: crypto.randomUUID()
     },
     JWT_SECRET,
     { expiresIn: '365d' } // Valid for 1 whole year
@@ -65,18 +67,28 @@ function createSessionToken(user) {
 }
 
 function verifyUserToken(req) {
-  const token = req.cookies?.spice_token ||
-                req.cookies?.spice_session_id ||
-                req.headers['x-session-id'] ||
-                req.headers['x-auth-token'] ||
-                (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null);
+  const rawToken = req.cookies?.spice_token ||
+                   req.cookies?.spice_session_id ||
+                   req.headers['x-session-id'] ||
+                   req.headers['x-auth-token'] ||
+                   (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null);
 
-  if (!token) return null;
+  if (!rawToken) return null;
+
+  const token = String(rawToken).trim();
+
+  // If token has been revoked / killed on sign out, reject immediately!
+  if (localStore.isTokenRevoked(token)) {
+    return null;
+  }
 
   // 1. Verify JSON Web Token (survives restarts, works across infinite simultaneous devices)
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     if (decoded && decoded.role) {
+      if (decoded.jti && localStore.isTokenRevoked(decoded.jti)) {
+        return null;
+      }
       return { user: decoded, token };
     }
   } catch (err) {
@@ -189,11 +201,40 @@ router.get('/auth/session', (req, res) => {
   });
 });
 
-// POST /api/auth/logout - Clear session cookies
+// POST /api/auth/logout - Immediately kill session, revoke JWT, and clear cookies
 router.post('/auth/logout', (req, res) => {
-  res.clearCookie('spice_token', { path: '/' });
-  res.clearCookie('spice_session_id', { path: '/' });
-  res.json({ success: true, message: 'Signed out successfully.' });
+  const auth = verifyUserToken(req);
+  const tokenFromHeaderOrCookie = req.cookies?.spice_token ||
+                                  req.cookies?.spice_session_id ||
+                                  req.headers['x-session-id'] ||
+                                  req.headers['x-auth-token'] ||
+                                  (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null);
+  const tokenFromBody = req.body?.token || req.body?.sessionId || req.body?.session_id;
+
+  const tokensToRevoke = [
+    auth?.token,
+    auth?.user?.jti,
+    tokenFromHeaderOrCookie,
+    tokenFromBody
+  ].filter(Boolean);
+
+  for (const t of tokensToRevoke) {
+    localStore.revokeToken(t);
+  }
+
+  const clearCookieOptions = {
+    path: '/',
+    sameSite: 'lax',
+    httpOnly: false
+  };
+
+  res.clearCookie('spice_token', clearCookieOptions);
+  res.clearCookie('spice_session_id', clearCookieOptions);
+
+  res.json({
+    success: true,
+    message: 'Session terminated, JWT killed, and credentials revoked.'
+  });
 });
 
 // GET /api/config - Safe public client configuration

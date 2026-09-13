@@ -11,10 +11,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!currentUser) return;
 
   // Sign out button
-  document.getElementById('adminLogoutBtn').addEventListener('click', () => {
-    SpiceClient.signOut();
-    window.location.href = '/admin/login';
-  });
+  const adminLogoutBtn = document.getElementById('adminLogoutBtn');
+  if (adminLogoutBtn) {
+    adminLogoutBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await SpiceClient.signOut();
+      window.location.replace('/admin/login');
+    });
+  }
 
   // State
   let categories = [];

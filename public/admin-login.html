@@ -53,18 +53,6 @@
       font-size: 0.85rem;
       margin-bottom: 16px;
       text-align: left;
-    }
-    .admin-demo-hint {
-      margin-top: 22px;
-      padding: 14px;
-      background: var(--bg-secondary);
-      border-radius: var(--radius-sm);
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-      text-align: left;
-      line-height: 1.55;
-      border: 1px solid var(--border-subtle);
-    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -80,12 +68,12 @@
     <form id="adminLoginForm">
       <div class="form-group" style="text-align: left;">
         <label class="form-label" for="adminEmail">Owner / Admin Username</label>
-        <input type="text" id="adminEmail" class="form-input" placeholder="admin@143" required autocomplete="username">
+        <input type="text" id="adminEmail" class="form-input" placeholder="Enter username" required autocomplete="username">
       </div>
 
       <div class="form-group" style="text-align: left;">
         <label class="form-label" for="adminPassword">Password</label>
-        <input type="password" id="adminPassword" class="form-input" placeholder="••••••••" required autocomplete="current-password">
+        <input type="password" id="adminPassword" class="form-input" placeholder="Enter password" required autocomplete="current-password">
       </div>
 
       <button type="submit" class="btn btn-primary" id="adminLoginBtn" style="width: 100%; margin-top: 10px;">

@@ -41,6 +41,7 @@ class CafeStore extends EventEmitter {
       }
     ];
     this.orderSequence = 0;
+    this.revokedTokens = new Set();
     this.initDefaultData();
   }
 
@@ -851,6 +852,23 @@ class CafeStore extends EventEmitter {
           items: this.orderItems.filter(oi => oi.order_id === o.id)
         }))
     };
+  }
+
+  revokeToken(token) {
+    if (!token) return;
+    if (!this.revokedTokens) this.revokedTokens = new Set();
+    this.revokedTokens.add(String(token).trim());
+    if (this.revokedTokens.size > 20000) {
+      const it = this.revokedTokens.values();
+      for (let i = 0; i < 5000; i++) {
+        this.revokedTokens.delete(it.next().value);
+      }
+    }
+  }
+
+  isTokenRevoked(token) {
+    if (!token || !this.revokedTokens) return false;
+    return this.revokedTokens.has(String(token).trim());
   }
 }
 

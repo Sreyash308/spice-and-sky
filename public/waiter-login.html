@@ -89,27 +89,18 @@
     <form id="waiterLoginForm">
       <div class="form-group" style="text-align: left;">
         <label class="form-label" for="staffEmail">Staff Username / Email</label>
-        <input type="text" id="staffEmail" class="form-input" placeholder="waiter or waiter@spiceandsky.com" required autocomplete="username">
+        <input type="text" id="staffEmail" class="form-input" placeholder="Enter username" required autocomplete="username">
       </div>
 
       <div class="form-group" style="text-align: left;">
         <label class="form-label" for="staffPassword">Password</label>
-        <input type="password" id="staffPassword" class="form-input" placeholder="••••••••" required autocomplete="current-password">
+        <input type="password" id="staffPassword" class="form-input" placeholder="Enter password" required autocomplete="current-password">
       </div>
 
       <button type="submit" class="btn btn-primary" id="loginBtn" style="width: 100%; margin-top: 8px;">
         Open Waiter Terminal &rarr;
       </button>
     </form>
-
-    <div class="demo-hint">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-        <strong style="color: var(--text-primary);">Staff / Waiter Credentials:</strong>
-        <button type="button" id="fillWaiterBtn" style="background: none; border: none; color: var(--spice-orange); font-weight: 700; cursor: pointer; text-decoration: underline; font-size: 0.78rem;">Auto-Fill</button>
-      </div>
-      <div>Email: <code style="background: rgba(194, 94, 26, 0.1); padding: 2px 6px; border-radius: 4px; font-weight: 600;">waiter@spiceandsky.com</code></div>
-      <div style="margin-top: 4px;">Password: <code style="background: rgba(194, 94, 26, 0.1); padding: 2px 6px; border-radius: 4px; font-weight: 600;">SpiceSkyWaiter2026!</code></div>
-    </div>
   </div>
 
   <script src="/js/supabase-client.js"></script>
