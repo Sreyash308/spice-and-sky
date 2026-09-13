@@ -1460,17 +1460,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         executeResetModalBtn.disabled = true;
         executeResetModalBtn.textContent = 'Processing...';
 
+        const token = (typeof SpiceClient !== 'undefined' && SpiceClient.getStoredToken)
+          ? SpiceClient.getStoredToken()
+          : localStorage.getItem('spice_token');
+
         const res = await fetch(endpoint, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': 'Bearer ' + token } : {})
+          }
         });
         const data = await res.json();
 
         if (data.success) {
           closeResetModal();
-          await loadDashboardData();
-          await loadOrdersData();
-          alert(data.message || (isToday ? "Today's order history erased successfully." : 'All order history reset to #1.'));
+          alert(data.message || (isToday ? "Today's order history erased successfully." : 'All order history reset to #1. Page will refresh.'));
+          // Strictly reload the page so all tables, caches, and state refresh from Supabase
+          window.location.reload();
         } else {
           alert('Action failed: ' + (data.error || 'Unknown error'));
           executeResetModalBtn.disabled = false;

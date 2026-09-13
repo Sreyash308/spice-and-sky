@@ -738,24 +738,101 @@ module.exports = {
     return localStore.getOrders(filters);
   },
 
-  // Reset All Order History
+  // Reset All Order History - STRICT PURGE FROM SUPABASE AND LOCAL STORE
   async resetAllOrderHistory() {
     localStore.resetOrderHistory();
     if (isConfigured) {
       try {
-        // Delete order items first due to foreign key constraints
+        console.log('🔄 STRICT PURGE: Deleting all order items and orders from remote Supabase...');
+
+        // 1. Fetch all existing order IDs to guarantee targeted cascading deletion
+        const { data: existingOrders, error: fetchErr } = await supabase
+          .from('orders')
+          .select('id');
+        if (fetchErr) {
+          console.warn('Supabase select orders before purge notice:', fetchErr.message);
+        }
+
+        const orderIds = (existingOrders || []).map(o => o.id).filter(Boolean);
+
+        // 2. Delete order_items by foreign key IDs (chunked to prevent query size limit)
+        if (orderIds.length > 0) {
+          for (let i = 0; i < orderIds.length; i += 100) {
+            const chunk = orderIds.slice(i, i + 100);
+            const { error: chunkErr } = await supabase
+              .from('order_items')
+              .delete()
+              .in('order_id', chunk);
+            if (chunkErr) console.warn('Supabase delete order_items chunk notice:', chunkErr.message);
+          }
+        }
+
+        // Global bulk delete on order_items
         const { error: itemsErr } = await supabase
           .from('order_items')
           .delete()
           .neq('id', '00000000-0000-0000-0000-000000000000');
-        if (itemsErr) console.warn('Supabase reset order_items warning:', itemsErr.message);
+        if (itemsErr) {
+          console.warn('Supabase reset order_items global delete notice:', itemsErr.message);
+        }
 
-        // Delete orders
+        // 3. Delete orders by IDs (chunked)
+        if (orderIds.length > 0) {
+          for (let i = 0; i < orderIds.length; i += 100) {
+            const chunk = orderIds.slice(i, i + 100);
+            const { error: chunkErr } = await supabase
+              .from('orders')
+              .delete()
+              .in('id', chunk);
+            if (chunkErr) console.warn('Supabase delete orders chunk notice:', chunkErr.message);
+          }
+        }
+
+        // Global bulk delete on orders
         const { error: ordersErr } = await supabase
           .from('orders')
           .delete()
           .neq('id', '00000000-0000-0000-0000-000000000000');
-        if (ordersErr) console.warn('Supabase reset orders warning:', ordersErr.message);
+        if (ordersErr) {
+          console.warn('Supabase reset orders global delete notice:', ordersErr.message);
+        }
+
+        // 4. Strict verification check: Verify 0 orders and 0 items remain
+        let attempts = 0;
+        let remainingOrdersCount = 0;
+        let remainingItemsCount = 0;
+
+        do {
+          attempts++;
+          const { count: oCount } = await supabase
+            .from('orders')
+            .select('*', { count: 'exact', head: true });
+          const { count: iCount } = await supabase
+            .from('order_items')
+            .select('*', { count: 'exact', head: true });
+
+          remainingOrdersCount = oCount || 0;
+          remainingItemsCount = iCount || 0;
+
+          if (remainingOrdersCount === 0 && remainingItemsCount === 0) {
+            break;
+          }
+
+          // If stragglers remain, clean them up by explicit ID fetch
+          console.warn(`Purge check attempt ${attempts}: ${remainingOrdersCount} orders, ${remainingItemsCount} items remain. Cleaning...`);
+          const { data: stragglers } = await supabase.from('orders').select('id').limit(100);
+          if (stragglers && stragglers.length > 0) {
+            const sIds = stragglers.map(s => s.id);
+            await supabase.from('order_items').delete().in('order_id', sIds);
+            await supabase.from('orders').delete().in('id', sIds);
+          }
+        } while ((remainingOrdersCount > 0 || remainingItemsCount > 0) && attempts < 4);
+
+        if (remainingOrdersCount > 0 || remainingItemsCount > 0) {
+          throw new Error(`Failed to strictly delete all order data from Supabase. Remaining: ${remainingOrdersCount} orders, ${remainingItemsCount} items.`);
+        }
+
+        console.log('✅ STRICT PURGE COMPLETE: Supabase orders and order_items are completely emptied (0 records).');
       } catch (err) {
         console.error('Supabase resetAllOrderHistory error:', err.message);
         throw err;
