@@ -31,7 +31,7 @@ class CafeStore extends EventEmitter {
         id: '00000000-0000-0000-0000-000000000001',
         role: 'ADMIN',
         display_name: 'Owner Admin',
-        email: 'admin@spiceandsky.com'
+        email: 'admin@143'
       },
       {
         id: '00000000-0000-0000-0000-000000000002',

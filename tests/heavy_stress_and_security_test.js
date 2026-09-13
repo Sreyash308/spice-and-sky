@@ -174,14 +174,14 @@ async function runHeavyTests() {
 
   // Test 1.6: Weak Credential Fallback (Trivial Password Bypass)
   const weakLogin = await request('POST', '/api/auth/login', {
-    email: 'admin@spiceandsky.com',
+    email: 'admin@143',
     password: '1234'
   });
   if (weakLogin.status === 200 && weakLogin.data.success && weakLogin.data.user?.role === 'ADMIN') {
-    vuln('CRITICAL', 'Hardcoded Staff Fallback Accepts Any 4-Character Password for Admin Account',
-      'The backend grants full ADMIN role to admin@spiceandsky.com with password "1234".');
+    vuln('CRITICAL', 'Hardcoded Staff Fallback Accepts Any Password for Admin Account',
+      'The backend grants full ADMIN role to admin@143 with wrong password.');
   } else {
-    pass('Weak password for admin account rejected');
+    pass('Weak/wrong password for admin@143 rejected');
   }
 
   // Test 1.7: Arbitrary Email substring bypass
@@ -208,8 +208,8 @@ async function runHeavyTests() {
   const waiterHeaders = { 'x-session-id': waiterLogin.data.session_id };
 
   const adminLogin = await request('POST', '/api/auth/login', {
-    email: 'admin@spiceandsky.com',
-    password: 'SpiceSkyAdmin2026!'
+    email: 'admin@143',
+    password: 'admin@143'
   });
   assert(adminLogin.data?.success, 'Admin login should succeed with valid credentials');
   const adminHeaders = { 'x-session-id': adminLogin.data.session_id };

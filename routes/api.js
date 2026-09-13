@@ -39,7 +39,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'spice_sky_rooftop_cafe_secret_key_
 const DEFAULT_USERS = {
   ADMIN: {
     id: '497c557a-0182-4d22-a3e7-1a929415c947',
-    email: 'admin@spiceandsky.com',
+    email: 'admin@143',
     role: 'ADMIN',
     display_name: 'Owner Admin'
   },
@@ -80,16 +80,7 @@ function verifyUserToken(req) {
       return { user: decoded, token };
     }
   } catch (err) {
-    // Fall through to check friendly session keys
-  }
-
-  // 2. Friendly fallback session keys for fast developer & staff access
-  const trimmed = String(token).trim().toLowerCase();
-  if (trimmed === 'admin' || trimmed === 'owner' || trimmed === 'admin@143' || trimmed === 'spice_admin_token' || trimmed.startsWith('sess_admin')) {
-    return { user: DEFAULT_USERS.ADMIN, token };
-  }
-  if (trimmed === 'waiter' || trimmed === 'staff' || trimmed === 'spice_waiter_token' || trimmed.startsWith('sess_waiter')) {
-    return { user: DEFAULT_USERS.WAITER, token };
+    // Invalid or expired token
   }
 
   return null;
@@ -126,91 +117,32 @@ router.post('/auth/login', async (req, res) => {
     const rawIdentifier = (req.body.email || req.body.username || '').trim().toLowerCase();
     const rawPassword = req.body.password != null ? String(req.body.password).trim() : '';
 
-    if (!rawIdentifier) {
-      return res.status(400).json({ success: false, error: 'Email or username is required.' });
-    }
-
-    let normalizedEmail = rawIdentifier;
-    if (rawIdentifier === 'admin@143') {
-      normalizedEmail = 'admin@spiceandsky.com';
-    } else if (!normalizedEmail.includes('@')) {
-      if (normalizedEmail.includes('admin') || normalizedEmail.includes('owner')) {
-        normalizedEmail = 'admin@spiceandsky.com';
-      } else if (normalizedEmail.includes('waiter') || normalizedEmail.includes('staff')) {
-        normalizedEmail = 'waiter@spiceandsky.com';
-      }
+    if (!rawIdentifier || !rawPassword) {
+      return res.status(400).json({ success: false, error: 'Username and password are required.' });
     }
 
     let authUser = null;
 
-    // 1. Flexible password validation (Low friction for owner & staff)
-    const isAdminTarget = normalizedEmail === 'admin@spiceandsky.com';
-    const isWaiterTarget = normalizedEmail === 'waiter@spiceandsky.com';
-
-    const validAdminPasswords = [
-      'admin@143',
-      'spiceskyadmin2026!',
-      'admin',
-      'admin123',
-      'admin@123',
-      'adminpassword123!',
-      'spicesky!',
-      '123456',
-      'password'
-    ];
-
-    const validWaiterPasswords = [
-      'spiceskywaiter2026!',
-      'waiter',
-      'waiter123',
-      'waiter@123',
-      'spicesky!',
-      '123456',
-      'password'
-    ];
-
-    if (isAdminTarget && (validAdminPasswords.includes(rawPassword.toLowerCase()) || rawPassword === '')) {
-      authUser = DEFAULT_USERS.ADMIN;
-    } else if (isWaiterTarget && (validWaiterPasswords.includes(rawPassword.toLowerCase()) || rawPassword === '')) {
-      authUser = DEFAULT_USERS.WAITER;
-    }
-
-    // 2. Supabase Auth fallback if custom password is used
-    if (!authUser) {
-      const supabase = dbService.getSupabaseClient();
-      if (supabase) {
-        try {
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email: normalizedEmail,
-            password: rawPassword
-          });
-          if (!error && data.user) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', data.user.id)
-              .maybeSingle();
-
-            const role = profile?.role || data.user.user_metadata?.role || (isAdminTarget ? 'ADMIN' : 'WAITER');
-            const displayName = profile?.display_name || data.user.user_metadata?.display_name || (role === 'ADMIN' ? 'Owner Admin' : 'Rooftop Waiter');
-
-            authUser = {
-              id: data.user.id,
-              email: data.user.email,
-              role,
-              display_name: displayName
-            };
-          }
-        } catch (err) {
-          console.warn('Supabase auth notice:', err.message);
-        }
+    // STRICT ADMIN LOGIN: ONLY "admin@143" with password "admin@143"
+    if (rawIdentifier === 'admin@143') {
+      if (rawPassword === 'admin@143') {
+        authUser = DEFAULT_USERS.ADMIN;
+      } else {
+        return res.status(401).json({ success: false, error: 'Invalid username or password.' });
+      }
+    } else if (rawIdentifier === 'waiter' || rawIdentifier === 'staff' || rawIdentifier === 'waiter@spiceandsky.com') {
+      // Waiter credentials
+      const validWaiterPasswords = ['spiceskywaiter2026!', 'waiter', 'waiter123', 'waiter@123'];
+      if (validWaiterPasswords.includes(rawPassword.toLowerCase()) || rawPassword === 'SpiceSkyWaiter2026!') {
+        authUser = DEFAULT_USERS.WAITER;
       }
     }
 
+    // Anything else trying to login is strictly rejected
     if (!authUser) {
       return res.status(401).json({
         success: false,
-        error: 'Invalid username or password. You can use admin / SpiceSkyAdmin2026! or waiter / SpiceSkyWaiter2026!.'
+        error: 'Invalid username or password.'
       });
     }
 
@@ -220,7 +152,7 @@ router.post('/auth/login', async (req, res) => {
     // Set 1-Year persistent cookies
     const cookieOptions = {
       maxAge: 365 * 24 * 60 * 60 * 1000, // 365 days
-      httpOnly: false, // Accessible to client scripts for headers
+      httpOnly: false,
       sameSite: 'lax',
       path: '/'
     };
