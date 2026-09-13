@@ -173,6 +173,72 @@ async function testAll() {
   assert(t4Sales && t4Sales.revenue >= 598, 'Table 4 sales must be recorded');
   console.log(`  ✅ Analytics verified: Total Today Revenue: ₹${a.today.revenue}, Total Orders: ${a.today.count}.`);
 
+  // 7. Testing Multiple Concurrent Orders on Single Table via API
+  console.log('\n7. Testing Multiple Concurrent Orders on Single Table (Table 6)...');
+  const initialActiveRes = await fetch(`${BASE_URL}/api/orders/active`);
+  const initialActiveJson = await initialActiveRes.json();
+  const t6InitialCount = initialActiveJson.data.filter(o => o.table_number === 6).length;
+
+  const order6ARes = await fetch(`${BASE_URL}/api/orders`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      table_number: 6,
+      waiter_name: 'Staff MultiOrder',
+      items: [{ menu_item_id: cap.id, quantity: 1 }]
+    })
+  });
+  const order6A = (await order6ARes.json()).data;
+
+  const order6BRes = await fetch(`${BASE_URL}/api/orders`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      table_number: 6,
+      waiter_name: 'Staff MultiOrder',
+      items: [{ menu_item_id: fries.id, quantity: 2 }]
+    })
+  });
+  const order6B = (await order6BRes.json()).data;
+
+  assert.notStrictEqual(order6A.id, order6B.id, 'Both orders on Table 6 must have unique IDs');
+
+  // Verify /api/orders/active contains both orders for Table 6
+  const activeCheckRes = await fetch(`${BASE_URL}/api/orders/active`);
+  const activeCheckJson = await activeCheckRes.json();
+  const t6Active = activeCheckJson.data.filter(o => o.table_number === 6);
+  assert.strictEqual(t6Active.length, t6InitialCount + 2, 'Table 6 must have exactly initialCount + 2 active orders');
+  console.log(`  ✅ Table 6 successfully has ${t6Active.length} active orders open simultaneously (initial + 2).`);
+
+  // Complete Order 6A
+  const comp6ARes = await fetch(`${BASE_URL}/api/orders/${order6A.id}/complete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  });
+  assert((await comp6ARes.json()).success, 'Order 6A completion must succeed');
+
+  // Verify Table 6 still has Order 6B active
+  const activeAfter6ARes = await fetch(`${BASE_URL}/api/orders/active`);
+  const activeAfter6A = await activeAfter6ARes.json();
+  const t6Remaining = activeAfter6A.data.filter(o => o.table_number === 6);
+  assert.strictEqual(t6Remaining.length, t6InitialCount + 1, 'Table 6 must have initialCount + 1 active orders remaining');
+  assert(t6Remaining.some(o => o.id === order6B.id), 'Order 6B must be one of the remaining active orders');
+  console.log('  ✅ Order 6A completed; Order 6B remains active and serving.');
+
+  // Complete Order 6B
+  const comp6BRes = await fetch(`${BASE_URL}/api/orders/${order6B.id}/complete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  });
+  assert((await comp6BRes.json()).success, 'Order 6B completion must succeed');
+
+  // Verify Table 6 returns to initial active count
+  const activeAfter6BRes = await fetch(`${BASE_URL}/api/orders/active`);
+  const activeAfter6B = await activeAfter6BRes.json();
+  const t6Final = activeAfter6B.data.filter(o => o.table_number === 6);
+  assert.strictEqual(t6Final.length, t6InitialCount, 'Table 6 must return to initialCount active orders after both complete');
+  console.log('  ✅ Both test orders on Table 6 completed cleanly.');
+
   console.log('\n============================================================');
   console.log('🎉 ALL END-TO-END INTEGRATION TESTS PASSED 100%!');
   console.log('============================================================\n');

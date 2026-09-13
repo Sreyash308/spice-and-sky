@@ -790,8 +790,10 @@ class CafeStore extends EventEmitter {
       .sort((a, b) => b.quantity - a.quantity)
       .slice(0, 10);
 
+    const uniqueServingTables = new Set(activeOrders.map(o => o.table_number)).size;
     const activeServing = {
       count: activeOrders.length,
+      tablesCount: uniqueServingTables,
       runningTotal: activeOrders.reduce((sum, o) => sum + Number(o.total || 0), 0),
       tables: activeOrders.map(o => ({
         table_number: o.table_number,

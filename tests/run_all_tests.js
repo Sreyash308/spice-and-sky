@@ -417,6 +417,63 @@ runTest('Cancelled Orders are Excluded from Revenue', () => {
   assert.strictEqual(revAfter, revBefore - order.total, `Cancelled order was not deducted from revenue! Before: ${revBefore}, After: ${revAfter}`);
 });
 
+runTest('Multiple Concurrent Orders on a Single Table', () => {
+  const items = store.getMenuItems();
+  const item1 = items[0];
+  const item2 = items[1];
+
+  // 1. Create two concurrent orders on Table 5
+  const orderA = store.createOrderAtomic({
+    table_number: 5,
+    items: [{ menu_item_id: item1.id, quantity: 2 }],
+    status: 'CONFIRMED'
+  });
+
+  const orderB = store.createOrderAtomic({
+    table_number: 5,
+    items: [{ menu_item_id: item2.id, quantity: 3 }],
+    status: 'CONFIRMED'
+  });
+
+  assert.notStrictEqual(orderA.id, orderB.id, 'Orders must have distinct IDs');
+  assert.strictEqual(orderA.table_number, 5, 'Order A must be on Table 5');
+  assert.strictEqual(orderB.table_number, 5, 'Order B must be on Table 5');
+
+  // 2. Verify active serving returns both orders for Table 5
+  const activeOrders = store.getActiveServingOrders();
+  const t5Active = activeOrders.filter(o => o.table_number === 5);
+  assert.strictEqual(t5Active.length, 2, 'Table 5 must have exactly 2 active serving orders');
+
+  // 3. Edit Order A - verify Order B remains untouched
+  const updatedA = store.updateOrderItems(orderA.id, {
+    items: [{ menu_item_id: item1.id, quantity: 4 }],
+    status: 'CONFIRMED'
+  });
+  assert.strictEqual(updatedA.total, item1.price * 4, 'Order A total must update');
+
+  const orderBFetched = store.getOrderById(orderB.id);
+  assert.strictEqual(orderBFetched.total, item2.price * 3, 'Order B total must remain untouched');
+
+  // 4. Complete Order A (customer full on order A)
+  store.updateOrderStatus(orderA.id, 'COMPLETED');
+
+  const activeAfterA = store.getActiveServingOrders();
+  const t5AfterA = activeAfterA.filter(o => o.table_number === 5);
+  assert.strictEqual(t5AfterA.length, 1, 'Table 5 must now have 1 active serving order');
+  assert.strictEqual(t5AfterA[0].id, orderB.id, 'Order B must still be active on Table 5');
+
+  // 5. Complete Order B
+  store.updateOrderStatus(orderB.id, 'COMPLETED');
+
+  const activeAfterB = store.getActiveServingOrders();
+  const t5AfterB = activeAfterB.filter(o => o.table_number === 5);
+  assert.strictEqual(t5AfterB.length, 0, 'Table 5 must have 0 active orders after both complete');
+
+  // Clean up
+  store.updateOrderStatus(orderA.id, 'CANCELLED');
+  store.updateOrderStatus(orderB.id, 'CANCELLED');
+});
+
 console.log('\n============================================================');
 console.log(`📊 TEST RESULTS: ${testsPassed} PASSED, ${testsFailed} FAILED`);
 console.log('============================================================\n');

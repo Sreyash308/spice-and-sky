@@ -104,8 +104,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const activeServing = a.activeServing || { count: 0, runningTotal: 0, tables: [] };
         const activeServingRevEl = document.getElementById('kpiActiveServingRev');
         const activeServingCountEl = document.getElementById('kpiActiveServingCount');
+        const tablesCount = activeServing.tablesCount || (new Set((activeServing.tables || []).map(t => t.table_number)).size);
+        const orderCount = activeServing.count || 0;
         if (activeServingRevEl) activeServingRevEl.textContent = SpiceClient.formatCurrency(activeServing.runningTotal || 0);
-        if (activeServingCountEl) activeServingCountEl.textContent = `${activeServing.count || 0} tables active`;
+        if (activeServingCountEl) activeServingCountEl.textContent = `${orderCount} active order${orderCount === 1 ? '' : 's'} (${tablesCount} table${tablesCount === 1 ? '' : 's'})`;
 
         document.getElementById('kpiTodayRev').textContent = SpiceClient.formatCurrency(a.today?.revenue || 0);
         document.getElementById('kpiTodayOrders').textContent = `${a.today?.count || 0} orders today`;
@@ -123,7 +125,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Currently Serving Tables Monitor
         const servingContainer = document.getElementById('servingTablesContainer');
         const servingBadge = document.getElementById('servingTablesSummaryBadge');
-        if (servingBadge) servingBadge.textContent = `${activeServing.count || 0} Active`;
+        if (servingBadge) servingBadge.textContent = `${orderCount} Active`;
 
         if (servingContainer) {
           servingContainer.innerHTML = '';

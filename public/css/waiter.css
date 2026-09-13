@@ -205,6 +205,119 @@
   box-shadow: 0 0 6px #16a34a;
 }
 
+.table-btn .table-order-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: #16a34a;
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 2px 5px rgba(22, 163, 74, 0.4);
+  z-index: 2;
+}
+
+.table-btn.active .table-order-badge {
+  background: #ffffff;
+  color: #15803d;
+  border-color: var(--spice-terracotta);
+}
+
+/* Multi-Order Tabs Bar per Table */
+.table-orders-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-subtle);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.table-orders-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.order-tab-label {
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.order-tab-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  background: var(--bg-secondary);
+  border: 1.5px solid var(--border-medium);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+
+.order-tab-pill:hover {
+  border-color: var(--spice-terracotta);
+  color: var(--spice-terracotta);
+}
+
+.order-tab-pill.active {
+  background: #1e1b18;
+  border-color: var(--spice-gold);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(217, 119, 6, 0.25);
+}
+
+.order-tab-pill .tab-serving-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #16a34a;
+  box-shadow: 0 0 5px #16a34a;
+  display: inline-block;
+}
+
+.order-tab-pill .tab-amount {
+  font-weight: 800;
+  color: var(--spice-gold);
+  font-size: 0.8rem;
+}
+
+.order-tab-pill.active .tab-amount {
+  color: #fde047;
+}
+
+.order-tab-pill.new-order-tab {
+  border-style: dashed;
+  border-color: var(--spice-terracotta);
+  color: var(--spice-terracotta);
+  background: rgba(194, 65, 12, 0.04);
+}
+.order-tab-pill.new-order-tab:hover {
+  background: rgba(194, 65, 12, 0.1);
+}
+.order-tab-pill.new-order-tab.active {
+  background: linear-gradient(135deg, var(--spice-terracotta), var(--spice-gold));
+  border-color: transparent;
+  color: #ffffff;
+}
+
 /* Waiter Search & Category Navigation */
 .waiter-search-bar {
   padding: 12px 16px 6px;

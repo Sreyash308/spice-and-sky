@@ -26,14 +26,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentCategory = 'ALL';
   let searchQuery = '';
   let isSubmitting = false;
-  let activeServingOrders = {}; // tableNum -> order object
-  let lastBilledOrder = null;
 
-  // Active table cart: tableOrders[tableNumber] = [ { menu_item_id, variant_id, name, variant_name, price, quantity } ]
-  const tableOrders = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [] };
+  // Multi-Order state: tableNum (1-9) -> Array of active serving orders
+  let activeOrdersByTable = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [] };
+
+  // Currently selected order ID for each table: tableNum -> orderId (UUID/number) OR 'new'
+  let selectedOrderIdByTable = { 1: 'new', 2: 'new', 3: 'new', 4: 'new', 5: 'new', 6: 'new', 7: 'new', 8: 'new', 9: 'new' };
+
+  // Cart for each order: key is String(orderId) OR ('new_' + tableNum)
+  // Value: [ { menu_item_id, variant_id, name, variant_name, price, quantity } ]
+  let orderCarts = {};
+  let lastBilledOrder = null;
 
   // DOM Elements
   const tablesGrid = document.getElementById('tablesGrid');
+  const tableOrdersBar = document.getElementById('tableOrdersBar');
   const activeTableCallout = document.getElementById('activeTableCallout');
   const tableServingPill = document.getElementById('tableServingPill');
   const waiterSearchInput = document.getElementById('waiterSearchInput');
@@ -75,6 +82,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   const printBillBtn = document.getElementById('printBillBtn');
   const newOrderBtn = document.getElementById('newOrderBtn');
 
+  // --- MULTI-ORDER HELPERS ---
+  function getCurrentCartKey() {
+    const orderId = selectedOrderIdByTable[activeTable] || 'new';
+    return orderId === 'new' ? `new_${activeTable}` : String(orderId);
+  }
+
+  function getCurrentOrderItems() {
+    const key = getCurrentCartKey();
+    if (!orderCarts[key]) {
+      orderCarts[key] = [];
+    }
+    return orderCarts[key];
+  }
+
+  function getSelectedActiveOrder() {
+    const orderId = selectedOrderIdByTable[activeTable];
+    if (!orderId || orderId === 'new') return null;
+    const list = activeOrdersByTable[activeTable] || [];
+    return list.find(o => String(o.id) === String(orderId)) || null;
+  }
+
   // Table Selector Events (Table 1 through 9) - Wire immediately for instant responsiveness
   tablesGrid.querySelectorAll('.table-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -83,6 +111,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
+  updateTableGridIndicators();
+  renderOrderTabs();
   updateBottomBar();
 
   // Load Menu Data
@@ -104,30 +134,113 @@ document.addEventListener('DOMContentLoaded', async () => {
   function updateTableGridIndicators() {
     tablesGrid.querySelectorAll('.table-btn').forEach(b => {
       const tNum = Number(b.getAttribute('data-table'));
-      const isServing = !!activeServingOrders[tNum];
+      const activeList = activeOrdersByTable[tNum] || [];
+      const orderCount = activeList.length;
+      const isServing = orderCount > 0;
+
       b.classList.toggle('serving', isServing);
 
       let dot = b.querySelector('.serving-dot');
-      if (isServing && !dot) {
-        dot = document.createElement('span');
-        dot.className = 'serving-dot';
-        b.appendChild(dot);
-      } else if (!isServing && dot) {
-        dot.remove();
+      let badge = b.querySelector('.table-order-badge');
+
+      if (orderCount === 1) {
+        if (badge) badge.remove();
+        if (!dot) {
+          dot = document.createElement('span');
+          dot.className = 'serving-dot';
+          b.appendChild(dot);
+        }
+      } else if (orderCount > 1) {
+        if (dot) dot.remove();
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.className = 'table-order-badge';
+          b.appendChild(badge);
+        }
+        badge.textContent = orderCount;
+      } else {
+        if (dot) dot.remove();
+        if (badge) badge.remove();
       }
     });
 
-    const activeOrder = activeServingOrders[activeTable];
-    if (activeOrder) {
-      if (tableServingPill) {
+    const activeOrder = getSelectedActiveOrder();
+    const activeList = activeOrdersByTable[activeTable] || [];
+
+    if (tableServingPill) {
+      if (activeOrder) {
         tableServingPill.style.display = 'inline-block';
         tableServingPill.textContent = `🟢 Serving (#${activeOrder.order_number})`;
-      }
-    } else {
-      if (tableServingPill) {
+      } else if (activeList.length > 1) {
+        tableServingPill.style.display = 'inline-block';
+        tableServingPill.textContent = `🟢 ${activeList.length} Orders Open`;
+      } else if (activeList.length === 1) {
+        tableServingPill.style.display = 'inline-block';
+        tableServingPill.textContent = `🟢 Serving (#${activeList[0].order_number})`;
+      } else {
         tableServingPill.style.display = 'none';
       }
     }
+  }
+
+  function renderOrderTabs() {
+    if (!tableOrdersBar) return;
+    tableOrdersBar.innerHTML = '';
+
+    const orders = activeOrdersByTable[activeTable] || [];
+    const currSelectedId = selectedOrderIdByTable[activeTable] || 'new';
+
+    const label = document.createElement('span');
+    label.className = 'order-tab-label';
+    label.textContent = `T${activeTable} Orders:`;
+    tableOrdersBar.appendChild(label);
+
+    // Render active order pills
+    orders.forEach(ord => {
+      const isSelected = String(ord.id) === String(currSelectedId);
+      const cart = orderCarts[String(ord.id)] || [];
+      const totalAmt = (cart.length > 0)
+        ? cart.reduce((sum, i) => sum + (i.price * i.quantity), 0)
+        : Number(ord.total || 0);
+
+      const pill = document.createElement('button');
+      pill.type = 'button';
+      pill.className = `order-tab-pill ${isSelected ? 'active' : ''}`;
+      pill.innerHTML = `
+        <span class="tab-serving-dot"></span>
+        <span>Order #${ord.order_number}</span>
+        <span class="tab-amount">${SpiceClient.formatCurrency(totalAmt)}</span>
+      `;
+      pill.addEventListener('click', () => {
+        selectOrderTab(ord.id);
+      });
+      tableOrdersBar.appendChild(pill);
+    });
+
+    // "+ New Order" pill
+    const isNewSelected = currSelectedId === 'new';
+    const newCart = orderCarts[`new_${activeTable}`] || [];
+    const newTotal = newCart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+
+    const newPill = document.createElement('button');
+    newPill.type = 'button';
+    newPill.className = `order-tab-pill new-order-tab ${isNewSelected ? 'active' : ''}`;
+    newPill.innerHTML = `
+      <span>➕ New Order</span>
+      ${newCart.length > 0 ? `<span class="tab-amount">${SpiceClient.formatCurrency(newTotal)}</span>` : ''}
+    `;
+    newPill.addEventListener('click', () => {
+      selectOrderTab('new');
+    });
+    tableOrdersBar.appendChild(newPill);
+  }
+
+  function selectOrderTab(orderId) {
+    selectedOrderIdByTable[activeTable] = orderId;
+    renderOrderTabs();
+    updateTableGridIndicators();
+    updateBottomBar();
+    renderCatalog();
   }
 
   function selectTable(num) {
@@ -140,19 +253,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     activeTableCallout.textContent = `Table ${num} Selected`;
 
-    const activeOrder = activeServingOrders[num];
-    if (activeOrder && (!tableOrders[num] || tableOrders[num].length === 0)) {
-      tableOrders[num] = (activeOrder.items || []).map(i => ({
-        menu_item_id: i.menu_item_id,
-        variant_id: i.variant_id || null,
-        name: i.item_name_snapshot,
-        variant_name: i.variant_name_snapshot,
-        price: Number(i.unit_price_snapshot),
-        quantity: Number(i.quantity)
-      }));
+    const orders = activeOrdersByTable[num] || [];
+    if (!selectedOrderIdByTable[num] || (selectedOrderIdByTable[num] !== 'new' && !orders.some(o => String(o.id) === String(selectedOrderIdByTable[num])))) {
+      selectedOrderIdByTable[num] = orders.length > 0 ? orders[0].id : 'new';
     }
 
     updateTableGridIndicators();
+    renderOrderTabs();
     updateBottomBar();
     renderCatalog();
   }
@@ -162,22 +269,47 @@ document.addEventListener('DOMContentLoaded', async () => {
       const res = await fetch('/api/orders/active');
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
-        activeServingOrders = {};
+        const newGrouped = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [] };
+
         json.data.forEach(order => {
-          activeServingOrders[order.table_number] = order;
-          if (!tableOrders[order.table_number] || tableOrders[order.table_number].length === 0) {
-            tableOrders[order.table_number] = (order.items || []).map(i => ({
-              menu_item_id: i.menu_item_id,
-              variant_id: i.variant_id || null,
-              name: i.item_name_snapshot,
-              variant_name: i.variant_name_snapshot,
-              price: Number(i.unit_price_snapshot),
-              quantity: Number(i.quantity)
-            }));
+          const tNum = Number(order.table_number);
+          if (tNum >= 1 && tNum <= 9) {
+            newGrouped[tNum].push(order);
+
+            const cartKey = String(order.id);
+            if (!orderCarts[cartKey]) {
+              orderCarts[cartKey] = (order.items || order.order_items || []).map(i => ({
+                menu_item_id: i.menu_item_id,
+                variant_id: i.variant_id || null,
+                name: i.item_name_snapshot,
+                variant_name: i.variant_name_snapshot,
+                price: Number(i.unit_price_snapshot),
+                quantity: Number(i.quantity)
+              }));
+            }
           }
         });
+
+        activeOrdersByTable = newGrouped;
+
+        // Ensure selectedOrderIdByTable is valid
+        for (let t = 1; t <= 9; t++) {
+          const orders = activeOrdersByTable[t];
+          const currSelected = selectedOrderIdByTable[t];
+          if (currSelected !== 'new') {
+            const exists = orders.some(o => String(o.id) === String(currSelected));
+            if (!exists) {
+              selectedOrderIdByTable[t] = orders.length > 0 ? orders[0].id : 'new';
+            }
+          } else if (orders.length > 0 && (!orderCarts[`new_${t}`] || orderCarts[`new_${t}`].length === 0)) {
+            selectedOrderIdByTable[t] = orders[0].id;
+          }
+        }
+
         updateTableGridIndicators();
+        renderOrderTabs();
         updateBottomBar();
+        renderCatalog();
       }
     } catch (err) {
       console.warn('Failed to load active orders:', err);
@@ -224,9 +356,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   clearOrderBtn.addEventListener('click', () => {
-    if (confirm(`Clear all items for Table ${activeTable}?`)) {
-      tableOrders[activeTable] = [];
+    const activeOrder = getSelectedActiveOrder();
+    const orderTitle = activeOrder ? `Order #${activeOrder.order_number}` : 'this new order';
+    if (confirm(`Clear all items for Table ${activeTable} (${orderTitle})?`)) {
+      const key = getCurrentCartKey();
+      orderCarts[key] = [];
       updateBottomBar();
+      renderOrderTabs();
       renderCatalog();
       closeDrawer();
     }
@@ -267,9 +403,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             body: JSON.stringify({ status: 'CONFIRMED' })
           });
           lastBilledOrder.status = 'CONFIRMED';
-          activeServingOrders[lastBilledOrder.table_number] = lastBilledOrder;
-          updateTableGridIndicators();
-          updateBottomBar();
+          const tNum = Number(lastBilledOrder.table_number);
+          if (!activeOrdersByTable[tNum]) activeOrdersByTable[tNum] = [];
+          if (!activeOrdersByTable[tNum].some(o => String(o.id) === String(lastBilledOrder.id))) {
+            activeOrdersByTable[tNum].push(lastBilledOrder);
+          }
+
+          orderCarts[String(lastBilledOrder.id)] = (lastBilledOrder.items || lastBilledOrder.order_items || []).map(i => ({
+            menu_item_id: i.menu_item_id,
+            variant_id: i.variant_id || null,
+            name: i.item_name_snapshot,
+            variant_name: i.variant_name_snapshot,
+            price: Number(i.unit_price_snapshot),
+            quantity: Number(i.quantity)
+          }));
+
+          selectTable(tNum);
+          selectOrderTab(lastBilledOrder.id);
         } catch (e) {
           console.warn('Reopen bill error:', e);
         }
@@ -280,10 +430,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   newOrderBtn.addEventListener('click', () => {
     billModal.classList.remove('active');
-    tableOrders[activeTable] = [];
-    delete activeServingOrders[activeTable];
     lastBilledOrder = null;
+    selectedOrderIdByTable[activeTable] = 'new';
+    orderCarts[`new_${activeTable}`] = [];
     updateTableGridIndicators();
+    renderOrderTabs();
     updateBottomBar();
     renderCatalog();
   });
@@ -450,7 +601,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function renderCatalog() {
     waiterCatalog.innerHTML = '';
 
-    const currentOrder = tableOrders[activeTable] || [];
+    const currentOrder = getCurrentOrderItems();
     const hasSearch = Boolean(searchQuery && searchQuery.length > 0);
 
     const scored = [];
@@ -621,7 +772,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function addItemToTableOrder(itemId, variantId, name, variantName, price) {
-    const order = tableOrders[activeTable];
+    const order = getCurrentOrderItems();
     const existing = order.find(oi => oi.menu_item_id === itemId && oi.variant_id === variantId);
 
     if (existing) {
@@ -638,11 +789,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     updateBottomBar();
+    renderOrderTabs();
     renderCatalog();
   }
 
   function updateItemQuantity(itemId, variantId, delta) {
-    const order = tableOrders[activeTable];
+    const order = getCurrentOrderItems();
     const existingIndex = order.findIndex(oi => oi.menu_item_id === itemId && oi.variant_id === variantId);
     if (existingIndex === -1) return;
 
@@ -652,19 +804,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     updateBottomBar();
+    renderOrderTabs();
     renderCatalog();
   }
 
   function updateBottomBar() {
-    const order = tableOrders[activeTable] || [];
+    const order = getCurrentOrderItems();
     const totalItems = order.reduce((sum, i) => sum + i.quantity, 0);
     const subtotal = order.reduce((sum, i) => sum + (i.price * i.quantity), 0);
-    const activeOrder = activeServingOrders[activeTable];
+    const activeOrder = getSelectedActiveOrder();
 
     if (activeOrder) {
-      peekTableLine.textContent = `Table ${activeTable} (Serving #${activeOrder.order_number})`;
+      peekTableLine.textContent = `Table ${activeTable} • Order #${activeOrder.order_number}`;
     } else {
-      peekTableLine.textContent = `Table ${activeTable} Order`;
+      const activeList = activeOrdersByTable[activeTable] || [];
+      peekTableLine.textContent = activeList.length > 0
+        ? `Table ${activeTable} • New Order (${activeList.length} serving)`
+        : `Table ${activeTable} • New Order`;
     }
     peekTotalLine.textContent = SpiceClient.formatCurrency(subtotal);
     peekCountLine.textContent = `${totalItems} item${totalItems === 1 ? '' : 's'} • Tap to review`;
@@ -682,15 +838,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function openDrawer() {
-    const order = tableOrders[activeTable] || [];
-    const activeOrder = activeServingOrders[activeTable];
+    const order = getCurrentOrderItems();
+    const activeOrder = getSelectedActiveOrder();
     drawerTitle.textContent = activeOrder 
-      ? `Table ${activeTable} Review • Serving #${activeOrder.order_number}`
-      : `Table ${activeTable} Order Review`;
+      ? `Table ${activeTable} Review • Order #${activeOrder.order_number}`
+      : `Table ${activeTable} • New Order Review`;
     drawerItemsList.innerHTML = '';
 
     if (order.length === 0) {
-      drawerItemsList.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 20px;">No items added for Table ${activeTable} yet.</p>`;
+      drawerItemsList.innerHTML = `<p style="color: var(--text-muted); text-align: center; padding: 20px;">No items added for this order yet.</p>`;
       drawerTotalAmount.textContent = '₹0';
       if (drawerSaveServingBtn) drawerSaveServingBtn.disabled = true;
       drawerGenerateBtn.disabled = true;
@@ -721,11 +877,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         row.querySelector('.dec').addEventListener('click', () => {
           updateItemQuantity(oi.menu_item_id, oi.variant_id, -1);
-          openDrawer(); // Re-render drawer
+          openDrawer();
         });
         row.querySelector('.inc').addEventListener('click', () => {
           updateItemQuantity(oi.menu_item_id, oi.variant_id, 1);
-          openDrawer(); // Re-render drawer
+          openDrawer();
         });
 
         drawerItemsList.appendChild(row);
@@ -746,9 +902,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     orderDrawer.classList.remove('active');
   }
 
-  // SAVE ORDER & KEEP SERVING (Multi-Round Ordering)
+  // SAVE ORDER & KEEP SERVING (Multi-Round & Multi-Order Ordering)
   async function handleSaveServingOrder() {
-    const order = tableOrders[activeTable] || [];
+    const order = getCurrentOrderItems();
     if (order.length === 0 || isSubmitting) return;
 
     isSubmitting = true;
@@ -759,7 +915,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (drawerSaveServingBtn) drawerSaveServingBtn.disabled = true;
 
     try {
-      const activeOrder = activeServingOrders[activeTable];
+      const activeOrder = getSelectedActiveOrder();
       let savedOrder;
 
       if (activeOrder && activeOrder.id) {
@@ -781,8 +937,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         const json = await res.json();
         if (!json.success) throw new Error(json.error || 'Failed to update serving order.');
         savedOrder = json.data;
+
+        // Update locally
+        const list = activeOrdersByTable[activeTable] || [];
+        const idx = list.findIndex(o => String(o.id) === String(activeOrder.id));
+        if (idx !== -1) list[idx] = savedOrder;
+        orderCarts[String(savedOrder.id)] = [...order];
       } else {
-        // Create new active serving order
+        // Create new active serving order on this table
         const payload = {
           table_number: activeTable,
           waiter_id: currentUser.id,
@@ -803,10 +965,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         const json = await res.json();
         if (!json.success) throw new Error(json.error || 'Failed to start serving order.');
         savedOrder = json.data;
+
+        if (!activeOrdersByTable[activeTable]) activeOrdersByTable[activeTable] = [];
+        activeOrdersByTable[activeTable].push(savedOrder);
+        orderCarts[String(savedOrder.id)] = [...order];
+        orderCarts[`new_${activeTable}`] = [];
+        selectedOrderIdByTable[activeTable] = savedOrder.id;
       }
 
-      activeServingOrders[activeTable] = savedOrder;
       updateTableGridIndicators();
+      renderOrderTabs();
       updateBottomBar();
       closeDrawer();
       renderCatalog();
@@ -814,9 +982,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       alert(`Error saving order: ${err.message}`);
     } finally {
       isSubmitting = false;
+      const activeOrder = getSelectedActiveOrder();
       if (saveServingBtn) {
         saveServingBtn.disabled = false;
-        saveServingBtn.innerHTML = activeServingOrders[activeTable]
+        saveServingBtn.innerHTML = activeOrder
           ? `<span>🍽️ Update Serving</span>`
           : `<span>🍽️ Keep Serving</span>`;
       }
@@ -827,7 +996,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ATOMIC BILL GENERATION & COMPLETION (Customer is full)
   async function handleGenerateBill() {
-    const order = tableOrders[activeTable] || [];
+    const order = getCurrentOrderItems();
     if (order.length === 0 || isSubmitting) return;
 
     isSubmitting = true;
@@ -836,7 +1005,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     drawerGenerateBtn.disabled = true;
 
     try {
-      const activeOrder = activeServingOrders[activeTable];
+      const activeOrder = getSelectedActiveOrder();
       let orderIdToComplete;
 
       if (activeOrder && activeOrder.id) {
@@ -889,8 +1058,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const finalizedOrder = completeJson.data;
       lastBilledOrder = finalizedOrder;
-      delete activeServingOrders[activeTable];
+
+      // Remove completed order from active orders on this table
+      const list = activeOrdersByTable[activeTable] || [];
+      activeOrdersByTable[activeTable] = list.filter(o => String(o.id) !== String(orderIdToComplete));
+      delete orderCarts[String(orderIdToComplete)];
+      orderCarts[`new_${activeTable}`] = [];
+
+      // Switch to remaining active order on this table if one exists, otherwise 'new'
+      const remaining = activeOrdersByTable[activeTable];
+      selectedOrderIdByTable[activeTable] = (remaining && remaining.length > 0) ? remaining[0].id : 'new';
+
       updateTableGridIndicators();
+      renderOrderTabs();
+      updateBottomBar();
+      renderCatalog();
       displayBillReceipt(finalizedOrder);
 
     } catch (err) {
