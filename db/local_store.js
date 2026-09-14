@@ -18,6 +18,95 @@ try {
   // Fallback if audit JSON is not loaded
 }
 
+function parsePaymentDetails(order, fallbackOrder = null) {
+  const total = Number(order && order.total != null ? order.total : (fallbackOrder && fallbackOrder.total != null ? fallbackOrder.total : 0)) || 0;
+  const notes = String((order && order.notes) || (fallbackOrder && fallbackOrder.notes) || '');
+
+  let mode = null;
+  if (order && order.payment_mode) {
+    mode = String(order.payment_mode).toUpperCase();
+  } else if (fallbackOrder && fallbackOrder.payment_mode) {
+    mode = String(fallbackOrder.payment_mode).toUpperCase();
+  } else if (/Payment:\s*SPLIT/i.test(notes)) {
+    mode = 'SPLIT';
+  } else if (/Payment:\s*CASH/i.test(notes)) {
+    mode = 'CASH';
+  } else if (/Payment:\s*ONLINE/i.test(notes)) {
+    mode = 'ONLINE';
+  }
+
+  let notesCash = null;
+  let notesOnline = null;
+  const cashMatch = notes.match(/Cash:\s*(?:₹|Rs\.?|INR)?\s*([0-9]+(?:\.[0-9]+)?)/i);
+  if (cashMatch) notesCash = Number(cashMatch[1]);
+  const onlineMatch = notes.match(/Online:\s*(?:₹|Rs\.?|INR)?\s*([0-9]+(?:\.[0-9]+)?)/i);
+  if (onlineMatch) notesOnline = Number(onlineMatch[1]);
+
+  let cash = null;
+  let online = null;
+
+  if (order && order.cash_amount != null && !isNaN(Number(order.cash_amount))) {
+    cash = Number(order.cash_amount);
+  } else if (fallbackOrder && fallbackOrder.cash_amount != null && !isNaN(Number(fallbackOrder.cash_amount))) {
+    cash = Number(fallbackOrder.cash_amount);
+  }
+
+  if (order && order.online_amount != null && !isNaN(Number(order.online_amount))) {
+    online = Number(order.online_amount);
+  } else if (fallbackOrder && fallbackOrder.online_amount != null && !isNaN(Number(fallbackOrder.online_amount))) {
+    online = Number(fallbackOrder.online_amount);
+  }
+
+  if (mode === 'SPLIT') {
+    if ((cash == null || cash === 0) && notesCash != null && notesCash > 0) {
+      cash = notesCash;
+    }
+    if ((online == null || online === 0 || online === total) && notesOnline != null && notesOnline > 0) {
+      online = notesOnline;
+    }
+    if (cash != null && (online == null || online === total)) {
+      online = Math.max(0, Math.round((total - cash) * 100) / 100);
+    } else if (online != null && (cash == null || cash === 0)) {
+      cash = Math.max(0, Math.round((total - online) * 100) / 100);
+    }
+  } else if (mode === 'CASH') {
+    if (cash == null) cash = total;
+    if (online == null) online = 0;
+  } else if (mode === 'ONLINE') {
+    if (online == null) online = total;
+    if (cash == null) cash = 0;
+  } else {
+    if (notesCash != null && notesOnline != null && notesCash > 0 && notesOnline > 0) {
+      mode = 'SPLIT';
+      cash = notesCash;
+      online = notesOnline;
+    } else if (notesCash != null && notesCash > 0 && (!notesOnline || notesOnline === 0)) {
+      mode = 'CASH';
+      cash = total || notesCash;
+      online = 0;
+    } else {
+      mode = 'ONLINE';
+      cash = 0;
+      online = total;
+    }
+  }
+
+  cash = (cash != null && !isNaN(cash)) ? Math.round(Number(cash) * 100) / 100 : 0;
+  online = (online != null && !isNaN(online)) ? Math.round(Number(online) * 100) / 100 : (mode === 'CASH' ? 0 : total);
+
+  const status = (order && order.status) || (fallbackOrder && fallbackOrder.status) || 'CONFIRMED';
+  const payment_status = (order && order.payment_status) || 
+                         (fallbackOrder && fallbackOrder.payment_status) || 
+                         (status === 'COMPLETED' ? 'PAID' : (status === 'CANCELLED' ? 'CANCELLED' : 'PENDING'));
+
+  return {
+    payment_mode: mode || 'ONLINE',
+    payment_status,
+    cash_amount: cash,
+    online_amount: online
+  };
+}
+
 class CafeStore extends EventEmitter {
   constructor() {
     super();
@@ -425,6 +514,15 @@ class CafeStore extends EventEmitter {
     const orderId = crypto.randomUUID();
     this.orderSequence += 1;
 
+    const initialPayment = parsePaymentDetails({
+      total: calculatedTotal,
+      notes,
+      payment_mode,
+      cash_amount,
+      online_amount,
+      status: status || 'CONFIRMED'
+    });
+
     const order = {
       id: orderId,
       order_number: this.orderSequence,
@@ -436,10 +534,10 @@ class CafeStore extends EventEmitter {
       total: calculatedTotal, // STRICT: NO TAX, NO GST, NO SERVICE CHARGE
       notes: notes ? String(notes).replace(/<[^>]*>?/gm, '').trim() : null,
       idempotency_key: idempotency_key || null,
-      payment_mode: payment_mode ? String(payment_mode).toUpperCase() : (status === 'COMPLETED' ? 'ONLINE' : null),
-      payment_status: status === 'COMPLETED' ? 'PAID' : (status === 'CANCELLED' ? 'CANCELLED' : 'PENDING'),
-      cash_amount: cash_amount != null ? Number(cash_amount) : 0,
-      online_amount: online_amount != null ? Number(online_amount) : (status === 'COMPLETED' && payment_mode !== 'CASH' ? calculatedTotal : 0),
+      payment_mode: initialPayment.payment_mode,
+      payment_status: initialPayment.payment_status,
+      cash_amount: initialPayment.cash_amount,
+      online_amount: initialPayment.online_amount,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -626,8 +724,11 @@ class CafeStore extends EventEmitter {
 
   recordOrderSnapshot(orderData, itemsData = []) {
     const orderId = orderData.order_id || orderData.id;
-    const existingIndex = this.orders.findIndex(o => o.id === orderId);
-    const rawCreatedAt = orderData.created_at || new Date().toISOString();
+    const existingIndex = this.orders.findIndex(o => o.id === orderId || (o.order_number && String(o.order_number) === String(orderData.order_number)));
+    const existing = existingIndex >= 0 ? this.orders[existingIndex] : null;
+    const paymentDetails = parsePaymentDetails(orderData, existing);
+
+    const rawCreatedAt = orderData.created_at || (existing ? existing.created_at : new Date().toISOString());
     const normalizedCreatedAt = (String(rawCreatedAt).includes('Z') || String(rawCreatedAt).includes('+')) ? rawCreatedAt : (rawCreatedAt + 'Z');
 
     const orderNum = Number(orderData.order_number);
@@ -646,10 +747,10 @@ class CafeStore extends EventEmitter {
       total: Number(orderData.total),
       notes: orderData.notes || null,
       idempotency_key: orderData.idempotency_key || null,
-      payment_mode: orderData.payment_mode || (existingIndex >= 0 && this.orders[existingIndex].payment_mode) || (orderData.notes && orderData.notes.includes('Payment: ONLINE') ? 'ONLINE' : (orderData.notes && orderData.notes.includes('Payment: SPLIT') ? 'SPLIT' : 'ONLINE')),
-      payment_status: orderData.payment_status || (existingIndex >= 0 && this.orders[existingIndex].payment_status) || (orderData.status === 'COMPLETED' ? 'PAID' : (orderData.status === 'CANCELLED' ? 'CANCELLED' : 'PENDING')),
-      cash_amount: orderData.cash_amount != null ? Number(orderData.cash_amount) : (existingIndex >= 0 && this.orders[existingIndex].cash_amount != null ? this.orders[existingIndex].cash_amount : (orderData.payment_mode === 'CASH' ? Number(orderData.total) : 0)),
-      online_amount: orderData.online_amount != null ? Number(orderData.online_amount) : (existingIndex >= 0 && this.orders[existingIndex].online_amount != null ? this.orders[existingIndex].online_amount : (orderData.payment_mode === 'CASH' ? 0 : Number(orderData.total))),
+      payment_mode: paymentDetails.payment_mode,
+      payment_status: paymentDetails.payment_status,
+      cash_amount: paymentDetails.cash_amount,
+      online_amount: paymentDetails.online_amount,
       created_at: normalizedCreatedAt,
       updated_at: orderData.updated_at || new Date().toISOString()
     };
@@ -823,10 +924,15 @@ class CafeStore extends EventEmitter {
     }
 
     return result.map(o => {
+      const p = parsePaymentDetails(o);
       const matchingItems = this.orderItems.filter(oi => oi.order_id === o.id);
       const items = (matchingItems.length > 0 ? matchingItems : (o.items || o.order_items || [])).map(oi => this.enrichOrderItem(oi));
       return {
         ...o,
+        payment_mode: p.payment_mode,
+        payment_status: p.payment_status,
+        cash_amount: p.cash_amount,
+        online_amount: p.online_amount,
         items,
         order_items: items
       };
@@ -836,10 +942,15 @@ class CafeStore extends EventEmitter {
   getOrderById(id) {
     const order = this.orders.find(o => o.id === id || String(o.order_number) === String(id));
     if (!order) return null;
+    const p = parsePaymentDetails(order);
     const matchingItems = this.orderItems.filter(oi => oi.order_id === order.id);
     const items = (matchingItems.length > 0 ? matchingItems : (order.items || order.order_items || [])).map(oi => this.enrichOrderItem(oi));
     return {
       ...order,
+      payment_mode: p.payment_mode,
+      payment_status: p.payment_status,
+      cash_amount: p.cash_amount,
+      online_amount: p.online_amount,
       items,
       order_items: items
     };
@@ -872,22 +983,16 @@ class CafeStore extends EventEmitter {
       if (paymentData.payment_status) {
         order.payment_status = paymentData.payment_status;
       }
+      if (paymentData.notes) {
+        order.notes = paymentData.notes;
+      }
     }
 
-    if (status === 'COMPLETED') {
-      if (!order.payment_mode) {
-        order.payment_mode = 'ONLINE';
-      }
-      if ((order.cash_amount == null && order.online_amount == null) || (order.cash_amount === 0 && order.online_amount === 0)) {
-        if (order.payment_mode === 'ONLINE') {
-          order.cash_amount = 0;
-          order.online_amount = Number(order.total) || 0;
-        } else if (order.payment_mode === 'CASH') {
-          order.cash_amount = Number(order.total) || 0;
-          order.online_amount = 0;
-        }
-      }
-    }
+    const p = parsePaymentDetails(order);
+    order.payment_mode = p.payment_mode;
+    order.payment_status = p.payment_status;
+    order.cash_amount = p.cash_amount;
+    order.online_amount = p.online_amount;
 
     this.emit('order_updated', { order });
     return order;
@@ -923,16 +1028,16 @@ class CafeStore extends EventEmitter {
       let splitOrders = 0;
 
       const cashRevenue = orderList.reduce((sum, o) => {
-        const c = (o.cash_amount != null) ? Number(o.cash_amount) : (o.payment_mode === 'ONLINE' ? 0 : Number(o.total || 0));
-        const on = (o.online_amount != null) ? Number(o.online_amount) : (o.payment_mode === 'ONLINE' ? Number(o.total || 0) : 0);
-        if (c > 0 && on > 0) splitOrders += 1;
-        else if (on > 0) onlineOrders += 1;
-        else if (c > 0) cashOrders += 1;
-        return sum + c;
+        const p = parsePaymentDetails(o);
+        if (p.cash_amount > 0 && p.online_amount > 0) splitOrders += 1;
+        else if (p.online_amount > 0) onlineOrders += 1;
+        else if (p.cash_amount > 0) cashOrders += 1;
+        return sum + p.cash_amount;
       }, 0);
 
       const onlineRevenue = orderList.reduce((sum, o) => {
-        return sum + ((o.online_amount != null) ? Number(o.online_amount) : (o.payment_mode === 'ONLINE' ? Number(o.total || 0) : 0));
+        const p = parsePaymentDetails(o);
+        return sum + p.online_amount;
       }, 0);
 
       return { revenue, count, averageBill, cashRevenue, onlineRevenue, cashOrders, onlineOrders, splitOrders };
@@ -965,12 +1070,9 @@ class CafeStore extends EventEmitter {
           onlineRevenue: 0
         };
       }
-      const cash = (o.cash_amount != null)
-        ? Number(o.cash_amount)
-        : (o.payment_mode === 'ONLINE' ? 0 : Number(o.total || 0));
-      const online = (o.online_amount != null)
-        ? Number(o.online_amount)
-        : (o.payment_mode === 'ONLINE' ? Number(o.total || 0) : 0);
+      const p = parsePaymentDetails(o);
+      const cash = p.cash_amount;
+      const online = p.online_amount;
 
       dailyMap[dateKey].orders += 1;
       dailyMap[dateKey].revenue += Number(o.total || 0);
@@ -1066,4 +1168,5 @@ class CafeStore extends EventEmitter {
 
 // Export singleton instance
 const store = new CafeStore();
+store.parsePaymentDetails = parsePaymentDetails;
 module.exports = store;

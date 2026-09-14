@@ -1581,6 +1581,49 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  function getOrderPaymentBreakdown(o) {
+    const total = Number(o && o.total != null ? o.total : 0) || 0;
+    const notes = String((o && o.notes) || '');
+
+    let mode = o && o.payment_mode ? String(o.payment_mode).toUpperCase() : null;
+    if (!mode || mode === 'UNDEFINED' || mode === 'NULL') {
+      if (/Payment:\s*SPLIT/i.test(notes)) mode = 'SPLIT';
+      else if (/Payment:\s*CASH/i.test(notes)) mode = 'CASH';
+      else if (/Payment:\s*ONLINE/i.test(notes)) mode = 'ONLINE';
+      else mode = 'ONLINE';
+    }
+
+    let cash = (o && o.cash_amount != null && !isNaN(Number(o.cash_amount))) ? Number(o.cash_amount) : null;
+    let online = (o && o.online_amount != null && !isNaN(Number(o.online_amount))) ? Number(o.online_amount) : null;
+
+    if (mode === 'SPLIT') {
+      const cashMatch = notes.match(/Cash:\s*(?:₹|Rs\.?|INR)?\s*([0-9]+(?:\.[0-9]+)?)/i);
+      const onlineMatch = notes.match(/Online:\s*(?:₹|Rs\.?|INR)?\s*([0-9]+(?:\.[0-9]+)?)/i);
+      if ((cash == null || cash === 0) && cashMatch) {
+        cash = Number(cashMatch[1]);
+      }
+      if ((online == null || online === 0 || online === total) && onlineMatch) {
+        online = Number(onlineMatch[1]);
+      }
+      if (cash != null && (online == null || online === total)) {
+        online = Math.max(0, Math.round((total - cash) * 100) / 100);
+      } else if (online != null && (cash == null || cash === 0)) {
+        cash = Math.max(0, Math.round((total - online) * 100) / 100);
+      }
+    } else if (mode === 'CASH') {
+      if (cash == null) cash = total;
+      if (online == null) online = 0;
+    } else {
+      if (online == null) online = total;
+      if (cash == null) cash = 0;
+    }
+
+    cash = (cash != null && !isNaN(cash)) ? Math.round(cash * 100) / 100 : 0;
+    online = (online != null && !isNaN(online)) ? Math.round(online * 100) / 100 : (mode === 'CASH' ? 0 : total);
+
+    return { mode, cash, online };
+  }
+
   function displayBillReceipt(order) {
     billTableText.textContent = `Table ${order.table_number}`;
     billOrderNumText.textContent = `Order #${order.order_number}`;
@@ -1595,10 +1638,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Payment breakdown in bill
     if (billPaymentBox) {
-      const mode = (order.payment_mode || 'CASH').toUpperCase();
-      const orderTotal = Number(order.total) || 0;
-      const cash = Number(order.cash_amount !== undefined && order.cash_amount !== null ? order.cash_amount : (mode === 'CASH' ? orderTotal : 0));
-      const online = Number(order.online_amount !== undefined && order.online_amount !== null ? order.online_amount : (mode === 'ONLINE' ? orderTotal : 0));
+      const { mode, cash, online } = getOrderPaymentBreakdown(order);
 
       if (billPaymentModeText) {
         if (mode === 'SPLIT') {
