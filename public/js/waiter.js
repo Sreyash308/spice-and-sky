@@ -19,6 +19,45 @@ if (typeof window !== 'undefined') {
   }
 }
 
+function getItemDietInfo(oi, allMenuItems) {
+  let type = oi?.food_type;
+  const itemsList = Array.isArray(allMenuItems) ? allMenuItems : (typeof menuItems !== 'undefined' && Array.isArray(menuItems) ? menuItems : []);
+  
+  if (!type && oi?.menu_item_id && itemsList.length > 0) {
+    const found = itemsList.find(m => m.id === oi.menu_item_id);
+    if (found) {
+      type = found.food_type;
+    }
+  }
+  if (!type) {
+    const title = (oi?.item_name_snapshot || oi?.name || '').toLowerCase();
+    if (title.includes('chicken') || title.includes('mutton') || title.includes('egg') || title.includes('fish') || title.includes('pepperoni') || title.includes('non-veg') || title.includes('non veg')) {
+      type = 'NON_VEG';
+    } else {
+      type = 'VEG';
+    }
+  }
+
+  const isNonVeg = type === 'NON_VEG';
+  const isDrink = type === 'DRINK';
+
+  return {
+    food_type: type,
+    isNonVeg,
+    isVeg: !isNonVeg && !isDrink,
+    isDrink,
+    badgeClass: isNonVeg ? 'non-veg' : (isDrink ? 'drink' : 'veg'),
+    label: isNonVeg ? 'Non-Veg' : (isDrink ? 'Drink' : 'Veg')
+  };
+}
+
+if (typeof window !== 'undefined') {
+  if (!window.getItemDietInfo) window.getItemDietInfo = getItemDietInfo;
+  if (window.SpiceClient && !window.SpiceClient.getItemDietInfo) {
+    window.SpiceClient.getItemDietInfo = getItemDietInfo;
+  }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   function updateWaiterDisplay(user) {
     if (!user) return;
@@ -378,14 +417,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const cartKey = String(order.id);
             if (!orderCarts[cartKey]) {
-              orderCarts[cartKey] = (order.items || order.order_items || []).map(i => ({
-                menu_item_id: i.menu_item_id,
-                variant_id: i.variant_id || null,
-                name: i.item_name_snapshot,
-                variant_name: i.variant_name_snapshot,
-                price: Number(i.unit_price_snapshot),
-                quantity: Number(i.quantity)
-              }));
+              orderCarts[cartKey] = (order.items || order.order_items || []).map(i => {
+                const matched = menuItems.find(m => m.id === i.menu_item_id);
+                return {
+                  menu_item_id: i.menu_item_id,
+                  variant_id: i.variant_id || null,
+                  name: i.item_name_snapshot || i.name,
+                  variant_name: i.variant_name_snapshot || i.variant_name,
+                  price: Number(i.unit_price_snapshot || i.price),
+                  quantity: Number(i.quantity),
+                  food_type: i.food_type || (matched ? matched.food_type : null)
+                };
+              });
             }
           }
         });
@@ -1080,7 +1123,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         addBtn.className = 'btn-add-item';
         addBtn.textContent = 'Add +';
         addBtn.addEventListener('click', () => {
-          addItemToTableOrder(item.id, null, item.name, null, item.price);
+          addItemToTableOrder(item.id, null, item.name, null, item.price, item.food_type);
         });
         actionWrap.appendChild(addBtn);
       }
@@ -1103,7 +1146,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <span style="color: var(--spice-gold); font-weight: 700;">${SpiceClient.formatCurrency(v.price)}</span>
       `;
       btn.addEventListener('click', () => {
-        addItemToTableOrder(item.id, v.id, item.name, v.name, v.price);
+        addItemToTableOrder(item.id, v.id, item.name, v.name, v.price, item.food_type);
         variantModal.classList.remove('active');
       });
       variantOptionsList.appendChild(btn);
@@ -1112,20 +1155,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     variantModal.classList.add('active');
   }
 
-  function addItemToTableOrder(itemId, variantId, name, variantName, price) {
+  function addItemToTableOrder(itemId, variantId, name, variantName, price, foodType) {
     const order = getCurrentOrderItems();
     const existing = order.find(oi => oi.menu_item_id === itemId && oi.variant_id === variantId);
 
     if (existing) {
       existing.quantity += 1;
     } else {
+      const matched = menuItems.find(m => m.id === itemId);
       order.push({
         menu_item_id: itemId,
         variant_id: variantId || null,
         name,
         variant_name: variantName || null,
         price: Number(price),
-        quantity: 1
+        quantity: 1,
+        food_type: foodType || (matched ? matched.food_type : null)
       });
     }
 
@@ -1197,12 +1242,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         const lineTotal = oi.price * oi.quantity;
         subtotal += lineTotal;
 
+        const diet = getItemDietInfo(oi, menuItems);
         const row = document.createElement('div');
         row.className = 'drawer-item-row';
         row.innerHTML = `
           <div>
-            <div style="font-weight: 600; color: var(--text-white);">${(window.escapeHtml || escapeHtml)(oi.name)} ${oi.variant_name ? `<span style="color: var(--spice-gold); font-size: 0.8rem;">(${(window.escapeHtml || escapeHtml)(oi.variant_name)})</span>` : ''}</div>
-            <div style="font-size: 0.8rem; color: var(--text-muted);">${SpiceClient.formatCurrency(oi.price)} each</div>
+            <div style="font-weight: 600; color: var(--text-white); display: flex; align-items: center; gap: 6px;">
+              <span class="bill-diet-badge ${diet.badgeClass}" title="${diet.label}"><span class="diet-shape"></span></span>
+              <span class="bill-diet-tag ${diet.badgeClass}">[${diet.label.toUpperCase()}]</span>
+              <span>${(window.escapeHtml || escapeHtml)(oi.name)} ${oi.variant_name ? `<span style="color: var(--spice-gold); font-size: 0.8rem;">(${(window.escapeHtml || escapeHtml)(oi.variant_name)})</span>` : ''}</span>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-left: 20px;">${SpiceClient.formatCurrency(oi.price)} each</div>
           </div>
           <div style="display: flex; align-items: center; gap: 10px;">
             <div class="qty-stepper">
@@ -1565,15 +1615,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
       items.forEach(oi => {
         const tr = document.createElement('tr');
+        const diet = getItemDietInfo(oi, menuItems);
         const rawTitle = (oi.item_name_snapshot || oi.name || 'Item') + (oi.variant_name_snapshot ? ` (${oi.variant_name_snapshot})` : '');
         const itemTitle = (window.escapeHtml || escapeHtml)(rawTitle);
         const lineTotal = (oi.line_total !== undefined && oi.line_total !== null) 
           ? Number(oi.line_total) 
           : ((Number(oi.unit_price_snapshot || oi.price || 0)) * Number(oi.quantity || 1));
         tr.innerHTML = `
-          <td>${itemTitle}</td>
-          <td style="text-align: center;">${oi.quantity}</td>
-          <td style="text-align: right;">${SpiceClient.formatCurrency(lineTotal)}</td>
+          <td>
+            <div class="receipt-item-line">
+              <span class="bill-diet-badge ${diet.badgeClass}" title="${diet.label}">
+                <span class="diet-shape"></span>
+              </span>
+              <span class="bill-diet-tag ${diet.badgeClass}">[${diet.label.toUpperCase()}]</span>
+              <span class="bill-item-name">${itemTitle}</span>
+            </div>
+          </td>
+          <td style="text-align: center; vertical-align: top;">${oi.quantity}</td>
+          <td style="text-align: right; vertical-align: top; font-weight: 600;">${SpiceClient.formatCurrency(lineTotal)}</td>
         `;
         billItemsTbody.appendChild(tr);
       });

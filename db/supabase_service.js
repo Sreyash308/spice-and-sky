@@ -719,9 +719,10 @@ module.exports = {
           const localItems = (localO && localO.items && localO.items.length > 0)
             ? localO.items
             : (localStore.orderItems ? localStore.orderItems.filter(i => i.order_id === o.id) : []);
-          const items = (o.order_items && o.order_items.length > 0)
+          const rawItems = (o.order_items && o.order_items.length > 0)
             ? o.order_items
             : ((o.items && o.items.length > 0) ? o.items : localItems);
+          const items = rawItems.map(i => localStore.enrichOrderItem(i));
           return {
             ...o,
             payment_mode,
@@ -917,7 +918,7 @@ module.exports = {
             payment_status: mergedPaymentStatus,
             cash_amount: mergedCash,
             online_amount: mergedOnline,
-            items: remoteItems
+            items: remoteItems.map(i => localStore.enrichOrderItem(i))
           };
         }
         // If remote items are stale or desynced, synchronize with localStore cache
@@ -928,7 +929,7 @@ module.exports = {
             payment_status: mergedPaymentStatus,
             cash_amount: mergedCash,
             online_amount: mergedOnline,
-            items: localOrder.items
+            items: localOrder.items.map(i => localStore.enrichOrderItem(i))
           };
         }
         return {
@@ -937,7 +938,7 @@ module.exports = {
           payment_status: mergedPaymentStatus,
           cash_amount: mergedCash,
           online_amount: mergedOnline,
-          items: remoteItems
+          items: remoteItems.map(i => localStore.enrichOrderItem(i))
         };
       }
     }

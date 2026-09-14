@@ -149,6 +149,74 @@
     font-size: 8.5pt !important;
   }
 
+  /* Thermal Receipt Diet Badges & Tags */
+  .receipt-item-line {
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 1.5mm !important;
+    line-height: 1.25 !important;
+  }
+
+  .bill-diet-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 9pt !important;
+    height: 9pt !important;
+    border: 1pt solid #000000 !important;
+    background: #ffffff !important;
+    margin-top: 1pt !important;
+    flex-shrink: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .bill-diet-badge.veg .diet-shape {
+    width: 4pt !important;
+    height: 4pt !important;
+    border-radius: 50% !important;
+    background: #000000 !important;
+    display: block !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .bill-diet-badge.non-veg .diet-shape {
+    width: 0 !important;
+    height: 0 !important;
+    border-left: 2.5pt solid transparent !important;
+    border-right: 2.5pt solid transparent !important;
+    border-bottom: 4.5pt solid #000000 !important;
+    display: block !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .bill-diet-badge.drink .diet-shape {
+    width: 3pt !important;
+    height: 3pt !important;
+    border-radius: 50% !important;
+    background: #000000 !important;
+    display: block !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .bill-diet-tag {
+    font-size: 7.5pt !important;
+    font-weight: 900 !important;
+    color: #000000 !important;
+    margin-right: 1mm !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .bill-item-name {
+    font-size: 8.5pt !important;
+    color: #000000 !important;
+    font-weight: 700 !important;
+  }
+
   .receipt-total-row td {
     border-top: 1.5px solid #000000 !important;
     border-bottom: 1.5px solid #000000 !important;
@@ -164,3 +232,4 @@
     line-height: 1.3 !important;
   }
 }
+

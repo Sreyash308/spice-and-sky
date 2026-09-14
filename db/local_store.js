@@ -325,6 +325,27 @@ class CafeStore extends EventEmitter {
     return this.variants.find(v => v.id === id);
   }
 
+  enrichOrderItem(oi) {
+    if (!oi) return oi;
+    let food_type = oi.food_type;
+    if (!food_type && oi.menu_item_id) {
+      const dbItem = this.getMenuItemById(oi.menu_item_id);
+      if (dbItem) food_type = dbItem.food_type;
+    }
+    if (!food_type) {
+      const title = (oi.item_name_snapshot || oi.name || '').toLowerCase();
+      if (title.includes('chicken') || title.includes('mutton') || title.includes('egg') || title.includes('fish') || title.includes('pepperoni') || title.includes('non-veg') || title.includes('non veg')) {
+        food_type = 'NON_VEG';
+      } else {
+        food_type = 'VEG';
+      }
+    }
+    return {
+      ...oi,
+      food_type
+    };
+  }
+
   // --- ATOMIC ORDER CREATION ---
   createOrderAtomic({ table_number, items, notes, idempotency_key, waiter_id, waiter_name, status, payment_mode, cash_amount, online_amount }) {
     const tableNum = Number(table_number);
@@ -388,7 +409,7 @@ class CafeStore extends EventEmitter {
       const lineTotal = unitPrice * qty;
       calculatedTotal += lineTotal;
 
-      orderItemsToInsert.push({
+      orderItemsToInsert.push(this.enrichOrderItem({
         id: crypto.randomUUID(),
         menu_item_id: dbItem.id,
         item_name_snapshot: dbItem.name,
@@ -396,8 +417,9 @@ class CafeStore extends EventEmitter {
         unit_price_snapshot: unitPrice,
         quantity: qty,
         line_total: lineTotal,
+        food_type: dbItem.food_type || 'VEG',
         created_at: new Date().toISOString()
-      });
+      }));
     }
 
     const orderId = crypto.randomUUID();
@@ -479,7 +501,7 @@ class CafeStore extends EventEmitter {
       const lineTotal = unitPrice * qty;
       calculatedTotal += lineTotal;
 
-      orderItemsToInsert.push({
+      orderItemsToInsert.push(this.enrichOrderItem({
         id: crypto.randomUUID(),
         order_id: targetOrderId,
         menu_item_id: dbItem.id,
@@ -488,8 +510,9 @@ class CafeStore extends EventEmitter {
         unit_price_snapshot: unitPrice,
         quantity: qty,
         line_total: lineTotal,
+        food_type: dbItem.food_type || 'VEG',
         created_at: new Date().toISOString()
-      });
+      }));
     }
 
     const order = this.orders[orderIndex];
@@ -519,7 +542,7 @@ class CafeStore extends EventEmitter {
       .filter(o => o.status !== 'COMPLETED' && o.status !== 'CANCELLED')
       .map(o => ({
         ...o,
-        items: this.orderItems.filter(oi => oi.order_id === o.id)
+        items: this.orderItems.filter(oi => oi.order_id === o.id).map(oi => this.enrichOrderItem(oi))
       }));
   }
 
@@ -801,7 +824,7 @@ class CafeStore extends EventEmitter {
 
     return result.map(o => {
       const matchingItems = this.orderItems.filter(oi => oi.order_id === o.id);
-      const items = matchingItems.length > 0 ? matchingItems : (o.items || o.order_items || []);
+      const items = (matchingItems.length > 0 ? matchingItems : (o.items || o.order_items || [])).map(oi => this.enrichOrderItem(oi));
       return {
         ...o,
         items,
@@ -814,7 +837,7 @@ class CafeStore extends EventEmitter {
     const order = this.orders.find(o => o.id === id || String(o.order_number) === String(id));
     if (!order) return null;
     const matchingItems = this.orderItems.filter(oi => oi.order_id === order.id);
-    const items = matchingItems.length > 0 ? matchingItems : (order.items || order.order_items || []);
+    const items = (matchingItems.length > 0 ? matchingItems : (order.items || order.order_items || [])).map(oi => this.enrichOrderItem(oi));
     return {
       ...order,
       items,

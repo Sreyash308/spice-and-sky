@@ -446,4 +446,93 @@ button {
   line-height: 1.4;
 }
 
+/* Bill / Receipt Dietary Badges & Indicators */
+.receipt-item-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  line-height: 1.35;
+}
+
+.bill-diet-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.bill-diet-badge.veg {
+  border: 1.5px solid #16a34a;
+  background: #ffffff;
+}
+
+.bill-diet-badge.veg .diet-shape {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #16a34a;
+  display: block;
+}
+
+.bill-diet-badge.non-veg {
+  border: 1.5px solid #dc2626;
+  background: #ffffff;
+}
+
+.bill-diet-badge.non-veg .diet-shape {
+  width: 0;
+  height: 0;
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+  border-bottom: 5.5px solid #dc2626;
+  display: block;
+}
+
+.bill-diet-badge.drink {
+  border: 1.5px solid #0284c7;
+  background: #ffffff;
+}
+
+.bill-diet-badge.drink .diet-shape {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #0284c7;
+  display: block;
+}
+
+.bill-diet-tag {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-right: 2px;
+}
+
+.bill-diet-tag.veg {
+  color: #15803d;
+}
+
+.bill-diet-tag.non-veg {
+  color: #dc2626;
+}
+
+.bill-diet-tag.drink {
+  color: #0369a1;
+}
+
+.bill-item-name {
+  font-size: 0.85rem;
+  color: #111827;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+
 

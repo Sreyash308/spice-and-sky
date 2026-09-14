@@ -19,6 +19,45 @@ if (typeof window !== 'undefined') {
   }
 }
 
+function getItemDietInfo(oi, allMenuItems) {
+  let type = oi?.food_type;
+  const itemsList = Array.isArray(allMenuItems) ? allMenuItems : (typeof menuItems !== 'undefined' && Array.isArray(menuItems) ? menuItems : []);
+  
+  if (!type && oi?.menu_item_id && itemsList.length > 0) {
+    const found = itemsList.find(m => m.id === oi.menu_item_id);
+    if (found) {
+      type = found.food_type;
+    }
+  }
+  if (!type) {
+    const title = (oi?.item_name_snapshot || oi?.name || '').toLowerCase();
+    if (title.includes('chicken') || title.includes('mutton') || title.includes('egg') || title.includes('fish') || title.includes('pepperoni') || title.includes('non-veg') || title.includes('non veg')) {
+      type = 'NON_VEG';
+    } else {
+      type = 'VEG';
+    }
+  }
+
+  const isNonVeg = type === 'NON_VEG';
+  const isDrink = type === 'DRINK';
+
+  return {
+    food_type: type,
+    isNonVeg,
+    isVeg: !isNonVeg && !isDrink,
+    isDrink,
+    badgeClass: isNonVeg ? 'non-veg' : (isDrink ? 'drink' : 'veg'),
+    label: isNonVeg ? 'Non-Veg' : (isDrink ? 'Drink' : 'Veg')
+  };
+}
+
+if (typeof window !== 'undefined') {
+  if (!window.getItemDietInfo) window.getItemDietInfo = getItemDietInfo;
+  if (window.SpiceClient && !window.SpiceClient.getItemDietInfo) {
+    window.SpiceClient.getItemDietInfo = getItemDietInfo;
+  }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   await SpiceClient.init();
 
@@ -562,15 +601,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
       items.forEach(oi => {
         const tr = document.createElement('tr');
+        const diet = getItemDietInfo(oi, menuItems);
         const rawTitle = (oi.item_name_snapshot || oi.name || 'Item') + (oi.variant_name_snapshot ? ` (${oi.variant_name_snapshot})` : '');
         const itemTitle = SpiceClient.escapeHtml(rawTitle);
         const lineTotal = (oi.line_total !== undefined && oi.line_total !== null) 
           ? Number(oi.line_total) 
           : ((Number(oi.unit_price_snapshot || oi.price || 0)) * Number(oi.quantity || 1));
         tr.innerHTML = `
-          <td>${itemTitle}</td>
-          <td style="text-align: center;">${oi.quantity || 1}</td>
-          <td style="text-align: right;">${SpiceClient.formatCurrency(lineTotal)}</td>
+          <td>
+            <div class="receipt-item-line">
+              <span class="bill-diet-badge ${diet.badgeClass}" title="${diet.label}">
+                <span class="diet-shape"></span>
+              </span>
+              <span class="bill-diet-tag ${diet.badgeClass}">[${diet.label.toUpperCase()}]</span>
+              <span class="bill-item-name">${itemTitle}</span>
+            </div>
+          </td>
+          <td style="text-align: center; vertical-align: top;">${oi.quantity || 1}</td>
+          <td style="text-align: right; vertical-align: top; font-weight: 600;">${SpiceClient.formatCurrency(lineTotal)}</td>
         `;
         adminModalItemsTbody.appendChild(tr);
       });
