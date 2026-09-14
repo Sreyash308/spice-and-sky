@@ -1,5 +1,5 @@
 {
   "sessionEpoch": 1789380855923,
-  "jwtSecret": "spice_sky_1789380855923_c08e26a9f89096211857fa9e9de72232b5d7264f03d43d72b858acbedd56dc1d",
+  "jwtSecret": "spice_sky_jwt_secret_2026_super_secure_permanent_key",
   "terminatedAt": "2026-09-14T10:14:15.924Z"
 }

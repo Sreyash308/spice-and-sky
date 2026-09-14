@@ -1,6 +1,6 @@
 /**
  * Authoritative Session & JWT Key Manager for Spice & Sky Rooftop Cafe
- * Handles dynamic secret rotation, epoch tracking, and global session termination.
+ * Handles persistent secret management, epoch tracking, and global session termination.
  */
 
 const fs = require('fs');
@@ -8,11 +8,13 @@ const path = require('path');
 const crypto = require('crypto');
 
 const STATE_FILE = path.join(__dirname, 'session_state.json');
+const STABLE_JWT_SECRET = process.env.JWT_SECRET || 'spice_sky_jwt_secret_2026_super_secure_permanent_key';
+const STABLE_EPOCH = 1789380855923;
 
 class SessionManager {
   constructor() {
-    this.sessionEpoch = 0;
-    this.jwtSecret = '';
+    this.sessionEpoch = STABLE_EPOCH;
+    this.jwtSecret = STABLE_JWT_SECRET;
     this.loadState();
   }
 
@@ -28,9 +30,11 @@ class SessionManager {
         }
       }
     } catch (e) {
-      console.warn('Session state file could not be read, resetting state:', e.message);
+      console.warn('Session state file notice:', e.message);
     }
-    this.killAllSessions();
+    // Maintain stable defaults so serverless cold starts never invalidate active sessions
+    this.sessionEpoch = STABLE_EPOCH;
+    this.jwtSecret = STABLE_JWT_SECRET;
   }
 
   saveState() {
@@ -41,13 +45,13 @@ class SessionManager {
         terminatedAt: new Date().toISOString()
       }, null, 2), 'utf8');
     } catch (e) {
-      console.error('Failed to write session state file:', e);
+      // Safe fallback on read-only serverless filesystems
     }
   }
 
   killAllSessions() {
     this.sessionEpoch = Date.now();
-    this.jwtSecret = 'spice_sky_' + Date.now() + '_' + crypto.randomBytes(32).toString('hex');
+    this.jwtSecret = 'spice_sky_' + Date.now() + '_' + crypto.randomBytes(16).toString('hex');
     this.saveState();
     console.log(`[SessionManager] All sessions & JWT tokens killed. New Epoch: ${this.sessionEpoch}`);
     return {
@@ -57,13 +61,11 @@ class SessionManager {
   }
 
   getSecret() {
-    if (!this.jwtSecret) this.killAllSessions();
-    return this.jwtSecret;
+    return this.jwtSecret || STABLE_JWT_SECRET;
   }
 
   getEpoch() {
-    if (!this.sessionEpoch) this.killAllSessions();
-    return this.sessionEpoch;
+    return this.sessionEpoch || STABLE_EPOCH;
   }
 }
 

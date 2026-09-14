@@ -133,41 +133,51 @@ app.get('/waiter/login', (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
-  if (req.query.logout === 'true' || req.query.clear === 'true') {
-    res.setHeader('Clear-Site-Data', '"cache", "cookies", "storage"');
-  }
   res.sendFile(path.join(__dirname, 'public', 'waiter-login.html'));
 });
 
 app.get('/waiter', (req, res) => {
-  const auth = apiRouter.verifyUserToken ? apiRouter.verifyUserToken(req) : null;
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+
+  const auth = apiRouter.verifyUserToken ? apiRouter.verifyUserToken(req, 'WAITER') : null;
   const ALLOWED_USERS = ['shan', 'yawar', 'nawaz'];
   const uname = auth?.user?.username ? auth.user.username.toLowerCase() : (auth?.user?.display_name ? auth.user.display_name.toLowerCase() : '');
 
   // Only allow Shan, Yawar, and Nawaz with role WAITER into the Waiter Terminal
   if (!auth || !auth.user || auth.user.role !== 'WAITER' || !ALLOWED_USERS.includes(uname)) {
-    res.setHeader('Clear-Site-Data', '"cache", "cookies", "storage"');
-    res.clearCookie('spice_token', { path: '/' });
-    res.clearCookie('spice_session_id', { path: '/' });
-    return res.redirect('/waiter/login?logout=true&t=' + Date.now());
+    if (req.cookies?.spice_waiter_token) {
+      res.clearCookie('spice_waiter_token', { path: '/' });
+    }
+    return res.redirect('/waiter/login');
   }
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
+
   res.sendFile(path.join(__dirname, 'public', 'waiter.html'));
 });
 
 // 3. Owner / Admin Dashboard
 app.get('/admin/login', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.sendFile(path.join(__dirname, 'public', 'admin-login.html'));
 });
 
 app.get(['/admin', '/admin/orders', '/admin/menu', '/admin/analytics', '/admin/tables', '/admin/settings'], (req, res) => {
-  const auth = apiRouter.verifyUserToken ? apiRouter.verifyUserToken(req) : null;
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+
+  const auth = apiRouter.verifyUserToken ? apiRouter.verifyUserToken(req, 'ADMIN') : null;
   const uname = auth?.user?.username ? auth.user.username.toLowerCase() : (auth?.user?.display_name ? auth.user.display_name.toLowerCase() : '');
   if (!auth || !auth.user || auth.user.role !== 'ADMIN' || uname !== 'admin@143') {
+    if (req.cookies?.spice_admin_token) {
+      res.clearCookie('spice_admin_token', { path: '/' });
+    }
     return res.redirect('/admin/login');
   }
+
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 

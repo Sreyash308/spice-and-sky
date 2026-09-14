@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (adminLogoutBtn) {
     adminLogoutBtn.addEventListener('click', async (e) => {
       e.preventDefault();
-      await SpiceClient.signOut();
+      await SpiceClient.signOut('ADMIN');
       window.location.replace('/admin/login');
     });
   }

@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const ALLOWED_WAITERS = ['shan', 'yawar', 'nawaz'];
 
   // If already logged in as WAITER, redirect to /waiter only if authorized
-  const existingUser = SpiceClient.getStoredUser();
+  const existingUser = SpiceClient.getStoredUser('WAITER');
   if (existingUser) {
     const uname = (existingUser.username || existingUser.display_name || '').toLowerCase();
     if (existingUser.role === 'WAITER' && ALLOWED_WAITERS.includes(uname)) {
@@ -17,8 +17,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       return;
     } else {
-      // Clear any non-waiter or disallowed session
-      await SpiceClient.signOut();
+      // Clear any disallowed waiter session
+      await SpiceClient.signOut('WAITER');
     }
   }
 

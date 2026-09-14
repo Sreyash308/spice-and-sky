@@ -67,22 +67,20 @@
     }
   </style>
   <script>
-    // Force clear all local data whenever login page is visited
+    // Only clear waiter-specific keys when login page is visited (never touch admin keys!)
     try {
-      localStorage.removeItem('spice_auth_user');
-      localStorage.removeItem('spice_token');
-      localStorage.removeItem('spice_session_id');
-      localStorage.clear();
-      sessionStorage.clear();
+      localStorage.removeItem('spice_waiter_user');
+      localStorage.removeItem('spice_waiter_token');
+      localStorage.removeItem('spice_waiter_session_id');
     } catch (e) {}
 
     window.addEventListener('pageshow', function(e) {
       if (e.persisted) {
         try {
-          localStorage.clear();
-          sessionStorage.clear();
+          localStorage.removeItem('spice_waiter_user');
+          localStorage.removeItem('spice_waiter_token');
+          localStorage.removeItem('spice_waiter_session_id');
         } catch (err) {}
-        window.location.reload();
       }
     });
 

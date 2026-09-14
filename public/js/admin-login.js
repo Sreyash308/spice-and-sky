@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await SpiceClient.init();
 
   // If already logged in as ADMIN, redirect to /admin
-  const user = SpiceClient.getStoredUser();
+  const user = SpiceClient.getStoredUser('ADMIN');
   if (user && user.role === 'ADMIN') {
     if (window.location.pathname !== '/admin') {
       window.location.href = '/admin';
@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const password = document.getElementById('adminPassword').value;
 
     try {
-      const res = await SpiceClient.signIn(email, password);
+      const res = await SpiceClient.signIn(email, password, { portal: 'admin' });
       if (res.success && res.user.role === 'ADMIN') {
         window.location.href = '/admin';
       } else {

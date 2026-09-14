@@ -84,37 +84,57 @@ function createSessionToken(user) {
   );
 }
 
-function verifyUserToken(req) {
-  const rawToken = req.cookies?.spice_token ||
-                   req.cookies?.spice_session_id ||
-                   req.headers['x-session-id'] ||
-                   req.headers['x-auth-token'] ||
-                   (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null);
+function verifyUserToken(req, targetRole = null) {
+  const candidateTokens = [];
 
-  if (!rawToken) return null;
+  // 1. Explicit request headers take highest priority
+  const authHeader = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null;
+  const sessionHeader = req.headers['x-session-id'] || req.headers['x-auth-token'];
+  if (authHeader) candidateTokens.push(authHeader);
+  if (sessionHeader && !candidateTokens.includes(sessionHeader)) candidateTokens.push(sessionHeader);
 
-  const token = String(rawToken).trim();
+  // 2. Role-specific cookies based on context or requested role
+  const portalContext = req.headers['x-portal'] || req.query?.portal || '';
+  const isWaiterReq = targetRole === 'WAITER' || portalContext === 'waiter' || req.originalUrl?.includes('/waiter') || req.path?.includes('/waiter');
+  const isAdminReq = targetRole === 'ADMIN' || portalContext === 'admin' || req.originalUrl?.includes('/admin') || req.path?.includes('/admin');
 
-  // If token has been revoked / killed on sign out, reject immediately!
-  if (localStore.isTokenRevoked(token)) {
-    return null;
+  if (isWaiterReq && req.cookies?.spice_waiter_token) {
+    candidateTokens.push(req.cookies.spice_waiter_token);
+  }
+  if (isAdminReq && req.cookies?.spice_admin_token) {
+    candidateTokens.push(req.cookies.spice_admin_token);
   }
 
-  // 1. Verify JSON Web Token using current authoritative secret & epoch
-  try {
-    const decoded = jwt.verify(token, sessionManager.getSecret());
-    if (decoded && decoded.role) {
-      if (decoded.jti && localStore.isTokenRevoked(decoded.jti)) {
-        return null;
+  // 3. Fallback cookies
+  if (req.cookies?.spice_waiter_token && !candidateTokens.includes(req.cookies.spice_waiter_token)) {
+    candidateTokens.push(req.cookies.spice_waiter_token);
+  }
+  if (req.cookies?.spice_admin_token && !candidateTokens.includes(req.cookies.spice_admin_token)) {
+    candidateTokens.push(req.cookies.spice_admin_token);
+  }
+  if (req.cookies?.spice_token && !candidateTokens.includes(req.cookies.spice_token)) {
+    candidateTokens.push(req.cookies.spice_token);
+  }
+  if (req.cookies?.spice_session_id && !candidateTokens.includes(req.cookies.spice_session_id)) {
+    candidateTokens.push(req.cookies.spice_session_id);
+  }
+
+  for (const raw of candidateTokens) {
+    if (!raw) continue;
+    const token = String(raw).trim();
+    if (localStore.isTokenRevoked(token)) continue;
+
+    try {
+      const decoded = jwt.verify(token, sessionManager.getSecret());
+      if (decoded && decoded.role) {
+        if (decoded.jti && localStore.isTokenRevoked(decoded.jti)) continue;
+        if (!decoded.sessionEpoch || Number(decoded.sessionEpoch) < sessionManager.getEpoch()) continue;
+        if (targetRole && decoded.role !== targetRole) continue;
+        return { user: decoded, token };
       }
-      // Require sessionEpoch >= sessionManager.getEpoch() to kill all sessions created prior
-      if (!decoded.sessionEpoch || Number(decoded.sessionEpoch) < sessionManager.getEpoch()) {
-        return null;
-      }
-      return { user: decoded, token };
+    } catch (err) {
+      // Continue to next candidate
     }
-  } catch (err) {
-    // Invalid or expired token
   }
 
   return null;
@@ -234,7 +254,15 @@ router.post('/auth/login', async (req, res) => {
       path: '/'
     };
 
-    res.cookie('spice_token', token, cookieOptions);
+    if (authUser.role === 'WAITER' || portal === 'waiter') {
+      res.cookie('spice_waiter_token', token, cookieOptions);
+      res.cookie('spice_token', token, cookieOptions);
+    } else if (authUser.role === 'ADMIN' || portal === 'admin') {
+      res.cookie('spice_admin_token', token, cookieOptions);
+      res.cookie('spice_token', token, cookieOptions);
+    } else {
+      res.cookie('spice_token', token, cookieOptions);
+    }
     res.cookie('spice_session_id', token, cookieOptions);
 
     res.json({
@@ -252,7 +280,9 @@ router.post('/auth/login', async (req, res) => {
 
 // GET /api/auth/session - Retrieve and validate persistent session token
 router.get('/auth/session', (req, res) => {
-  const auth = verifyUserToken(req);
+  const portalContext = req.headers['x-portal'] || req.query?.portal || '';
+  const targetRole = portalContext === 'waiter' ? 'WAITER' : (portalContext === 'admin' ? 'ADMIN' : null);
+  const auth = verifyUserToken(req, targetRole);
   if (!auth || !auth.user) {
     return res.json({ success: true, authenticated: false, user: null });
   }
@@ -268,23 +298,29 @@ router.get('/auth/session', (req, res) => {
 
 // POST /api/auth/logout - Immediately kill session, revoke JWT, and clear cookies
 router.post('/auth/logout', (req, res) => {
-  const auth = verifyUserToken(req);
-  const tokenFromHeaderOrCookie = req.cookies?.spice_token ||
-                                  req.cookies?.spice_session_id ||
-                                  req.headers['x-session-id'] ||
-                                  req.headers['x-auth-token'] ||
-                                  (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null);
+  const portal = req.body?.portal || req.headers['x-portal'] || req.query?.portal || '';
+  const targetRole = portal === 'waiter' ? 'WAITER' : (portal === 'admin' ? 'ADMIN' : null);
+  const auth = verifyUserToken(req, targetRole);
   const tokenFromBody = req.body?.token || req.body?.sessionId || req.body?.session_id;
 
-  const tokensToRevoke = [
-    auth?.token,
-    auth?.user?.jti,
-    tokenFromHeaderOrCookie,
-    tokenFromBody
-  ].filter(Boolean);
+  const tokensToRevoke = [];
+  if (auth?.token) tokensToRevoke.push(auth.token);
+  if (auth?.user?.jti) tokensToRevoke.push(auth.user.jti);
+  if (tokenFromBody) tokensToRevoke.push(tokenFromBody);
+
+  if (portal === 'waiter' || auth?.user?.role === 'WAITER') {
+    if (req.cookies?.spice_waiter_token) tokensToRevoke.push(req.cookies.spice_waiter_token);
+  } else if (portal === 'admin' || auth?.user?.role === 'ADMIN') {
+    if (req.cookies?.spice_admin_token) tokensToRevoke.push(req.cookies.spice_admin_token);
+  } else {
+    if (req.cookies?.spice_token) tokensToRevoke.push(req.cookies.spice_token);
+    if (req.cookies?.spice_session_id) tokensToRevoke.push(req.cookies.spice_session_id);
+    if (req.cookies?.spice_waiter_token) tokensToRevoke.push(req.cookies.spice_waiter_token);
+    if (req.cookies?.spice_admin_token) tokensToRevoke.push(req.cookies.spice_admin_token);
+  }
 
   for (const t of tokensToRevoke) {
-    localStore.revokeToken(t);
+    if (t) localStore.revokeToken(t);
   }
 
   const clearCookieOptions = {
@@ -293,13 +329,20 @@ router.post('/auth/logout', (req, res) => {
     httpOnly: false
   };
 
-  res.clearCookie('spice_token', clearCookieOptions);
-  res.clearCookie('spice_session_id', clearCookieOptions);
-  res.setHeader('Clear-Site-Data', '"cache", "cookies", "storage"');
+  if (portal === 'waiter' || auth?.user?.role === 'WAITER') {
+    res.clearCookie('spice_waiter_token', clearCookieOptions);
+  } else if (portal === 'admin' || auth?.user?.role === 'ADMIN') {
+    res.clearCookie('spice_admin_token', clearCookieOptions);
+  } else {
+    res.clearCookie('spice_waiter_token', clearCookieOptions);
+    res.clearCookie('spice_admin_token', clearCookieOptions);
+    res.clearCookie('spice_token', clearCookieOptions);
+    res.clearCookie('spice_session_id', clearCookieOptions);
+  }
 
   res.json({
     success: true,
-    message: 'Session terminated, JWT killed, and credentials revoked.'
+    message: 'Session terminated and credentials revoked.'
   });
 });
 
@@ -354,13 +397,6 @@ router.get('/events', (req, res) => {
 
   res.write(`data: ${JSON.stringify({ type: 'CONNECTED', time: new Date().toISOString(), sessionEpoch: sessionManager.getEpoch() })}\n\n`);
   sseClients.add(res);
-
-  // If request includes a token that is invalid or has expired epoch, broadcast immediate signout to this client
-  const auth = verifyUserToken(req);
-  const rawToken = req.cookies?.spice_token || req.headers['x-session-id'] || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null);
-  if (rawToken && !auth) {
-    res.write(`data: ${JSON.stringify({ type: 'FORCE_SIGNOUT', reason: 'Session invalid or revoked' })}\n\n`);
-  }
 
   const heartbeat = setInterval(() => {
     try {

@@ -3,21 +3,48 @@
  */
 
 window.SpiceClient = (function () {
+  function getActiveRole(overrideRole) {
+    if (overrideRole) return String(overrideRole).toUpperCase();
+    if (typeof window !== 'undefined' && window.location) {
+      if (window.location.pathname.includes('/waiter')) return 'WAITER';
+      if (window.location.pathname.includes('/admin')) return 'ADMIN';
+    }
+    return null;
+  }
+
   // Transparent fetch interceptor: auto-attaches JWT & session key to all /api/ requests
   // and auto-signs out if the server responds with 401 Unauthorized
   if (typeof window !== 'undefined' && window.fetch) {
     const _origFetch = window.fetch;
     window.fetch = async function (resource, init) {
       let urlStr = '';
+      const isWaiterPortal = window.location.pathname.includes('/waiter');
+      const isAdminPortal = window.location.pathname.includes('/admin');
+      const activeRole = isWaiterPortal ? 'WAITER' : (isAdminPortal ? 'ADMIN' : null);
+
       try {
         urlStr = typeof resource === 'string' ? resource : (resource ? resource.url : '');
         if (urlStr && (urlStr.startsWith('/api') || urlStr.includes('/api/'))) {
           init = init || {};
           const headers = new Headers(init.headers || {});
-          const token = localStorage.getItem('spice_token') || localStorage.getItem('spice_session_id');
+          
+          let token = null;
+          if (typeof localStorage !== 'undefined') {
+            if (isWaiterPortal) {
+              token = localStorage.getItem('spice_waiter_token') || localStorage.getItem('spice_waiter_session_id') || localStorage.getItem('spice_token');
+            } else if (isAdminPortal) {
+              token = localStorage.getItem('spice_admin_token') || localStorage.getItem('spice_admin_session_id') || localStorage.getItem('spice_token');
+            } else {
+              token = localStorage.getItem('spice_token') || localStorage.getItem('spice_session_id') || localStorage.getItem('spice_waiter_token') || localStorage.getItem('spice_admin_token');
+            }
+          }
+
           if (token) {
             if (!headers.has('Authorization')) headers.set('Authorization', 'Bearer ' + token);
             if (!headers.has('x-session-id')) headers.set('x-session-id', token);
+          }
+          if (activeRole) {
+            headers.set('x-portal', activeRole.toLowerCase());
           }
           init.headers = headers;
           init.credentials = init.credentials || 'same-origin';
@@ -26,21 +53,22 @@ window.SpiceClient = (function () {
 
       const res = await _origFetch(resource, init);
 
-      // Auto-logout if any API returns 401 Unauthorized (except login endpoint itself)
+      // Auto-logout ONLY for active role if API returns 401 Unauthorized (except login endpoint itself)
       if (res && res.status === 401 && urlStr && urlStr.includes('/api/') && !urlStr.includes('/auth/login')) {
         try {
           if (typeof localStorage !== 'undefined') {
-            localStorage.removeItem('spice_auth_user');
-            localStorage.removeItem('spice_token');
-            localStorage.removeItem('spice_session_id');
-            localStorage.clear();
+            if (isWaiterPortal) {
+              localStorage.removeItem('spice_waiter_user');
+              localStorage.removeItem('spice_waiter_token');
+              localStorage.removeItem('spice_waiter_session_id');
+            } else if (isAdminPortal) {
+              localStorage.removeItem('spice_admin_user');
+              localStorage.removeItem('spice_admin_token');
+              localStorage.removeItem('spice_admin_session_id');
+            }
           }
-          if (typeof sessionStorage !== 'undefined') {
-            sessionStorage.clear();
-          }
-          const isWaiter = window.location.pathname.includes('/waiter');
-          const loginTarget = isWaiter ? '/waiter/login' : '/admin/login';
-          if (!window.location.pathname.includes('/login')) {
+          const loginTarget = isWaiterPortal ? '/waiter/login' : '/admin/login';
+          if (!window.location.pathname.includes('/login') && (isWaiterPortal || isAdminPortal)) {
             window.location.replace(loginTarget);
           }
         } catch (err) {}
@@ -116,7 +144,7 @@ window.SpiceClient = (function () {
         try {
           const parsed = JSON.parse(e.data);
           if (parsed.type === 'FORCE_SIGNOUT') {
-            console.warn('Session termination event received from server. Signing out...');
+            console.warn('Authoritative session termination event received from server. Signing out...');
             signOut();
             const isWaiter = window.location.pathname.includes('/waiter');
             const loginTarget = isWaiter ? '/waiter/login' : '/admin/login';
@@ -144,30 +172,6 @@ window.SpiceClient = (function () {
     }
   }
 
-  // Active Session Heartbeat: periodically re-validates session every 6 seconds on protected pages
-  if (typeof window !== 'undefined') {
-    const triggerHeartbeatCheck = async () => {
-      if (window.location.pathname.startsWith('/waiter') || window.location.pathname.startsWith('/admin')) {
-        if (window.location.pathname.includes('/login')) return;
-        try {
-          const res = await checkSession();
-          if (!res || !res.authenticated) {
-            await signOut();
-            const isWaiter = window.location.pathname.includes('/waiter');
-            window.location.replace(isWaiter ? '/waiter/login' : '/admin/login');
-          }
-        } catch (e) {}
-      }
-    };
-
-    setInterval(triggerHeartbeatCheck, 6000);
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        triggerHeartbeatCheck();
-      }
-    });
-  }
-
   function on(eventName, callback) {
     if (eventListeners[eventName]) {
       eventListeners[eventName].push(callback);
@@ -185,28 +189,54 @@ window.SpiceClient = (function () {
   let currentUser = null;
   let currentSessionId = null;
 
-  function getStoredToken() {
-    return currentSessionId ||
-           (typeof localStorage !== 'undefined' ? (localStorage.getItem('spice_token') || localStorage.getItem('spice_session_id')) : null);
+  function getStoredToken(role) {
+    const r = getActiveRole(role);
+    if (typeof localStorage === 'undefined') return currentSessionId || null;
+    if (r === 'WAITER') {
+      return localStorage.getItem('spice_waiter_token') || localStorage.getItem('spice_waiter_session_id') || localStorage.getItem('spice_token') || currentSessionId || null;
+    }
+    if (r === 'ADMIN') {
+      return localStorage.getItem('spice_admin_token') || localStorage.getItem('spice_admin_session_id') || localStorage.getItem('spice_token') || currentSessionId || null;
+    }
+    return currentSessionId || localStorage.getItem('spice_token') || localStorage.getItem('spice_session_id') || localStorage.getItem('spice_waiter_token') || localStorage.getItem('spice_admin_token') || null;
   }
 
-  function getStoredUser() {
-    if (currentUser) return currentUser;
-    if (typeof localStorage === 'undefined') return null;
-    const raw = localStorage.getItem('spice_auth_user');
+  function getStoredUser(role) {
+    const r = getActiveRole(role);
+    if (typeof localStorage === 'undefined') return currentUser;
+
+    let raw = null;
+    if (r === 'WAITER') {
+      raw = localStorage.getItem('spice_waiter_user') || localStorage.getItem('spice_auth_user');
+    } else if (r === 'ADMIN') {
+      raw = localStorage.getItem('spice_admin_user') || localStorage.getItem('spice_auth_user');
+    } else {
+      raw = localStorage.getItem('spice_auth_user') || localStorage.getItem('spice_waiter_user') || localStorage.getItem('spice_admin_user');
+    }
+
     if (!raw) return null;
     try {
-      currentUser = JSON.parse(raw);
-      return currentUser;
+      const u = JSON.parse(raw);
+      if (r && u.role && u.role !== r) {
+        if (r === 'WAITER') {
+          const waiterRaw = localStorage.getItem('spice_waiter_user');
+          return waiterRaw ? JSON.parse(waiterRaw) : null;
+        } else if (r === 'ADMIN') {
+          const adminRaw = localStorage.getItem('spice_admin_user');
+          return adminRaw ? JSON.parse(adminRaw) : null;
+        }
+      }
+      return u;
     } catch (e) {
       return null;
     }
   }
 
   // --- AUTHENTICATION & JWT SESSION HELPERS ---
-  async function checkSession() {
-    const storedUser = getStoredUser();
-    const storedToken = getStoredToken();
+  async function checkSession(role) {
+    const r = getActiveRole(role);
+    const storedUser = getStoredUser(r);
+    const storedToken = getStoredToken(r);
 
     try {
       const headers = {};
@@ -214,27 +244,48 @@ window.SpiceClient = (function () {
         headers['x-session-id'] = storedToken;
         headers['Authorization'] = `Bearer ${storedToken}`;
       }
-      const res = await fetch('/api/auth/session', { headers });
+      if (r) {
+        headers['x-portal'] = r.toLowerCase();
+      }
+      const portalQuery = r ? `?portal=${r.toLowerCase()}` : '';
+      const res = await fetch(`/api/auth/session${portalQuery}`, { headers });
       const json = await res.json();
       if (json.success && json.authenticated && json.user) {
-        currentUser = json.user;
-        currentSessionId = json.token || json.sessionId || storedToken;
+        const u = json.user;
+        const tok = json.token || json.sessionId || storedToken;
+        currentUser = u;
+        currentSessionId = tok;
+
         if (typeof localStorage !== 'undefined') {
-          localStorage.setItem('spice_auth_user', JSON.stringify(currentUser));
-          if (currentSessionId) {
-            localStorage.setItem('spice_token', currentSessionId);
-            localStorage.setItem('spice_session_id', currentSessionId);
+          if (u.role === 'WAITER' || r === 'WAITER') {
+            localStorage.setItem('spice_waiter_user', JSON.stringify(u));
+            if (tok) {
+              localStorage.setItem('spice_waiter_token', tok);
+              localStorage.setItem('spice_waiter_session_id', tok);
+            }
+          } else if (u.role === 'ADMIN' || r === 'ADMIN') {
+            localStorage.setItem('spice_admin_user', JSON.stringify(u));
+            if (tok) {
+              localStorage.setItem('spice_admin_token', tok);
+              localStorage.setItem('spice_admin_session_id', tok);
+            }
           }
+          localStorage.setItem('spice_auth_user', JSON.stringify(u));
+          if (tok) localStorage.setItem('spice_token', tok);
         }
-        return { authenticated: true, user: currentUser, sessionId: currentSessionId, token: currentSessionId };
+        return { authenticated: true, user: u, sessionId: tok, token: tok };
       } else if (json && json.authenticated === false) {
-        // Explicitly unauthenticated by server (e.g. random user, fake token, or signed out)
-        currentUser = null;
-        currentSessionId = null;
-        if (typeof localStorage !== 'undefined') {
-          localStorage.removeItem('spice_auth_user');
-          localStorage.removeItem('spice_token');
-          localStorage.removeItem('spice_session_id');
+        // Explicitly unauthenticated by server (e.g. revoked token)
+        if (storedToken && typeof localStorage !== 'undefined') {
+          if (r === 'WAITER') {
+            localStorage.removeItem('spice_waiter_user');
+            localStorage.removeItem('spice_waiter_token');
+            localStorage.removeItem('spice_waiter_session_id');
+          } else if (r === 'ADMIN') {
+            localStorage.removeItem('spice_admin_user');
+            localStorage.removeItem('spice_admin_token');
+            localStorage.removeItem('spice_admin_session_id');
+          }
         }
         return { authenticated: false, user: null, sessionId: null, token: null };
       }
@@ -248,14 +299,13 @@ window.SpiceClient = (function () {
       }
     }
 
-    currentUser = null;
-    currentSessionId = null;
     return { authenticated: false, user: null, sessionId: null, token: null };
   }
 
   async function signIn(email, password, options = {}) {
     const rawIdentifier = (email || '').trim().toLowerCase();
-    const portal = options.portal || (typeof window !== 'undefined' && window.location.pathname.includes('/waiter') ? 'waiter' : undefined);
+    const isWaiter = options.portal === 'waiter' || (typeof window !== 'undefined' && window.location.pathname.includes('/waiter'));
+    const portal = options.portal || (isWaiter ? 'waiter' : 'admin');
 
     try {
       const res = await fetch('/api/auth/login', {
@@ -266,13 +316,29 @@ window.SpiceClient = (function () {
       const json = await res.json();
 
       if (json.success && json.user) {
-        currentUser = json.user;
-        currentSessionId = json.token || json.sessionId || json.session_id;
+        const u = json.user;
+        const tok = json.token || json.sessionId || json.session_id;
+        currentUser = u;
+        currentSessionId = tok;
+
         if (typeof localStorage !== 'undefined') {
-          localStorage.setItem('spice_auth_user', JSON.stringify(currentUser));
-          if (currentSessionId) {
-            localStorage.setItem('spice_token', currentSessionId);
-            localStorage.setItem('spice_session_id', currentSessionId);
+          if (u.role === 'WAITER' || portal === 'waiter') {
+            localStorage.setItem('spice_waiter_user', JSON.stringify(u));
+            if (tok) {
+              localStorage.setItem('spice_waiter_token', tok);
+              localStorage.setItem('spice_waiter_session_id', tok);
+            }
+          } else if (u.role === 'ADMIN' || portal === 'admin') {
+            localStorage.setItem('spice_admin_user', JSON.stringify(u));
+            if (tok) {
+              localStorage.setItem('spice_admin_token', tok);
+              localStorage.setItem('spice_admin_session_id', tok);
+            }
+          }
+          localStorage.setItem('spice_auth_user', JSON.stringify(u));
+          if (tok) {
+            localStorage.setItem('spice_token', tok);
+            localStorage.setItem('spice_session_id', tok);
           }
         }
 
@@ -291,30 +357,43 @@ window.SpiceClient = (function () {
     }
   }
 
-  function getSessionId() {
-    return getStoredToken();
+  function getSessionId(role) {
+    return getStoredToken(role);
   }
 
-  async function signOut() {
-    const tokenToRevoke = getStoredToken();
+  async function signOut(role) {
+    const r = getActiveRole(role);
+    const tokenToRevoke = getStoredToken(r);
     currentUser = null;
     currentSessionId = null;
 
     if (typeof localStorage !== 'undefined') {
-      localStorage.removeItem('spice_auth_user');
-      localStorage.removeItem('spice_token');
-      localStorage.removeItem('spice_session_id');
-      try { localStorage.clear(); } catch (e) {}
-    }
-    if (typeof sessionStorage !== 'undefined') {
-      try { sessionStorage.clear(); } catch (e) {}
+      if (r === 'WAITER') {
+        localStorage.removeItem('spice_waiter_user');
+        localStorage.removeItem('spice_waiter_token');
+        localStorage.removeItem('spice_waiter_session_id');
+      } else if (r === 'ADMIN') {
+        localStorage.removeItem('spice_admin_user');
+        localStorage.removeItem('spice_admin_token');
+        localStorage.removeItem('spice_admin_session_id');
+      } else {
+        localStorage.removeItem('spice_waiter_user');
+        localStorage.removeItem('spice_waiter_token');
+        localStorage.removeItem('spice_waiter_session_id');
+        localStorage.removeItem('spice_admin_user');
+        localStorage.removeItem('spice_admin_token');
+        localStorage.removeItem('spice_admin_session_id');
+        localStorage.removeItem('spice_auth_user');
+        localStorage.removeItem('spice_token');
+        localStorage.removeItem('spice_session_id');
+      }
     }
 
     try {
       await fetch('/api/auth/logout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: tokenToRevoke })
+        body: JSON.stringify({ token: tokenToRevoke, portal: r ? r.toLowerCase() : undefined })
       });
     } catch (e) {}
 
@@ -326,10 +405,10 @@ window.SpiceClient = (function () {
   }
 
   function requireRole(requiredRole, redirectPath) {
-    const user = getStoredUser();
+    const user = getStoredUser(requiredRole);
     if (!user) {
       if (window.location.pathname !== redirectPath) {
-        window.location.href = redirectPath;
+        window.location.replace(redirectPath);
       }
       return null;
     }
@@ -338,17 +417,17 @@ window.SpiceClient = (function () {
     if (requiredRole === 'WAITER') {
       const ALLOWED_WAITERS = ['shan', 'yawar', 'nawaz'];
       if (user.role !== 'WAITER' || !ALLOWED_WAITERS.includes(uname)) {
-        signOut();
+        signOut('WAITER');
         if (window.location.pathname !== redirectPath) {
-          window.location.href = redirectPath;
+          window.location.replace(redirectPath);
         }
         return null;
       }
     } else if (requiredRole === 'ADMIN') {
       if (user.role !== 'ADMIN' || uname !== 'admin@143') {
-        signOut();
+        signOut('ADMIN');
         if (window.location.pathname !== redirectPath) {
-          window.location.href = redirectPath;
+          window.location.replace(redirectPath);
         }
         return null;
       }

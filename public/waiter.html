@@ -14,25 +14,34 @@
       function enforceWaiterAuth() {
         try {
           var ALLOWED = ['shan', 'yawar', 'nawaz'];
-          var raw = localStorage.getItem('spice_auth_user');
-          var tok = localStorage.getItem('spice_token') || localStorage.getItem('spice_session_id');
+          var raw = localStorage.getItem('spice_waiter_user') || localStorage.getItem('spice_auth_user');
+          var tok = localStorage.getItem('spice_waiter_token') || localStorage.getItem('spice_waiter_session_id') || localStorage.getItem('spice_token') || localStorage.getItem('spice_session_id');
           if (!raw || !tok) {
             throw new Error('Unauthenticated');
           }
           var u = JSON.parse(raw);
           var uname = (u && (u.username || u.display_name || (u.email ? u.email.split('@')[0] : '')) || '').trim().toLowerCase();
           if (u.role !== 'WAITER' || !ALLOWED.includes(uname)) {
+            var waiterRaw = localStorage.getItem('spice_waiter_user');
+            if (waiterRaw) {
+              var wu = JSON.parse(waiterRaw);
+              var wuname = (wu && (wu.username || wu.display_name || (wu.email ? wu.email.split('@')[0] : '')) || '').trim().toLowerCase();
+              if (wu.role === 'WAITER' && ALLOWED.includes(wuname)) {
+                return;
+              }
+            }
             throw new Error('Disallowed account: ' + uname);
           }
         } catch (err) {
           try {
-            localStorage.clear();
-            sessionStorage.clear();
+            localStorage.removeItem('spice_waiter_user');
+            localStorage.removeItem('spice_waiter_token');
+            localStorage.removeItem('spice_waiter_session_id');
           } catch (e) {}
           if (document.documentElement) {
             document.documentElement.style.display = 'none';
           }
-          window.location.replace('/waiter/login?logout=true&t=' + Date.now());
+          window.location.replace('/waiter/login');
         }
       }
 
@@ -403,15 +412,15 @@
     (function() {
       function syncWaiterProfile() {
         try {
-          const raw = localStorage.getItem('spice_auth_user');
-          if (raw) {
-            const u = JSON.parse(raw);
+          const u = window.SpiceClient && window.SpiceClient.getStoredUser ? window.SpiceClient.getStoredUser('WAITER') : null;
+          if (u) {
             const allowed = ['shan', 'yawar', 'nawaz'];
             const uname = (u.username || u.display_name || (u.email ? u.email.split('@')[0] : '') || '').toLowerCase();
             if (!allowed.includes(uname) || u.role !== 'WAITER') {
-              localStorage.clear();
-              sessionStorage.clear();
-              window.location.replace('/waiter/login?logout=true&t=' + Date.now());
+              localStorage.removeItem('spice_waiter_user');
+              localStorage.removeItem('spice_waiter_token');
+              localStorage.removeItem('spice_waiter_session_id');
+              window.location.replace('/waiter/login');
               return;
             }
             const name = u.username || u.display_name || (uname.charAt(0).toUpperCase() + uname.slice(1));
@@ -422,10 +431,10 @@
             const drawerServer = document.getElementById('drawerServerName');
             if (drawerServer) drawerServer.textContent = name;
           } else {
-            window.location.replace('/waiter/login?logout=true&t=' + Date.now());
+            window.location.replace('/waiter/login');
           }
         } catch (e) {
-          window.location.replace('/waiter/login?logout=true&t=' + Date.now());
+          window.location.replace('/waiter/login');
         }
       }
 
@@ -438,27 +447,25 @@
       });
 
       // Mobile & Desktop instant sign out handler
-      function triggerInstantSignOut(e) {
+      async function triggerInstantSignOut(e) {
         if (e) { e.preventDefault(); e.stopPropagation(); }
         try {
-          localStorage.clear();
-          sessionStorage.clear();
+          if (window.SpiceClient && window.SpiceClient.signOut) {
+            await window.SpiceClient.signOut('WAITER');
+          } else {
+            localStorage.removeItem('spice_waiter_user');
+            localStorage.removeItem('spice_waiter_token');
+            localStorage.removeItem('spice_waiter_session_id');
+            localStorage.removeItem('spice_auth_user');
+            localStorage.removeItem('spice_token');
+          }
         } catch (err) {}
-        if (typeof window !== 'undefined' && window.caches) {
-          try {
-            window.caches.keys().then(keys => Promise.all(keys.map(k => window.caches.delete(k))));
-          } catch (err) {}
-        }
-        try {
-          fetch('/api/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' } }).catch(() => {});
-        } catch (err) {}
-        window.location.replace('/waiter/login?logout=true&t=' + Date.now());
+        window.location.replace('/waiter/login');
       }
 
       const signoutBtn = document.getElementById('waiterSignOutBtn');
       if (signoutBtn) {
         signoutBtn.addEventListener('click', triggerInstantSignOut);
-        signoutBtn.addEventListener('touchend', triggerInstantSignOut);
       }
     })();
   </script>

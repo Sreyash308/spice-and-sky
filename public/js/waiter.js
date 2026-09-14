@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const currentUname = ((currentUser.username || currentUser.display_name || (currentUser.email ? currentUser.email.split('@')[0] : '')) || '').toLowerCase();
   if (currentUser.role !== 'WAITER' || !ALLOWED_WAITER_USERS.includes(currentUname)) {
-    await SpiceClient.signOut();
+    await SpiceClient.signOut('WAITER');
     window.location.replace('/waiter/login');
     return;
   }
@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (waiterSignOutBtn) {
     waiterSignOutBtn.addEventListener('click', async (e) => {
       e.preventDefault();
-      await SpiceClient.signOut();
+      await SpiceClient.signOut('WAITER');
       window.location.replace('/waiter/login');
     });
   }
