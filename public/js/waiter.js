@@ -148,7 +148,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const waiterCategoriesNav = document.getElementById('waiterCategoriesNav');
   const waiterCatalog = document.getElementById('waiterCatalog');
 
-  const orderPeekTrigger = document.getElementById('orderPeekTrigger');
+  const viewCartBtn = document.getElementById('viewCartBtn') || document.getElementById('orderPeekTrigger');
+  const orderPeekTrigger = viewCartBtn;
+  const cartBadgeCount = document.getElementById('cartBadgeCount');
+  const cartBadgeTotal = document.getElementById('cartBadgeTotal');
+  const cartBadgeSub = document.getElementById('cartBadgeSub');
   const peekTableLine = document.getElementById('peekTableLine');
   const peekTotalLine = document.getElementById('peekTotalLine');
   const peekCountLine = document.getElementById('peekCountLine');
@@ -401,6 +405,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderOrderTabs();
     updateBottomBar();
     renderCatalog();
+
+    // On mobile screens, smoothly center the selected table button
+    const activeBtn = tablesGrid.querySelector(`.table-btn[data-table="${num}"]`);
+    if (activeBtn && typeof activeBtn.scrollIntoView === 'function') {
+      activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
   }
 
   async function loadActiveOrders() {
@@ -1200,16 +1210,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     const subtotal = order.reduce((sum, i) => sum + (i.price * i.quantity), 0);
     const activeOrder = getSelectedActiveOrder();
 
+    let tableText = '';
     if (activeOrder) {
-      peekTableLine.textContent = `Table ${activeTable} • Order #${activeOrder.order_number}`;
+      tableText = `Table ${activeTable} • Order #${activeOrder.order_number}`;
     } else {
       const activeList = activeOrdersByTable[activeTable] || [];
-      peekTableLine.textContent = activeList.length > 0
-        ? `Table ${activeTable} • New Order (${activeList.length} serving)`
+      tableText = activeList.length > 0
+        ? `Table ${activeTable} • New (${activeList.length} serving)`
         : `Table ${activeTable} • New Order`;
     }
-    peekTotalLine.textContent = SpiceClient.formatCurrency(subtotal);
-    peekCountLine.textContent = `${totalItems} item${totalItems === 1 ? '' : 's'} • Tap to review`;
+
+    // Modern View Cart button elements
+    if (cartBadgeCount) {
+      const prevCount = parseInt(cartBadgeCount.textContent || '0', 10);
+      cartBadgeCount.textContent = totalItems;
+      if (totalItems > prevCount) {
+        cartBadgeCount.classList.remove('bump');
+        void cartBadgeCount.offsetWidth; // force DOM reflow
+        cartBadgeCount.classList.add('bump');
+      }
+    }
+    if (cartBadgeTotal) {
+      cartBadgeTotal.textContent = SpiceClient.formatCurrency(subtotal);
+    }
+    if (cartBadgeSub) {
+      cartBadgeSub.textContent = `${tableText} • ${totalItems} item${totalItems === 1 ? '' : 's'}`;
+    }
+
+    // Backward-compatible fallback for legacy peek lines if present
+    if (peekTableLine) peekTableLine.textContent = tableText;
+    if (peekTotalLine) peekTotalLine.textContent = SpiceClient.formatCurrency(subtotal);
+    if (peekCountLine) peekCountLine.textContent = `${totalItems} item${totalItems === 1 ? '' : 's'} • Tap to review`;
 
     if (saveServingBtn) {
       saveServingBtn.disabled = totalItems === 0 || isSubmitting;

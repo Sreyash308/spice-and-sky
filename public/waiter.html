@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Waiter POS Terminal | Spice &amp; Sky Rooftop Cafe</title>
   <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
-  <link rel="stylesheet" href="/css/design-system.css?v=20260914-6">
-  <link rel="stylesheet" href="/css/waiter.css?v=20260914-6">
-  <link rel="stylesheet" href="/css/print.css?v=20260914-6" media="print">
+  <link rel="stylesheet" href="/css/design-system.css?v=20260914-7">
+  <link rel="stylesheet" href="/css/waiter.css?v=20260914-7">
+  <link rel="stylesheet" href="/css/print.css?v=20260914-7" media="print">
   <script>
     // Synchronous Zero-Trust Gatekeeper: Runs before ANY HTML body or DOM is parsed
     (function() {
@@ -138,13 +138,24 @@
   </main>
 
   <!-- Sticky Bottom Order Summary & Action Bar -->
-  <aside class="waiter-bottom-bar">
+  <aside class="waiter-bottom-bar" id="waiterBottomBar">
     <div class="bottom-bar-inner">
-      <div class="order-summary-peek" id="orderPeekTrigger">
-        <span class="peek-table-line" id="peekTableLine">Table 1 Order</span>
-        <span class="peek-total-line" id="peekTotalLine">₹0</span>
-        <span class="peek-items-count" id="peekCountLine">0 items &bull; Tap to review</span>
-      </div>
+      <button type="button" class="btn-view-cart" id="viewCartBtn" aria-label="View Cart and Review Items">
+        <div class="cart-btn-main">
+          <span class="cart-btn-icon-box">
+            🛒
+            <span class="cart-badge-count" id="cartBadgeCount">0</span>
+          </span>
+          <div class="cart-btn-info">
+            <span class="cart-btn-title">View Cart</span>
+            <span class="cart-btn-subtitle" id="cartBadgeSub">Table 1 &bull; 0 items</span>
+          </div>
+        </div>
+        <div class="cart-btn-right">
+          <span class="cart-btn-total" id="cartBadgeTotal">₹0</span>
+          <span class="cart-btn-arrow">&rsaquo;</span>
+        </div>
+      </button>
 
       <div class="bottom-bar-actions">
         <button type="button" class="btn-save-serving" id="saveServingBtn" disabled title="Keep order open and save current items for this table">
@@ -160,6 +171,7 @@
   <!-- Order Review Drawer / Modal -->
   <div class="order-drawer" id="orderDrawer">
     <div class="order-drawer-content">
+      <div class="drawer-handle-bar"></div>
       <div class="drawer-header">
         <div>
           <h3 class="drawer-title" id="drawerTitle">Table 1 Order Review</h3>
@@ -167,7 +179,7 @@
             Server: <strong id="drawerServerName" style="color: var(--spice-terracotta);">—</strong>
           </div>
         </div>
-        <button type="button" class="btn btn-secondary" id="closeDrawerBtn" style="padding: 6px 12px;">Close</button>
+        <button type="button" class="btn btn-secondary" id="closeDrawerBtn" style="padding: 6px 14px;">Close</button>
       </div>
 
       <div class="drawer-items-list" id="drawerItemsList">
@@ -179,11 +191,11 @@
         <span class="drawer-total-amount" id="drawerTotalAmount">₹0</span>
       </div>
 
-      <div style="display: flex; gap: 8px;">
-        <button type="button" class="btn btn-danger" id="cancelOrderBtn" style="flex: 1.1; display: none;">🚫 Cancel Order</button>
-        <button type="button" class="btn btn-danger" id="clearOrderBtn" style="flex: 1;">Clear</button>
-        <button type="button" class="btn btn-secondary" id="drawerSaveServingBtn" style="flex: 1.2;">🍽️ Keep Serving</button>
-        <button type="button" class="btn btn-primary" id="drawerGenerateBtn" style="flex: 1.5;">⚡ Generate Bill</button>
+      <div class="drawer-actions-row">
+        <button type="button" class="btn btn-danger" id="cancelOrderBtn" style="display: none;">🚫 Cancel Order</button>
+        <button type="button" class="btn btn-danger" id="clearOrderBtn">Clear</button>
+        <button type="button" class="btn btn-secondary" id="drawerSaveServingBtn">🍽️ Keep Serving</button>
+        <button type="button" class="btn btn-primary" id="drawerGenerateBtn">⚡ Generate Bill</button>
       </div>
     </div>
   </div>
@@ -370,17 +382,17 @@
       </div>
 
       <!-- Action Buttons -->
-      <div style="display: flex; gap: 8px; flex-wrap: wrap;" class="no-print">
-        <button type="button" class="btn btn-secondary" id="editBillBtn" style="flex: 1; border-color: var(--spice-gold); color: var(--spice-gold);">✏️ Edit Bill</button>
-        <button type="button" class="btn btn-secondary" id="printBillBtn" style="flex: 1;">🖨️ Print Bill</button>
-        <button type="button" class="btn btn-primary" id="newOrderBtn" style="flex: 1.2;">Complete &amp; Clear &rarr;</button>
+      <div class="receipt-actions-row no-print">
+        <button type="button" class="btn btn-secondary" id="editBillBtn">✏️ Edit Bill</button>
+        <button type="button" class="btn btn-secondary" id="printBillBtn">🖨️ Print Bill</button>
+        <button type="button" class="btn btn-primary" id="newOrderBtn">Complete &amp; Clear &rarr;</button>
       </div>
     </div>
   </div>
 
   <!-- Scripts -->
-  <script src="/js/supabase-client.js?v=20260914-6"></script>
-  <script src="/js/waiter.js?v=20260914-6"></script>
+  <script src="/js/supabase-client.js?v=20260914-7"></script>
+  <script src="/js/waiter.js?v=20260914-7"></script>
   <script>
     (function() {
       function syncWaiterProfile() {
