@@ -414,12 +414,43 @@ class CafeStore extends EventEmitter {
     return this.variants.find(v => v.id === id);
   }
 
+  getVariantsByMenuItemId(menuItemId) {
+    return this.variants.filter(v => v.menu_item_id === menuItemId);
+  }
+
   enrichOrderItem(oi) {
     if (!oi) return oi;
     let food_type = oi.food_type;
-    if (!food_type && oi.menu_item_id) {
-      const dbItem = this.getMenuItemById(oi.menu_item_id);
-      if (dbItem) food_type = dbItem.food_type;
+    let variant_id = oi.variant_id || null;
+    let variant_name = oi.variant_name_snapshot || oi.variant_name || null;
+    let unit_price = Number(oi.unit_price_snapshot !== undefined ? oi.unit_price_snapshot : (oi.price || 0));
+
+    const dbItem = oi.menu_item_id ? this.getMenuItemById(oi.menu_item_id) : null;
+    if (dbItem) {
+      if (!food_type) food_type = dbItem.food_type;
+      const variants = dbItem.menu_item_variants || this.getVariantsByMenuItemId(dbItem.id) || [];
+      if (variants.length > 0) {
+        let matchedVariant = null;
+        if (variant_id) {
+          matchedVariant = variants.find(v => String(v.id) === String(variant_id));
+        }
+        if (!matchedVariant && variant_name) {
+          const vn = String(variant_name).trim().toLowerCase();
+          matchedVariant = variants.find(v => String(v.name).trim().toLowerCase() === vn)
+            || variants.find(v => {
+              const vn2 = String(v.name).trim().toLowerCase();
+              return vn2.includes(vn) || vn.includes(vn2);
+            });
+        }
+        if (!matchedVariant && unit_price > 0) {
+          matchedVariant = variants.find(v => Math.abs(Number(v.price) - unit_price) < 0.01);
+        }
+        if (matchedVariant) {
+          variant_id = matchedVariant.id;
+          variant_name = matchedVariant.name;
+          if (!unit_price || isNaN(unit_price)) unit_price = Number(matchedVariant.price);
+        }
+      }
     }
     if (!food_type) {
       const title = (oi.item_name_snapshot || oi.name || '').toLowerCase();
@@ -431,6 +462,11 @@ class CafeStore extends EventEmitter {
     }
     return {
       ...oi,
+      variant_id,
+      variant_name_snapshot: variant_name,
+      variant_name: variant_name,
+      unit_price_snapshot: unit_price,
+      price: unit_price,
       food_type
     };
   }
@@ -482,17 +518,42 @@ class CafeStore extends EventEmitter {
 
       let unitPrice = dbItem.price;
       let variantName = null;
+      let matchedVariant = null;
 
-      if (reqItem.variant_id) {
-        const variant = this.getVariantById(reqItem.variant_id);
-        if (!variant || variant.menu_item_id !== dbItem.id) {
-          throw new Error(`Variant not found for item "${dbItem.name}".`);
+      const variants = dbItem.menu_item_variants || this.getVariantsByMenuItemId(dbItem.id) || [];
+      if (reqItem.variant_id && String(reqItem.variant_id) !== 'null' && String(reqItem.variant_id) !== 'undefined') {
+        matchedVariant = variants.find(v => String(v.id) === String(reqItem.variant_id)) || this.getVariantById(reqItem.variant_id);
+      }
+      if (!matchedVariant && (reqItem.variant_name || reqItem.variant_name_snapshot)) {
+        const reqVName = String(reqItem.variant_name || reqItem.variant_name_snapshot).trim().toLowerCase();
+        matchedVariant = variants.find(v => String(v.name).trim().toLowerCase() === reqVName)
+          || variants.find(v => {
+            const vn = String(v.name).trim().toLowerCase();
+            return vn.includes(reqVName) || reqVName.includes(vn);
+          });
+      }
+      if (!matchedVariant && (reqItem.price !== undefined || reqItem.unit_price_snapshot !== undefined)) {
+        const reqPrice = Number(reqItem.price !== undefined ? reqItem.price : reqItem.unit_price_snapshot);
+        if (!isNaN(reqPrice) && reqPrice > 0) {
+          matchedVariant = variants.find(v => Math.abs(Number(v.price) - reqPrice) < 0.01);
         }
-        if (!variant.is_available) {
-          throw new Error(`Variant "${variant.name}" is currently unavailable.`);
+      }
+
+      if (matchedVariant) {
+        if (matchedVariant.menu_item_id && matchedVariant.menu_item_id !== dbItem.id) {
+          throw new Error(`Variant "${matchedVariant.name}" does not belong to "${dbItem.name}".`);
         }
-        unitPrice = variant.price;
-        variantName = variant.name;
+        if (!matchedVariant.is_available) {
+          throw new Error(`Variant "${matchedVariant.name}" is currently unavailable.`);
+        }
+        unitPrice = Number(matchedVariant.price);
+        variantName = matchedVariant.name;
+      } else if (reqItem.price !== undefined || reqItem.unit_price_snapshot !== undefined) {
+        const explicitPrice = Number(reqItem.price !== undefined ? reqItem.price : reqItem.unit_price_snapshot);
+        if (!isNaN(explicitPrice) && explicitPrice > 0) {
+          unitPrice = explicitPrice;
+        }
+        variantName = reqItem.variant_name || reqItem.variant_name_snapshot || null;
       }
 
       const lineTotal = unitPrice * qty;
@@ -501,6 +562,7 @@ class CafeStore extends EventEmitter {
       orderItemsToInsert.push(this.enrichOrderItem({
         id: crypto.randomUUID(),
         menu_item_id: dbItem.id,
+        variant_id: matchedVariant ? matchedVariant.id : (reqItem.variant_id || null),
         item_name_snapshot: dbItem.name,
         variant_name_snapshot: variantName,
         unit_price_snapshot: unitPrice,
@@ -587,13 +649,42 @@ class CafeStore extends EventEmitter {
 
       let unitPrice = dbItem.price;
       let variantName = null;
+      let matchedVariant = null;
 
-      if (reqItem.variant_id) {
-        const variant = this.getVariantById(reqItem.variant_id);
-        if (!variant || variant.menu_item_id !== dbItem.id) throw new Error(`Variant not found for item "${dbItem.name}".`);
-        if (!variant.is_available) throw new Error(`Variant "${variant.name}" is currently unavailable.`);
-        unitPrice = variant.price;
-        variantName = variant.name;
+      const variants = dbItem.menu_item_variants || this.getVariantsByMenuItemId(dbItem.id) || [];
+      if (reqItem.variant_id && String(reqItem.variant_id) !== 'null' && String(reqItem.variant_id) !== 'undefined') {
+        matchedVariant = variants.find(v => String(v.id) === String(reqItem.variant_id)) || this.getVariantById(reqItem.variant_id);
+      }
+      if (!matchedVariant && (reqItem.variant_name || reqItem.variant_name_snapshot)) {
+        const reqVName = String(reqItem.variant_name || reqItem.variant_name_snapshot).trim().toLowerCase();
+        matchedVariant = variants.find(v => String(v.name).trim().toLowerCase() === reqVName)
+          || variants.find(v => {
+            const vn = String(v.name).trim().toLowerCase();
+            return vn.includes(reqVName) || reqVName.includes(vn);
+          });
+      }
+      if (!matchedVariant && (reqItem.price !== undefined || reqItem.unit_price_snapshot !== undefined)) {
+        const reqPrice = Number(reqItem.price !== undefined ? reqItem.price : reqItem.unit_price_snapshot);
+        if (!isNaN(reqPrice) && reqPrice > 0) {
+          matchedVariant = variants.find(v => Math.abs(Number(v.price) - reqPrice) < 0.01);
+        }
+      }
+
+      if (matchedVariant) {
+        if (matchedVariant.menu_item_id && matchedVariant.menu_item_id !== dbItem.id) {
+          throw new Error(`Variant "${matchedVariant.name}" does not belong to "${dbItem.name}".`);
+        }
+        if (!matchedVariant.is_available) {
+          throw new Error(`Variant "${matchedVariant.name}" is currently unavailable.`);
+        }
+        unitPrice = Number(matchedVariant.price);
+        variantName = matchedVariant.name;
+      } else if (reqItem.price !== undefined || reqItem.unit_price_snapshot !== undefined) {
+        const explicitPrice = Number(reqItem.price !== undefined ? reqItem.price : reqItem.unit_price_snapshot);
+        if (!isNaN(explicitPrice) && explicitPrice > 0) {
+          unitPrice = explicitPrice;
+        }
+        variantName = reqItem.variant_name || reqItem.variant_name_snapshot || null;
       }
 
       const lineTotal = unitPrice * qty;
@@ -603,6 +694,7 @@ class CafeStore extends EventEmitter {
         id: crypto.randomUUID(),
         order_id: targetOrderId,
         menu_item_id: dbItem.id,
+        variant_id: matchedVariant ? matchedVariant.id : (reqItem.variant_id || null),
         item_name_snapshot: dbItem.name,
         variant_name_snapshot: variantName,
         unit_price_snapshot: unitPrice,
@@ -622,9 +714,9 @@ class CafeStore extends EventEmitter {
     if (status) order.status = status;
     order.updated_at = new Date().toISOString();
 
-    // Remove old order items and insert new ones
+    // Remove previous order items and insert new
     this.orderItems = this.orderItems.filter(oi => oi.order_id !== targetOrderId);
-    orderItemsToInsert.forEach(oi => this.orderItems.push(oi));
+    this.orderItems.push(...orderItemsToInsert);
 
     this.emit('order_updated', { order, items: orderItemsToInsert });
 
@@ -660,6 +752,22 @@ class CafeStore extends EventEmitter {
         ...v,
         price: Number(v.price)
       }));
+    } else if (items && items.length > 0) {
+      const extractedVariants = [];
+      for (const item of items) {
+        if (Array.isArray(item.menu_item_variants)) {
+          for (const v of item.menu_item_variants) {
+            extractedVariants.push({
+              ...v,
+              menu_item_id: v.menu_item_id || item.id,
+              price: Number(v.price)
+            });
+          }
+        }
+      }
+      if (extractedVariants.length > 0) {
+        this.variants = extractedVariants;
+      }
     }
   }
 
@@ -770,13 +878,14 @@ class CafeStore extends EventEmitter {
     if (itemsData && itemsData.length > 0) {
       this.orderItems = this.orderItems.filter(oi => oi.order_id !== orderId);
       itemsData.forEach(oi => {
+        const enriched = this.enrichOrderItem(oi);
         this.orderItems.push({
           id: oi.id || crypto.randomUUID(),
           order_id: orderId,
           menu_item_id: oi.menu_item_id,
-          variant_id: oi.variant_id || null,
+          variant_id: enriched.variant_id || oi.variant_id || null,
           item_name_snapshot: oi.item_name_snapshot,
-          variant_name_snapshot: oi.variant_name_snapshot || null,
+          variant_name_snapshot: enriched.variant_name_snapshot || oi.variant_name_snapshot || null,
           unit_price_snapshot: Number(oi.unit_price_snapshot),
           quantity: Number(oi.quantity),
           line_total: Number(oi.line_total)

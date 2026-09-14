@@ -429,12 +429,40 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!orderCarts[cartKey]) {
               orderCarts[cartKey] = (order.items || order.order_items || []).map(i => {
                 const matched = menuItems.find(m => m.id === i.menu_item_id);
+                const variants = matched ? (matched.menu_item_variants || []) : [];
+                let variantId = i.variant_id || null;
+                let variantName = i.variant_name_snapshot || i.variant_name || null;
+                let unitPrice = Number(i.unit_price_snapshot !== undefined ? i.unit_price_snapshot : i.price);
+
+                if (variants.length > 0) {
+                  let v = null;
+                  if (variantId) {
+                    v = variants.find(varItem => String(varItem.id) === String(variantId));
+                  }
+                  if (!v && variantName) {
+                    const vn = String(variantName).trim().toLowerCase();
+                    v = variants.find(varItem => String(varItem.name).trim().toLowerCase() === vn)
+                      || variants.find(varItem => {
+                        const vn2 = String(varItem.name).trim().toLowerCase();
+                        return vn2.includes(vn) || vn.includes(vn2);
+                      });
+                  }
+                  if (!v && !isNaN(unitPrice) && unitPrice > 0) {
+                    v = variants.find(varItem => Math.abs(Number(varItem.price) - unitPrice) < 0.01);
+                  }
+                  if (v) {
+                    variantId = v.id;
+                    variantName = v.name;
+                    unitPrice = Number(v.price);
+                  }
+                }
+
                 return {
                   menu_item_id: i.menu_item_id,
-                  variant_id: i.variant_id || null,
+                  variant_id: variantId,
                   name: i.item_name_snapshot || i.name,
-                  variant_name: i.variant_name_snapshot || i.variant_name,
-                  price: Number(i.unit_price_snapshot || i.price),
+                  variant_name: variantName,
+                  price: unitPrice,
                   quantity: Number(i.quantity),
                   food_type: i.food_type || (matched ? matched.food_type : null)
                 };
@@ -570,14 +598,46 @@ document.addEventListener('DOMContentLoaded', async () => {
             activeOrdersByTable[tNum].push(lastBilledOrder);
           }
 
-          orderCarts[String(lastBilledOrder.id)] = (lastBilledOrder.items || lastBilledOrder.order_items || []).map(i => ({
-            menu_item_id: i.menu_item_id,
-            variant_id: i.variant_id || null,
-            name: i.item_name_snapshot,
-            variant_name: i.variant_name_snapshot,
-            price: Number(i.unit_price_snapshot),
-            quantity: Number(i.quantity)
-          }));
+          orderCarts[String(lastBilledOrder.id)] = (lastBilledOrder.items || lastBilledOrder.order_items || []).map(i => {
+            const matched = menuItems.find(m => m.id === i.menu_item_id);
+            const variants = matched ? (matched.menu_item_variants || []) : [];
+            let variantId = i.variant_id || null;
+            let variantName = i.variant_name_snapshot || i.variant_name || null;
+            let unitPrice = Number(i.unit_price_snapshot !== undefined ? i.unit_price_snapshot : i.price);
+
+            if (variants.length > 0) {
+              let v = null;
+              if (variantId) {
+                v = variants.find(varItem => String(varItem.id) === String(variantId));
+              }
+              if (!v && variantName) {
+                const vn = String(variantName).trim().toLowerCase();
+                v = variants.find(varItem => String(varItem.name).trim().toLowerCase() === vn)
+                  || variants.find(varItem => {
+                    const vn2 = String(varItem.name).trim().toLowerCase();
+                    return vn2.includes(vn) || vn.includes(vn2);
+                  });
+              }
+              if (!v && !isNaN(unitPrice) && unitPrice > 0) {
+                v = variants.find(varItem => Math.abs(Number(varItem.price) - unitPrice) < 0.01);
+              }
+              if (v) {
+                variantId = v.id;
+                variantName = v.name;
+                unitPrice = Number(v.price);
+              }
+            }
+
+            return {
+              menu_item_id: i.menu_item_id,
+              variant_id: variantId,
+              name: i.item_name_snapshot || i.name,
+              variant_name: variantName,
+              price: unitPrice,
+              quantity: Number(i.quantity),
+              food_type: i.food_type || (matched ? matched.food_type : null)
+            };
+          });
 
           selectTable(tNum);
           selectOrderTab(lastBilledOrder.id);
@@ -1400,8 +1460,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           body: JSON.stringify({
             items: order.map(i => ({
               menu_item_id: i.menu_item_id,
-              variant_id: i.variant_id,
-              quantity: i.quantity
+              variant_id: i.variant_id || null,
+              variant_name: i.variant_name || i.variant_name_snapshot || null,
+              price: i.price !== undefined ? Number(i.price) : undefined,
+              quantity: Number(i.quantity)
             })),
             waiter_id: currentUser.id,
             waiter_name: getCurrentStaffUsername(),
@@ -1427,8 +1489,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           status: 'CONFIRMED',
           items: order.map(i => ({
             menu_item_id: i.menu_item_id,
-            variant_id: i.variant_id,
-            quantity: i.quantity
+            variant_id: i.variant_id || null,
+            variant_name: i.variant_name || i.variant_name_snapshot || null,
+            price: i.price !== undefined ? Number(i.price) : undefined,
+            quantity: Number(i.quantity)
           }))
         };
         const res = await fetch('/api/orders', {
@@ -1490,8 +1554,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           body: JSON.stringify({
             items: order.map(i => ({
               menu_item_id: i.menu_item_id,
-              variant_id: i.variant_id,
-              quantity: i.quantity
+              variant_id: i.variant_id || null,
+              variant_name: i.variant_name || i.variant_name_snapshot || null,
+              price: i.price !== undefined ? Number(i.price) : undefined,
+              quantity: Number(i.quantity)
             })),
             waiter_id: currentUser.id,
             waiter_name: getCurrentStaffUsername()
@@ -1511,8 +1577,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           online_amount: paymentDetails.online_amount,
           items: order.map(i => ({
             menu_item_id: i.menu_item_id,
-            variant_id: i.variant_id,
-            quantity: i.quantity
+            variant_id: i.variant_id || null,
+            variant_name: i.variant_name || i.variant_name_snapshot || null,
+            price: i.price !== undefined ? Number(i.price) : undefined,
+            quantity: Number(i.quantity)
           }))
         };
         const createRes = await fetch('/api/orders', {

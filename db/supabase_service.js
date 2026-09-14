@@ -191,10 +191,24 @@ module.exports = {
         const variants = item.menu_item_variants || [];
         let variant = null;
         if (oi.variant_id && String(oi.variant_id) !== 'null' && String(oi.variant_id) !== 'undefined') {
-          variant = variants.find(v => v.id === oi.variant_id);
-          if (!variant) {
-            throw new Error(`Variant not found for item "${item.name}".`);
+          variant = variants.find(v => String(v.id) === String(oi.variant_id));
+        }
+        if (!variant && (oi.variant_name || oi.variant_name_snapshot)) {
+          const reqVName = String(oi.variant_name || oi.variant_name_snapshot).trim().toLowerCase();
+          variant = variants.find(v => String(v.name).trim().toLowerCase() === reqVName)
+            || variants.find(v => {
+              const vn = String(v.name).trim().toLowerCase();
+              return vn.includes(reqVName) || reqVName.includes(vn);
+            });
+        }
+        if (!variant && (oi.price !== undefined || oi.unit_price_snapshot !== undefined)) {
+          const reqPrice = Number(oi.price !== undefined ? oi.price : oi.unit_price_snapshot);
+          if (!isNaN(reqPrice) && reqPrice > 0) {
+            variant = variants.find(v => Math.abs(Number(v.price) - reqPrice) < 0.01);
           }
+        }
+
+        if (variant) {
           if (variant.menu_item_id && variant.menu_item_id !== item.id) {
             throw new Error(`Variant "${variant.name}" does not belong to "${item.name}".`);
           }
@@ -203,14 +217,21 @@ module.exports = {
           }
         }
 
-        const unitPrice = variant ? Number(variant.price) : Number(item.price);
+        let unitPrice = variant ? Number(variant.price) : Number(item.price);
+        if (!variant && (oi.price !== undefined || oi.unit_price_snapshot !== undefined)) {
+          const explicitPrice = Number(oi.price !== undefined ? oi.price : oi.unit_price_snapshot);
+          if (!isNaN(explicitPrice) && explicitPrice > 0) {
+            unitPrice = explicitPrice;
+          }
+        }
+        const variantName = variant ? variant.name : (oi.variant_name || oi.variant_name_snapshot || null);
         const lineTotal = unitPrice * numQty;
         calculatedSubtotal += lineTotal;
         return {
           menu_item_id: item.id,
-          variant_id: variant ? variant.id : null,
+          variant_id: variant ? variant.id : (oi.variant_id || null),
           item_name_snapshot: item.name,
-          variant_name_snapshot: variant ? variant.name : null,
+          variant_name_snapshot: variantName,
           unit_price_snapshot: unitPrice,
           quantity: numQty,
           line_total: lineTotal
@@ -386,10 +407,24 @@ module.exports = {
           const variants = item.menu_item_variants || [];
           let variant = null;
           if (oi.variant_id && String(oi.variant_id) !== 'null' && String(oi.variant_id) !== 'undefined') {
-            variant = variants.find(v => v.id === oi.variant_id);
-            if (!variant) {
-              throw new Error(`Variant not found for item "${item.name}".`);
+            variant = variants.find(v => String(v.id) === String(oi.variant_id));
+          }
+          if (!variant && (oi.variant_name || oi.variant_name_snapshot)) {
+            const reqVName = String(oi.variant_name || oi.variant_name_snapshot).trim().toLowerCase();
+            variant = variants.find(v => String(v.name).trim().toLowerCase() === reqVName)
+              || variants.find(v => {
+                const vn = String(v.name).trim().toLowerCase();
+                return vn.includes(reqVName) || reqVName.includes(vn);
+              });
+          }
+          if (!variant && (oi.price !== undefined || oi.unit_price_snapshot !== undefined)) {
+            const reqPrice = Number(oi.price !== undefined ? oi.price : oi.unit_price_snapshot);
+            if (!isNaN(reqPrice) && reqPrice > 0) {
+              variant = variants.find(v => Math.abs(Number(v.price) - reqPrice) < 0.01);
             }
+          }
+
+          if (variant) {
             if (variant.menu_item_id && variant.menu_item_id !== item.id) {
               throw new Error(`Variant "${variant.name}" does not belong to "${item.name}".`);
             }
@@ -398,15 +433,22 @@ module.exports = {
             }
           }
 
-          const unitPrice = variant ? Number(variant.price) : Number(item.price);
+          let unitPrice = variant ? Number(variant.price) : Number(item.price);
+          if (!variant && (oi.price !== undefined || oi.unit_price_snapshot !== undefined)) {
+            const explicitPrice = Number(oi.price !== undefined ? oi.price : oi.unit_price_snapshot);
+            if (!isNaN(explicitPrice) && explicitPrice > 0) {
+              unitPrice = explicitPrice;
+            }
+          }
+          const variantName = variant ? variant.name : (oi.variant_name || oi.variant_name_snapshot || null);
           const lineTotal = unitPrice * numQty;
           calculatedSubtotal += lineTotal;
           return {
             order_id: orderId,
             menu_item_id: item.id,
-            variant_id: variant ? variant.id : null,
+            variant_id: variant ? variant.id : (oi.variant_id || null),
             item_name_snapshot: item.name,
-            variant_name_snapshot: variant ? variant.name : null,
+            variant_name_snapshot: variantName,
             unit_price_snapshot: unitPrice,
             quantity: numQty,
             line_total: lineTotal
@@ -449,16 +491,19 @@ module.exports = {
             await supabase.from('order_items').insert(itemsToInsert.map(i => ({ ...i, menu_item_id: null })));
           }
 
-          updatedOrder.items = itemSnapshots;
-          updatedOrder.order_items = itemSnapshots;
+          const enrichedSnapshots = itemSnapshots.map(s => localStore.enrichOrderItem(s));
+          updatedOrder.items = enrichedSnapshots;
+          updatedOrder.order_items = enrichedSnapshots;
           updatedOrder.subtotal = calculatedSubtotal;
           updatedOrder.total = calculatedSubtotal;
           try {
             localStore.updateOrderItems(updatedOrder.id, {
               ...params,
-              items: itemSnapshots.map(s => ({
+              items: enrichedSnapshots.map(s => ({
                 menu_item_id: s.menu_item_id,
                 variant_id: s.variant_id,
+                variant_name: s.variant_name_snapshot,
+                price: s.unit_price_snapshot,
                 quantity: s.quantity
               }))
             });
@@ -488,7 +533,7 @@ module.exports = {
         if (!error && data) {
           return data.map(o => ({
             ...o,
-            items: o.order_items || []
+            items: (o.order_items || []).map(i => localStore.enrichOrderItem(i))
           }));
         }
       } catch (err) {
