@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Owner &amp; Admin Dashboard | Spice &amp; Sky Rooftop Cafe</title>
   <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
-  <link rel="stylesheet" href="/css/design-system.css?v=20260914-6">
-  <link rel="stylesheet" href="/css/admin.css?v=20260914-6">
-  <link rel="stylesheet" href="/css/print.css?v=20260914-6" media="print">
+  <link rel="stylesheet" href="/css/design-system.css?v=20260914-8">
+  <link rel="stylesheet" href="/css/admin.css?v=20260914-8">
+  <link rel="stylesheet" href="/css/print.css?v=20260914-8" media="print">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="admin-layout">
@@ -486,6 +486,12 @@
           </tfoot>
         </table>
 
+        <!-- Dietary Icon Legend -->
+        <div class="receipt-diet-legend" id="adminBillDietLegend">
+          <span><span class="bill-diet-badge veg"><span class="diet-shape"></span></span> Vegetarian</span>
+          <span><span class="bill-diet-badge non-veg"><span class="diet-shape"></span></span> Non-Vegetarian</span>
+        </div>
+
         <!-- Payment Breakdown Box (Screen & Print) -->
         <div class="receipt-payment-box" id="adminBillPaymentBox" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-medium); font-size: 8.5pt;">
           <div style="display: flex; justify-content: space-between; font-weight: 700;">
@@ -541,8 +547,8 @@
   </div>
 
   <!-- Scripts -->
-  <script src="/js/supabase-client.js?v=20260914-6"></script>
-  <script src="/js/menu-images.js?v=20260914-6"></script>
-  <script src="/js/admin.js?v=20260914-6"></script>
+  <script src="/js/supabase-client.js?v=20260914-8"></script>
+  <script src="/js/menu-images.js?v=20260914-8"></script>
+  <script src="/js/admin.js?v=20260914-8"></script>
 </body>
 </html>

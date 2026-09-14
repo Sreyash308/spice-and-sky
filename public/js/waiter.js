@@ -1278,9 +1278,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         row.className = 'drawer-item-row';
         row.innerHTML = `
           <div>
-            <div style="font-weight: 600; color: var(--text-white); display: flex; align-items: center; gap: 6px;">
+            <div style="font-weight: 600; color: var(--text-white); display: flex; align-items: center; gap: 8px;">
               <span class="bill-diet-badge ${diet.badgeClass}" title="${diet.label}"><span class="diet-shape"></span></span>
-              <span class="bill-diet-tag ${diet.badgeClass}">[${diet.label.toUpperCase()}]</span>
               <span>${(window.escapeHtml || escapeHtml)(oi.name)} ${oi.variant_name ? `<span style="color: var(--spice-gold); font-size: 0.8rem;">(${(window.escapeHtml || escapeHtml)(oi.variant_name)})</span>` : ''}</span>
             </div>
             <div style="font-size: 0.8rem; color: var(--text-muted); margin-left: 20px;">${SpiceClient.formatCurrency(oi.price)} each</div>
@@ -1658,7 +1657,6 @@ document.addEventListener('DOMContentLoaded', async () => {
               <span class="bill-diet-badge ${diet.badgeClass}" title="${diet.label}">
                 <span class="diet-shape"></span>
               </span>
-              <span class="bill-diet-tag ${diet.badgeClass}">[${diet.label.toUpperCase()}]</span>
               <span class="bill-item-name">${itemTitle}</span>
             </div>
           </td>

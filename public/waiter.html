@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Waiter POS Terminal | Spice &amp; Sky Rooftop Cafe</title>
   <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
-  <link rel="stylesheet" href="/css/design-system.css?v=20260914-7">
-  <link rel="stylesheet" href="/css/waiter.css?v=20260914-7">
-  <link rel="stylesheet" href="/css/print.css?v=20260914-7" media="print">
+  <link rel="stylesheet" href="/css/design-system.css?v=20260914-8">
+  <link rel="stylesheet" href="/css/waiter.css?v=20260914-8">
+  <link rel="stylesheet" href="/css/print.css?v=20260914-8" media="print">
   <script>
     // Synchronous Zero-Trust Gatekeeper: Runs before ANY HTML body or DOM is parsed
     (function() {
@@ -359,6 +359,12 @@
           </tfoot>
         </table>
 
+        <!-- Dietary Icon Legend -->
+        <div class="receipt-diet-legend" id="billDietLegend">
+          <span><span class="bill-diet-badge veg"><span class="diet-shape"></span></span> Vegetarian</span>
+          <span><span class="bill-diet-badge non-veg"><span class="diet-shape"></span></span> Non-Vegetarian</span>
+        </div>
+
         <!-- Payment Breakdown Box (Screen & Thermal Print) -->
         <div class="receipt-payment-box" id="billPaymentBox" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-medium); font-size: 8.5pt;">
           <div style="display: flex; justify-content: space-between; font-weight: 700;">
@@ -391,8 +397,8 @@
   </div>
 
   <!-- Scripts -->
-  <script src="/js/supabase-client.js?v=20260914-7"></script>
-  <script src="/js/waiter.js?v=20260914-7"></script>
+  <script src="/js/supabase-client.js?v=20260914-8"></script>
+  <script src="/js/waiter.js?v=20260914-8"></script>
   <script>
     (function() {
       function syncWaiterProfile() {

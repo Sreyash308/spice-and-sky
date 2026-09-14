@@ -613,7 +613,6 @@ document.addEventListener('DOMContentLoaded', async () => {
               <span class="bill-diet-badge ${diet.badgeClass}" title="${diet.label}">
                 <span class="diet-shape"></span>
               </span>
-              <span class="bill-diet-tag ${diet.badgeClass}">[${diet.label.toUpperCase()}]</span>
               <span class="bill-item-name">${itemTitle}</span>
             </div>
           </td>
