@@ -63,11 +63,53 @@ async function testWaiters() {
   }
   console.log('  ✅ Legacy generic waiter/staff usernames strictly disallowed');
 
+  // Test admin credentials rejected on waiter portal login
+  const adminWaiterLoginRes = await fetch(`${BASE_URL}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'admin@143', password: 'admin@143', portal: 'waiter' })
+  });
+  assert.strictEqual(adminWaiterLoginRes.status, 401, 'Admin credentials on waiter terminal must be rejected');
+  console.log('  ✅ Admin credentials strictly blocked from waiter terminal login (401)');
+
   // Test Route-level protection for /waiter: Unauthenticated requests MUST redirect to /waiter/login
   const unauthWaiterPageRes = await fetch(`${BASE_URL}/waiter`, { redirect: 'manual' });
   assert([301, 302, 307, 308].includes(unauthWaiterPageRes.status), `Unauthenticated /waiter should redirect (got ${unauthWaiterPageRes.status})`);
   assert(unauthWaiterPageRes.headers.get('location')?.includes('/waiter/login'), 'Unauthenticated /waiter must redirect to /waiter/login');
   console.log('  ✅ Unauthenticated access to /waiter is blocked and 302 redirected to /waiter/login');
+
+  // Test Admin credentials accessing /waiter directly: MUST redirect to /waiter/login
+  const adminLogin = await fetch(`${BASE_URL}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'admin@143', password: 'admin@143' })
+  }).then(r => r.json());
+  assert(adminLogin.token, 'Admin login should succeed');
+  
+  const adminWaiterAccessRes = await fetch(`${BASE_URL}/waiter`, {
+    headers: { 'Cookie': `spice_token=${adminLogin.token}` },
+    redirect: 'manual'
+  });
+  assert([301, 302, 307, 308].includes(adminWaiterAccessRes.status), 'Admin accessing /waiter directly must redirect');
+  assert(adminWaiterAccessRes.headers.get('location')?.includes('/waiter/login'), 'Admin accessing /waiter must redirect to /waiter/login');
+  console.log('  ✅ Admin credentials cannot access /waiter (redirected to /waiter/login)');
+
+  // Test Legacy Active Session Token termination
+  const jwt = require('jsonwebtoken');
+  const legacyToken = jwt.sign(
+    {
+      id: 'f80da808-79e6-45e0-801c-19064070a9a1',
+      role: 'WAITER',
+      username: 'Shan'
+    },
+    'spice_sky_rooftop_cafe_secret_key_2026_jwt_token', // old secret
+    { expiresIn: '365d' }
+  );
+  const legacySessionCheck = await fetch(`${BASE_URL}/api/auth/session`, {
+    headers: { 'Authorization': `Bearer ${legacyToken}` }
+  }).then(r => r.json());
+  assert.strictEqual(legacySessionCheck.authenticated, false, 'Old active session token must be terminated and rejected');
+  console.log('  ✅ Legacy active session token killed and successfully rejected (authenticated: false)');
 
   // Test Route-level protection with random fake token cookie: MUST redirect to /waiter/login
   const fakeTokenWaiterRes = await fetch(`${BASE_URL}/waiter`, {

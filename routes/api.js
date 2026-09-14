@@ -34,7 +34,7 @@ localStore.on('order_updated', (data) => broadcastEvent('ORDER_UPDATED', data));
 // ============================================================
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
-const JWT_SECRET = process.env.JWT_SECRET || 'spice_sky_rooftop_cafe_secret_key_2026_jwt_token';
+const sessionManager = require('../db/session_manager');
 
 // Authoritative Default Users (Admin & Waiters)
 const DEFAULT_USERS = {
@@ -76,9 +76,10 @@ function createSessionToken(user) {
       role: user.role,
       username: user.username || user.display_name,
       display_name: user.display_name || user.username,
-      jti: crypto.randomUUID()
+      jti: crypto.randomUUID(),
+      sessionEpoch: sessionManager.getEpoch()
     },
-    JWT_SECRET,
+    sessionManager.getSecret(),
     { expiresIn: '365d' } // Valid for 1 whole year
   );
 }
@@ -99,11 +100,15 @@ function verifyUserToken(req) {
     return null;
   }
 
-  // 1. Verify JSON Web Token (survives restarts, works across infinite simultaneous devices)
+  // 1. Verify JSON Web Token using current authoritative secret & epoch
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, sessionManager.getSecret());
     if (decoded && decoded.role) {
       if (decoded.jti && localStore.isTokenRevoked(decoded.jti)) {
+        return null;
+      }
+      // Require sessionEpoch >= sessionManager.getEpoch() to kill all sessions created prior
+      if (!decoded.sessionEpoch || Number(decoded.sessionEpoch) < sessionManager.getEpoch()) {
         return null;
       }
       return { user: decoded, token };
@@ -145,6 +150,7 @@ router.post('/auth/login', async (req, res) => {
   try {
     const rawIdentifier = (req.body.email || req.body.username || '').trim().toLowerCase();
     const rawPassword = req.body.password != null ? String(req.body.password).trim() : '';
+    const portal = (req.body.portal || '').trim().toLowerCase();
 
     if (!rawIdentifier || !rawPassword) {
       return res.status(400).json({ success: false, error: 'Username and password are required.' });
@@ -152,30 +158,60 @@ router.post('/auth/login', async (req, res) => {
 
     let authUser = null;
 
-    // STRICT ADMIN LOGIN: ONLY "admin@143" with password "admin@143"
-    if (rawIdentifier === 'admin@143') {
-      if (rawPassword === 'admin@143') {
-        authUser = DEFAULT_USERS.ADMIN;
+    // STRICT WAITER TERMINAL CHECK:
+    // If logging into waiter portal or if identifier is waiter-specific
+    if (portal === 'waiter') {
+      if (rawIdentifier === 'shan' || rawIdentifier === 'shan@spiceandsky.com') {
+        if (rawPassword.toLowerCase() === 'waiter') {
+          authUser = DEFAULT_USERS.WAITER_SHAN;
+        } else {
+          return res.status(401).json({ success: false, error: 'Invalid username or password.' });
+        }
+      } else if (rawIdentifier === 'yawar' || rawIdentifier === 'yawar@spiceandsky.com') {
+        if (rawPassword.toLowerCase() === 'waiter') {
+          authUser = DEFAULT_USERS.WAITER_YAWAR;
+        } else {
+          return res.status(401).json({ success: false, error: 'Invalid username or password.' });
+        }
+      } else if (rawIdentifier === 'nawaz' || rawIdentifier === 'nawaz@spiceandsky.com') {
+        if (rawPassword.toLowerCase() === 'waiter') {
+          authUser = DEFAULT_USERS.WAITER_NAWAZ;
+        } else {
+          return res.status(401).json({ success: false, error: 'Invalid username or password.' });
+        }
       } else {
-        return res.status(401).json({ success: false, error: 'Invalid username or password.' });
+        // Any random credential or admin attempting to login to waiter terminal is blocked
+        return res.status(401).json({
+          success: false,
+          error: 'Access denied. Only authorized staff (Shan, Yawar, Nawaz) are permitted to log into the Waiter Terminal.'
+        });
       }
-    } else if (rawIdentifier === 'shan' || rawIdentifier === 'shan@spiceandsky.com') {
-      if (rawPassword.toLowerCase() === 'waiter') {
-        authUser = DEFAULT_USERS.WAITER_SHAN;
-      } else {
-        return res.status(401).json({ success: false, error: 'Invalid username or password.' });
-      }
-    } else if (rawIdentifier === 'yawar' || rawIdentifier === 'yawar@spiceandsky.com') {
-      if (rawPassword.toLowerCase() === 'waiter') {
-        authUser = DEFAULT_USERS.WAITER_YAWAR;
-      } else {
-        return res.status(401).json({ success: false, error: 'Invalid username or password.' });
-      }
-    } else if (rawIdentifier === 'nawaz' || rawIdentifier === 'nawaz@spiceandsky.com') {
-      if (rawPassword.toLowerCase() === 'waiter') {
-        authUser = DEFAULT_USERS.WAITER_NAWAZ;
-      } else {
-        return res.status(401).json({ success: false, error: 'Invalid username or password.' });
+    } else {
+      // General login endpoint (Admin or Waiters)
+      if (rawIdentifier === 'admin@143') {
+        if (rawPassword === 'admin@143') {
+          authUser = DEFAULT_USERS.ADMIN;
+        } else {
+          return res.status(401).json({ success: false, error: 'Invalid username or password.' });
+        }
+      } else if (rawIdentifier === 'shan' || rawIdentifier === 'shan@spiceandsky.com') {
+        if (rawPassword.toLowerCase() === 'waiter') {
+          authUser = DEFAULT_USERS.WAITER_SHAN;
+        } else {
+          return res.status(401).json({ success: false, error: 'Invalid username or password.' });
+        }
+      } else if (rawIdentifier === 'yawar' || rawIdentifier === 'yawar@spiceandsky.com') {
+        if (rawPassword.toLowerCase() === 'waiter') {
+          authUser = DEFAULT_USERS.WAITER_YAWAR;
+        } else {
+          return res.status(401).json({ success: false, error: 'Invalid username or password.' });
+        }
+      } else if (rawIdentifier === 'nawaz' || rawIdentifier === 'nawaz@spiceandsky.com') {
+        if (rawPassword.toLowerCase() === 'waiter') {
+          authUser = DEFAULT_USERS.WAITER_NAWAZ;
+        } else {
+          return res.status(401).json({ success: false, error: 'Invalid username or password.' });
+        }
       }
     }
 
@@ -259,10 +295,26 @@ router.post('/auth/logout', (req, res) => {
 
   res.clearCookie('spice_token', clearCookieOptions);
   res.clearCookie('spice_session_id', clearCookieOptions);
+  res.setHeader('Clear-Site-Data', '"cache", "cookies", "storage"');
 
   res.json({
     success: true,
     message: 'Session terminated, JWT killed, and credentials revoked.'
+  });
+});
+
+// POST /api/auth/kill-all-sessions - Authoritatively delete all active sessions & JWTs globally
+router.post('/auth/kill-all-sessions', (req, res) => {
+  const state = sessionManager.killAllSessions();
+  broadcastEvent('FORCE_SIGNOUT', {
+    type: 'FORCE_SIGNOUT',
+    sessionEpoch: state.sessionEpoch,
+    reason: 'All active sessions destroyed by system.'
+  });
+  res.json({
+    success: true,
+    message: 'All active sessions and JWTs have been permanently destroyed and all users signed out.',
+    sessionEpoch: state.sessionEpoch
   });
 });
 
@@ -300,8 +352,15 @@ router.get('/events', (req, res) => {
 
   if (res.flushHeaders) res.flushHeaders();
 
-  res.write(`data: ${JSON.stringify({ type: 'CONNECTED', time: new Date().toISOString() })}\n\n`);
+  res.write(`data: ${JSON.stringify({ type: 'CONNECTED', time: new Date().toISOString(), sessionEpoch: sessionManager.getEpoch() })}\n\n`);
   sseClients.add(res);
+
+  // If request includes a token that is invalid or has expired epoch, broadcast immediate signout to this client
+  const auth = verifyUserToken(req);
+  const rawToken = req.cookies?.spice_token || req.headers['x-session-id'] || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null);
+  if (rawToken && !auth) {
+    res.write(`data: ${JSON.stringify({ type: 'FORCE_SIGNOUT', reason: 'Session invalid or revoked' })}\n\n`);
+  }
 
   const heartbeat = setInterval(() => {
     try {

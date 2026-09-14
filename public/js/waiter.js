@@ -3,10 +3,26 @@
  * Fast Phone-First Interaction | 9 Tables | Server-Authoritative Bill Generation
  */
 
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+if (typeof window !== 'undefined') {
+  if (!window.escapeHtml) window.escapeHtml = escapeHtml;
+  if (window.SpiceClient && !window.SpiceClient.escapeHtml) {
+    window.SpiceClient.escapeHtml = escapeHtml;
+  }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   function updateWaiterDisplay(user) {
     if (!user) return;
-    const username = user.username || user.display_name || (user.email ? user.email.split('@')[0] : 'Staff');
+    const username = user.username || user.display_name || (user.email ? user.email.split('@')[0] : 'Waiter');
     const badgeText = document.getElementById('waiterUsernameText');
     const badge = document.getElementById('waiterStaffBadge');
     if (badgeText) {
@@ -27,22 +43,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (drawerServer) drawerServer.textContent = username;
   }
 
-  const ALLOWED_WAITER_USERS = ['shan', 'yawar', 'nawaz', 'admin@143'];
+  const ALLOWED_WAITER_USERS = ['shan', 'yawar', 'nawaz'];
 
   // Instant synchronous hydration before async init
   const initialUser = (typeof SpiceClient !== 'undefined' && SpiceClient.getStoredUser) ? SpiceClient.getStoredUser() : null;
-  if (initialUser && ALLOWED_WAITER_USERS.includes(((initialUser.username || initialUser.display_name) || '').toLowerCase())) {
+  if (initialUser && initialUser.role === 'WAITER' && ALLOWED_WAITER_USERS.includes(((initialUser.username || initialUser.display_name || (initialUser.email ? initialUser.email.split('@')[0] : '')) || '').toLowerCase())) {
     updateWaiterDisplay(initialUser);
   }
 
   await SpiceClient.init();
 
-  // Guard: Require WAITER or ADMIN role
+  // Guard: Require WAITER role (Shan, Yawar, Nawaz only)
   const currentUser = SpiceClient.requireRole('WAITER', '/waiter/login');
   if (!currentUser) return;
 
-  const currentUname = ((currentUser.username || currentUser.display_name) || '').toLowerCase();
-  if (!ALLOWED_WAITER_USERS.includes(currentUname)) {
+  const currentUname = ((currentUser.username || currentUser.display_name || (currentUser.email ? currentUser.email.split('@')[0] : '')) || '').toLowerCase();
+  if (currentUser.role !== 'WAITER' || !ALLOWED_WAITER_USERS.includes(currentUname)) {
     await SpiceClient.signOut();
     window.location.replace('/waiter/login');
     return;
@@ -51,7 +67,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateWaiterDisplay(currentUser);
 
   function getCurrentStaffUsername() {
-    return (currentUser && (currentUser.username || currentUser.display_name)) || (currentUser && currentUser.email ? currentUser.email.split('@')[0] : 'Staff');
+    return (currentUser && (currentUser.username || currentUser.display_name)) || (currentUser && currentUser.email ? currentUser.email.split('@')[0] : 'Waiter');
   }
 
   const waiterSignOutBtn = document.getElementById('waiterSignOutBtn');
@@ -1185,7 +1201,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         row.className = 'drawer-item-row';
         row.innerHTML = `
           <div>
-            <div style="font-weight: 600; color: var(--text-white);">${SpiceClient.escapeHtml(oi.name)} ${oi.variant_name ? `<span style="color: var(--spice-gold); font-size: 0.8rem;">(${SpiceClient.escapeHtml(oi.variant_name)})</span>` : ''}</div>
+            <div style="font-weight: 600; color: var(--text-white);">${(window.escapeHtml || escapeHtml)(oi.name)} ${oi.variant_name ? `<span style="color: var(--spice-gold); font-size: 0.8rem;">(${(window.escapeHtml || escapeHtml)(oi.variant_name)})</span>` : ''}</div>
             <div style="font-size: 0.8rem; color: var(--text-muted);">${SpiceClient.formatCurrency(oi.price)} each</div>
           </div>
           <div style="display: flex; align-items: center; gap: 10px;">
@@ -1550,7 +1566,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       items.forEach(oi => {
         const tr = document.createElement('tr');
         const rawTitle = (oi.item_name_snapshot || oi.name || 'Item') + (oi.variant_name_snapshot ? ` (${oi.variant_name_snapshot})` : '');
-        const itemTitle = SpiceClient.escapeHtml(rawTitle);
+        const itemTitle = (window.escapeHtml || escapeHtml)(rawTitle);
         const lineTotal = (oi.line_total !== undefined && oi.line_total !== null) 
           ? Number(oi.line_total) 
           : ((Number(oi.unit_price_snapshot || oi.price || 0)) * Number(oi.quantity || 1));

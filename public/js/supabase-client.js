@@ -4,11 +4,13 @@
 
 window.SpiceClient = (function () {
   // Transparent fetch interceptor: auto-attaches JWT & session key to all /api/ requests
+  // and auto-signs out if the server responds with 401 Unauthorized
   if (typeof window !== 'undefined' && window.fetch) {
     const _origFetch = window.fetch;
-    window.fetch = function (resource, init) {
+    window.fetch = async function (resource, init) {
+      let urlStr = '';
       try {
-        const urlStr = typeof resource === 'string' ? resource : (resource ? resource.url : '');
+        urlStr = typeof resource === 'string' ? resource : (resource ? resource.url : '');
         if (urlStr && (urlStr.startsWith('/api') || urlStr.includes('/api/'))) {
           init = init || {};
           const headers = new Headers(init.headers || {});
@@ -21,7 +23,30 @@ window.SpiceClient = (function () {
           init.credentials = init.credentials || 'same-origin';
         }
       } catch (e) {}
-      return _origFetch(resource, init);
+
+      const res = await _origFetch(resource, init);
+
+      // Auto-logout if any API returns 401 Unauthorized (except login endpoint itself)
+      if (res && res.status === 401 && urlStr && urlStr.includes('/api/') && !urlStr.includes('/auth/login')) {
+        try {
+          if (typeof localStorage !== 'undefined') {
+            localStorage.removeItem('spice_auth_user');
+            localStorage.removeItem('spice_token');
+            localStorage.removeItem('spice_session_id');
+            localStorage.clear();
+          }
+          if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.clear();
+          }
+          const isWaiter = window.location.pathname.includes('/waiter');
+          const loginTarget = isWaiter ? '/waiter/login' : '/admin/login';
+          if (!window.location.pathname.includes('/login')) {
+            window.location.replace(loginTarget);
+          }
+        } catch (err) {}
+      }
+
+      return res;
     };
   }
 
@@ -90,6 +115,16 @@ window.SpiceClient = (function () {
       evtSource.onmessage = (e) => {
         try {
           const parsed = JSON.parse(e.data);
+          if (parsed.type === 'FORCE_SIGNOUT') {
+            console.warn('Session termination event received from server. Signing out...');
+            signOut();
+            const isWaiter = window.location.pathname.includes('/waiter');
+            const loginTarget = isWaiter ? '/waiter/login' : '/admin/login';
+            if (!window.location.pathname.includes('/login')) {
+              window.location.replace(loginTarget);
+            }
+            return;
+          }
           if (parsed.type === 'MENU_UPDATED') {
             emit('menu_updated', parsed.data);
           } else if (parsed.type === 'ORDER_CREATED') {
@@ -107,6 +142,30 @@ window.SpiceClient = (function () {
     } catch (e) {
       console.warn('SSE not supported or failed:', e);
     }
+  }
+
+  // Active Session Heartbeat: periodically re-validates session every 6 seconds on protected pages
+  if (typeof window !== 'undefined') {
+    const triggerHeartbeatCheck = async () => {
+      if (window.location.pathname.startsWith('/waiter') || window.location.pathname.startsWith('/admin')) {
+        if (window.location.pathname.includes('/login')) return;
+        try {
+          const res = await checkSession();
+          if (!res || !res.authenticated) {
+            await signOut();
+            const isWaiter = window.location.pathname.includes('/waiter');
+            window.location.replace(isWaiter ? '/waiter/login' : '/admin/login');
+          }
+        } catch (e) {}
+      }
+    };
+
+    setInterval(triggerHeartbeatCheck, 6000);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        triggerHeartbeatCheck();
+      }
+    });
   }
 
   function on(eventName, callback) {
@@ -194,14 +253,15 @@ window.SpiceClient = (function () {
     return { authenticated: false, user: null, sessionId: null, token: null };
   }
 
-  async function signIn(email, password) {
+  async function signIn(email, password, options = {}) {
     const rawIdentifier = (email || '').trim().toLowerCase();
+    const portal = options.portal || (typeof window !== 'undefined' && window.location.pathname.includes('/waiter') ? 'waiter' : undefined);
 
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: rawIdentifier, password })
+        body: JSON.stringify({ email: rawIdentifier, password, portal })
       });
       const json = await res.json();
 
@@ -250,19 +310,10 @@ window.SpiceClient = (function () {
       try { sessionStorage.clear(); } catch (e) {}
     }
 
-    // Force expire client-accessible cookies
-    try {
-      document.cookie = 'spice_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax';
-      document.cookie = 'spice_session_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax';
-    } catch (e) {}
-
     try {
       await fetch('/api/auth/logout', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(tokenToRevoke ? { 'Authorization': 'Bearer ' + tokenToRevoke, 'x-session-id': tokenToRevoke } : {})
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: tokenToRevoke })
       });
     } catch (e) {}
@@ -282,27 +333,27 @@ window.SpiceClient = (function () {
       }
       return null;
     }
-    const ALLOWED_USERS = ['shan', 'yawar', 'nawaz', 'admin@143'];
     const uname = (user.username || user.display_name || '').toLowerCase();
-    if (!ALLOWED_USERS.includes(uname)) {
-      signOut();
-      if (window.location.pathname !== redirectPath) {
-        window.location.href = redirectPath;
+    
+    if (requiredRole === 'WAITER') {
+      const ALLOWED_WAITERS = ['shan', 'yawar', 'nawaz'];
+      if (user.role !== 'WAITER' || !ALLOWED_WAITERS.includes(uname)) {
+        signOut();
+        if (window.location.pathname !== redirectPath) {
+          window.location.href = redirectPath;
+        }
+        return null;
       }
-      return null;
-    }
-    if (requiredRole === 'ADMIN' && user.role !== 'ADMIN') {
-      if (window.location.pathname !== redirectPath) {
-        window.location.href = redirectPath;
+    } else if (requiredRole === 'ADMIN') {
+      if (user.role !== 'ADMIN' || uname !== 'admin@143') {
+        signOut();
+        if (window.location.pathname !== redirectPath) {
+          window.location.href = redirectPath;
+        }
+        return null;
       }
-      return null;
     }
-    if (requiredRole === 'WAITER' && user.role !== 'WAITER' && user.role !== 'ADMIN') {
-      if (window.location.pathname !== redirectPath) {
-        window.location.href = redirectPath;
-      }
-      return null;
-    }
+
     return user;
   }
 
@@ -315,6 +366,10 @@ window.SpiceClient = (function () {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
+  }
+
+  if (typeof window !== 'undefined') {
+    window.escapeHtml = escapeHtml;
   }
 
   function formatCurrency(amount) {

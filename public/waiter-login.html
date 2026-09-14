@@ -66,6 +66,53 @@
       border: 1px solid var(--border-subtle);
     }
   </style>
+  <script>
+    // Force clear all local data whenever login page is visited
+    try {
+      localStorage.removeItem('spice_auth_user');
+      localStorage.removeItem('spice_token');
+      localStorage.removeItem('spice_session_id');
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (e) {}
+
+    window.addEventListener('pageshow', function(e) {
+      if (e.persisted) {
+        try {
+          localStorage.clear();
+          sessionStorage.clear();
+        } catch (err) {}
+        window.location.reload();
+      }
+    });
+
+    function validateWaiterLogin(e) {
+      var ALLOWED = ['shan', 'yawar', 'nawaz'];
+      var inputEl = document.getElementById('staffEmail');
+      var val = (inputEl ? inputEl.value : '').trim().toLowerCase();
+      var isAllowed = ALLOWED.includes(val) || ALLOWED.some(function(w) { return val === (w + '@spiceandsky.com'); });
+
+      if (!isAllowed) {
+        if (e) {
+          if (e.preventDefault) e.preventDefault();
+          if (e.stopPropagation) e.stopPropagation();
+          if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+        }
+        var errBanner = document.getElementById('errorBanner');
+        if (errBanner) {
+          errBanner.textContent = 'Access denied. Only Shan, Yawar, and Nawaz are authorized to log into the Waiter Terminal.';
+          errBanner.style.display = 'block';
+        }
+        var loginBtn = document.getElementById('loginBtn');
+        if (loginBtn) {
+          loginBtn.disabled = false;
+          loginBtn.textContent = 'Open Waiter Terminal →';
+        }
+        return false;
+      }
+      return true;
+    }
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -77,19 +124,10 @@
 
     <div class="error-banner" id="errorBanner"></div>
 
-    <div id="adminSessionBox" style="display: none; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 14px; margin-bottom: 20px; text-align: left;">
-      <div style="font-weight: 700; color: #c2410c; font-size: 0.9rem; margin-bottom: 4px;">👑 Logged in as Owner Admin</div>
-      <div style="font-size: 0.8rem; color: #7c2d12; margin-bottom: 12px; line-height: 1.4;">You are currently signed in with admin privileges. You can continue to the Waiter POS in supervisor mode, or sign in directly as a staff waiter.</div>
-      <div style="display: flex; gap: 8px;">
-        <a href="/waiter" class="btn btn-primary" style="flex: 1; text-align: center; font-size: 0.8rem; padding: 8px; text-decoration: none;">Continue as Admin &rarr;</a>
-        <button type="button" id="switchAsWaiterBtn" class="btn btn-secondary" style="flex: 1; font-size: 0.8rem; padding: 8px;">Sign in as Waiter</button>
-      </div>
-    </div>
-
-    <form id="waiterLoginForm">
+    <form id="waiterLoginForm" onsubmit="return validateWaiterLogin(event);">
       <div class="form-group" style="text-align: left;">
-        <label class="form-label" for="staffEmail">Staff Username / Email</label>
-        <input type="text" id="staffEmail" class="form-input" placeholder="Enter username" required autocomplete="username">
+        <label class="form-label" for="staffEmail">Staff Username</label>
+        <input type="text" id="staffEmail" class="form-input" placeholder="Enter username (Shan, Yawar, or Nawaz)" required autocomplete="username">
       </div>
 
       <div class="form-group" style="text-align: left;">
@@ -103,7 +141,7 @@
     </form>
   </div>
 
-  <script src="/js/supabase-client.js"></script>
-  <script src="/js/waiter-login.js"></script>
+  <script src="/js/supabase-client.js?v=20260914-5"></script>
+  <script src="/js/waiter-login.js?v=20260914-5"></script>
 </body>
 </html>

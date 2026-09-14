@@ -72,17 +72,39 @@ app.use('/images', express.static(path.join(__dirname, 'public', 'images'), {
   maxAge: THIRTY_DAYS_MS,
   immutable: true
 }));
-app.use('/public', express.static(path.join(__dirname, 'public'), { maxAge: 0 }));
+app.use('/public', express.static(path.join(__dirname, 'public'), {
+  maxAge: 0,
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+}));
 app.use('/css', express.static(path.join(__dirname, 'public', 'css'), {
   maxAge: 0,
-  setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
 }));
 app.use('/js', express.static(path.join(__dirname, 'public', 'js'), {
   maxAge: 0,
-  setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
 }));
 app.use('/assets', express.static(path.join(__dirname, 'public', 'assets'), { maxAge: '1d' }));
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: 0 }));
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: 0,
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+}));
 
 // Health Check
 app.get('/api/health', (req, res) => {
@@ -108,17 +130,30 @@ app.get('/menu', (req, res) => {
 
 // 2. Waiter Order / Billing POS
 app.get('/waiter/login', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  if (req.query.logout === 'true' || req.query.clear === 'true') {
+    res.setHeader('Clear-Site-Data', '"cache", "cookies", "storage"');
+  }
   res.sendFile(path.join(__dirname, 'public', 'waiter-login.html'));
 });
 
 app.get('/waiter', (req, res) => {
   const auth = apiRouter.verifyUserToken ? apiRouter.verifyUserToken(req) : null;
-  const ALLOWED_USERS = ['shan', 'yawar', 'nawaz', 'admin@143'];
+  const ALLOWED_USERS = ['shan', 'yawar', 'nawaz'];
   const uname = auth?.user?.username ? auth.user.username.toLowerCase() : (auth?.user?.display_name ? auth.user.display_name.toLowerCase() : '');
 
-  if (!auth || !auth.user || (auth.user.role !== 'WAITER' && auth.user.role !== 'ADMIN') || !ALLOWED_USERS.includes(uname)) {
-    return res.redirect('/waiter/login');
+  // Only allow Shan, Yawar, and Nawaz with role WAITER into the Waiter Terminal
+  if (!auth || !auth.user || auth.user.role !== 'WAITER' || !ALLOWED_USERS.includes(uname)) {
+    res.setHeader('Clear-Site-Data', '"cache", "cookies", "storage"');
+    res.clearCookie('spice_token', { path: '/' });
+    res.clearCookie('spice_session_id', { path: '/' });
+    return res.redirect('/waiter/login?logout=true&t=' + Date.now());
   }
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.sendFile(path.join(__dirname, 'public', 'waiter.html'));
 });
 

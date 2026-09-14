@@ -4,37 +4,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   const form = document.getElementById('waiterLoginForm');
   const errBanner = document.getElementById('errorBanner');
   const loginBtn = document.getElementById('loginBtn');
-  const adminSessionBox = document.getElementById('adminSessionBox');
-  const switchAsWaiterBtn = document.getElementById('switchAsWaiterBtn');
 
-  // If already logged in as WAITER, redirect directly to /waiter only if authorized
+  const ALLOWED_WAITERS = ['shan', 'yawar', 'nawaz'];
+
+  // If already logged in as WAITER, redirect to /waiter only if authorized
   const existingUser = SpiceClient.getStoredUser();
-  if (existingUser && existingUser.role === 'WAITER') {
-    const allowed = ['shan', 'yawar', 'nawaz'];
+  if (existingUser) {
     const uname = (existingUser.username || existingUser.display_name || '').toLowerCase();
-    if (allowed.includes(uname)) {
+    if (existingUser.role === 'WAITER' && ALLOWED_WAITERS.includes(uname)) {
       if (window.location.pathname !== '/waiter') {
         window.location.href = '/waiter';
       }
       return;
     } else {
+      // Clear any non-waiter or disallowed session
       await SpiceClient.signOut();
     }
-  }
-
-  // If logged in as ADMIN, show choice card rather than trapping
-  if (existingUser && existingUser.role === 'ADMIN') {
-    if (adminSessionBox) adminSessionBox.style.display = 'block';
-  }
-
-  if (switchAsWaiterBtn) {
-    switchAsWaiterBtn.addEventListener('click', async () => {
-      await SpiceClient.signOut();
-      if (adminSessionBox) adminSessionBox.style.display = 'none';
-      document.getElementById('staffEmail').value = '';
-      document.getElementById('staffPassword').value = '';
-      document.getElementById('staffEmail').focus();
-    });
   }
 
   form.addEventListener('submit', async (e) => {
@@ -43,11 +28,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     loginBtn.disabled = true;
     loginBtn.textContent = 'Authenticating...';
 
-    const email = document.getElementById('staffEmail').value;
+    const rawInput = (document.getElementById('staffEmail').value || '').trim();
     const password = document.getElementById('staffPassword').value;
+    const normalized = rawInput.toLowerCase();
+
+    // Client-side whitelist check: ONLY Shan, Yawar, and Nawaz
+    const isAllowed = ALLOWED_WAITERS.includes(normalized) ||
+                      ALLOWED_WAITERS.some(w => normalized === `${w}@spiceandsky.com`);
+
+    if (!isAllowed) {
+      errBanner.textContent = 'Access denied. Only Shan, Yawar, and Nawaz are authorized to log into the Waiter Terminal.';
+      errBanner.style.display = 'block';
+      loginBtn.disabled = false;
+      loginBtn.textContent = 'Open Waiter Terminal →';
+      return;
+    }
 
     try {
-      const res = await SpiceClient.signIn(email, password);
+      const res = await SpiceClient.signIn(rawInput, password, { portal: 'waiter' });
       if (res.success) {
         window.location.href = '/waiter';
       } else {

@@ -3,6 +3,22 @@
  * Business Intelligence | Menu CRUD | Order Snapshots | Realtime Synchronization
  */
 
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+if (typeof window !== 'undefined') {
+  if (!window.escapeHtml) window.escapeHtml = escapeHtml;
+  if (window.SpiceClient && !window.SpiceClient.escapeHtml) {
+    window.SpiceClient.escapeHtml = escapeHtml;
+  }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   await SpiceClient.init();
 
