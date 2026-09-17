@@ -723,6 +723,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (paymentSubtotalAmount) {
       paymentSubtotalAmount.textContent = SpiceClient.formatCurrency(subtotal);
     }
+    if (paymentDiscountRow) {
+      paymentDiscountRow.style.display = pct > 0 ? 'flex' : 'none';
+    }
     if (paymentDiscountLabel) {
       paymentDiscountLabel.textContent = `Discount (${pct}%):`;
     }
@@ -1835,15 +1838,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       discAmt = Math.round((subtotal * discPct / 100) * 100) / 100;
     }
     const finalTotal = Number(order.total != null ? order.total : Math.max(0, subtotal - discAmt));
+    const hasDiscount = (discPct > 0 || discAmt > 0);
 
-    if (billSubtotalText) billSubtotalText.textContent = SpiceClient.formatCurrency(subtotal);
-    if (billDiscountLabelText) billDiscountLabelText.textContent = `Discount (${discPct}%):`;
-    if (billDiscountAmountText) {
-      billDiscountAmountText.textContent = discAmt > 0 ? `-${SpiceClient.formatCurrency(discAmt)}` : '₹0';
-      if (discAmt > 0) {
+    if (billSubtotalRow) {
+      billSubtotalRow.style.display = hasDiscount ? 'table-row' : 'none';
+    }
+    if (billDiscountRow) {
+      billDiscountRow.style.display = hasDiscount ? 'table-row' : 'none';
+    }
+
+    if (hasDiscount) {
+      if (billSubtotalText) billSubtotalText.textContent = SpiceClient.formatCurrency(subtotal);
+      if (billDiscountLabelText) billDiscountLabelText.textContent = `Discount (${discPct}%):`;
+      if (billDiscountAmountText) {
+        billDiscountAmountText.textContent = `-${SpiceClient.formatCurrency(discAmt)}`;
         billDiscountAmountText.style.color = '#15803d';
-      } else {
-        billDiscountAmountText.style.color = 'var(--text-secondary)';
       }
     }
     billTotalText.textContent = SpiceClient.formatCurrency(finalTotal);

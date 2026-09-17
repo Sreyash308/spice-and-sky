@@ -535,7 +535,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const adminModalStatus = document.getElementById('adminModalStatus');
   const adminModalItemsTbody = document.getElementById('adminModalItemsTbody');
   const adminModalTotal = document.getElementById('adminModalTotal');
+  const adminModalSubtotalRow = document.getElementById('adminModalSubtotalRow');
   const adminModalSubtotal = document.getElementById('adminModalSubtotal');
+  const adminModalDiscountRow = document.getElementById('adminModalDiscountRow');
   const adminModalDiscountLabel = document.getElementById('adminModalDiscountLabel');
   const adminModalDiscountAmount = document.getElementById('adminModalDiscountAmount');
   const adminPrintBillBtn = document.getElementById('adminPrintBillBtn');
@@ -648,15 +650,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       discAmt = Math.round((subtotal * discPct / 100) * 100) / 100;
     }
     const finalTotal = Number(order.total != null ? order.total : Math.max(0, subtotal - discAmt));
+    const hasDiscount = (discPct > 0 || discAmt > 0);
 
-    if (adminModalSubtotal) adminModalSubtotal.textContent = SpiceClient.formatCurrency(subtotal);
-    if (adminModalDiscountLabel) adminModalDiscountLabel.textContent = `Discount (${discPct}%):`;
-    if (adminModalDiscountAmount) {
-      adminModalDiscountAmount.textContent = discAmt > 0 ? `-${SpiceClient.formatCurrency(discAmt)}` : '₹0';
-      if (discAmt > 0) {
+    if (adminModalSubtotalRow) {
+      adminModalSubtotalRow.style.display = hasDiscount ? 'table-row' : 'none';
+    }
+    if (adminModalDiscountRow) {
+      adminModalDiscountRow.style.display = hasDiscount ? 'table-row' : 'none';
+    }
+
+    if (hasDiscount) {
+      if (adminModalSubtotal) adminModalSubtotal.textContent = SpiceClient.formatCurrency(subtotal);
+      if (adminModalDiscountLabel) adminModalDiscountLabel.textContent = `Discount (${discPct}%):`;
+      if (adminModalDiscountAmount) {
+        adminModalDiscountAmount.textContent = `-${SpiceClient.formatCurrency(discAmt)}`;
         adminModalDiscountAmount.style.color = '#15803d';
-      } else {
-        adminModalDiscountAmount.style.color = 'var(--text-secondary)';
       }
     }
     adminModalTotal.textContent = SpiceClient.formatCurrency(finalTotal);
