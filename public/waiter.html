@@ -232,10 +232,53 @@
         <button type="button" class="btn btn-secondary" id="closePaymentModalBtn" style="padding: 4px 10px; font-size: 0.85rem;">✕</button>
       </div>
 
+      <!-- Bill Discount Section (Default 0%) -->
+      <div id="billDiscountSection" style="background: #fdfaf6; border: 1.5px solid #fed7aa; border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <label for="billDiscountInput" style="font-size: 0.85rem; font-weight: 800; color: #9a3412; margin: 0; display: flex; align-items: center; gap: 4px;">
+            <span>🏷️ Discount Option:</span>
+          </label>
+          <span id="billDiscountBadge" style="font-size: 0.78rem; font-weight: 700; color: #c2410c; background: #ffedd5; padding: 2px 8px; border-radius: 12px; border: 1px solid #fdba74;">
+            0% (₹0 discount)
+          </span>
+        </div>
+
+        <!-- Quick Discount Percentage Chips -->
+        <div style="display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap;" id="quickDiscountChips">
+          <button type="button" class="btn btn-secondary discount-chip active" data-pct="0" style="padding: 4px 10px; font-size: 0.78rem; font-weight: 700;">0% (None)</button>
+          <button type="button" class="btn btn-secondary discount-chip" data-pct="5" style="padding: 4px 10px; font-size: 0.78rem;">5%</button>
+          <button type="button" class="btn btn-secondary discount-chip" data-pct="10" style="padding: 4px 10px; font-size: 0.78rem;">10%</button>
+          <button type="button" class="btn btn-secondary discount-chip" data-pct="15" style="padding: 4px 10px; font-size: 0.78rem;">15%</button>
+          <button type="button" class="btn btn-secondary discount-chip" data-pct="20" style="padding: 4px 10px; font-size: 0.78rem;">20%</button>
+        </div>
+
+        <!-- Custom Discount Input -->
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="position: relative; flex: 1; display: flex; align-items: center;">
+            <input type="number" id="billDiscountInput" class="form-input" min="0" max="100" step="1" value="0" placeholder="0"
+                   style="padding-right: 28px; font-weight: 800; font-size: 1rem; color: #9a3412; background: #ffffff; border: 1.5px solid #fed7aa; border-radius: var(--radius-sm); width: 100%;">
+            <span style="position: absolute; right: 10px; font-weight: 800; font-size: 0.95rem; color: #9a3412; pointer-events: none;">%</span>
+          </div>
+          <span style="font-size: 0.75rem; color: #78350f; line-height: 1.2; flex: 1.2;">
+            Enter custom % or tap presets above
+          </span>
+        </div>
+      </div>
+
       <!-- Bill Total Callout -->
-      <div style="background: var(--bg-secondary); border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
-        <span style="font-size: 0.95rem; font-weight: 700; color: var(--text-secondary);">Total Bill Amount:</span>
-        <span id="paymentTotalAmount" style="font-size: 1.45rem; font-weight: 900; color: var(--spice-terracotta); font-family: var(--font-heading);">₹0</span>
+      <div style="background: var(--bg-secondary); border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px;">
+          <span>Items Subtotal:</span>
+          <span id="paymentSubtotalAmount" style="font-weight: 700; color: var(--text-primary);">₹0</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: #c2410c; margin-bottom: 6px;" id="paymentDiscountRow">
+          <span id="paymentDiscountLabel">Discount (0%):</span>
+          <span id="paymentDiscountAmount" style="font-weight: 700;">-₹0</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 6px; border-top: 1px dashed var(--border-medium);">
+          <span style="font-size: 0.95rem; font-weight: 800; color: var(--text-primary);">Total Bill Amount:</span>
+          <span id="paymentTotalAmount" style="font-size: 1.45rem; font-weight: 900; color: var(--spice-terracotta); font-family: var(--font-heading);">₹0</span>
+        </div>
       </div>
 
       <!-- Question: Is cash payment applicable? -->
@@ -361,6 +404,14 @@
             <!-- Items injected via JS -->
           </tbody>
           <tfoot>
+            <tr class="receipt-subtotal-row" id="billSubtotalRow" style="border-top: 1px solid var(--border-medium); font-size: 8.5pt;">
+              <td colspan="2" style="font-weight: 600; color: var(--text-secondary);">Subtotal:</td>
+              <td style="text-align: right; font-weight: 600;" id="billSubtotalText">₹0</td>
+            </tr>
+            <tr class="receipt-discount-row" id="billDiscountRow" style="font-size: 8.5pt; color: #15803d;">
+              <td colspan="2" style="font-weight: 600;" id="billDiscountLabelText">Discount (0%):</td>
+              <td style="text-align: right; font-weight: 700;" id="billDiscountAmountText">-₹0</td>
+            </tr>
             <tr class="receipt-total-row">
               <td colspan="2">TOTAL:</td>
               <td style="text-align: right;" id="billTotalText">₹0</td>

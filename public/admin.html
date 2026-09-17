@@ -479,6 +479,14 @@
             <!-- Items injected via JS -->
           </tbody>
           <tfoot>
+            <tr class="receipt-subtotal-row" id="adminModalSubtotalRow" style="border-top: 1px solid var(--border-medium); font-size: 8.5pt;">
+              <td colspan="2" style="font-weight: 600; color: var(--text-secondary);">Subtotal:</td>
+              <td style="text-align: right; font-weight: 600;" id="adminModalSubtotal">₹0</td>
+            </tr>
+            <tr class="receipt-discount-row" id="adminModalDiscountRow" style="font-size: 8.5pt; color: #15803d;">
+              <td colspan="2" style="font-weight: 600;" id="adminModalDiscountLabel">Discount (0%):</td>
+              <td style="text-align: right; font-weight: 700;" id="adminModalDiscountAmount">-₹0</td>
+            </tr>
             <tr class="receipt-total-row">
               <td colspan="2">TOTAL:</td>
               <td style="text-align: right;" id="adminModalTotal">₹0</td>

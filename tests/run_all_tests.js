@@ -513,6 +513,64 @@ runTest('Default Payment to Full UPI and Payment Status CANCELLED upon Cancellat
   assert.strictEqual(completedOrder.online_amount, order2.total, 'Full UPI default must have online_amount = total');
 });
 
+// TEST SUITE 7: BILL DISCOUNT RULES (DEFAULT 0% & CONFIGURABLE)
+console.log('\n--- Test Suite 7: Bill Discount Rules (Default 0% & Configurable) ---');
+
+runTest('Bill Defaults to 0% Discount with Zero Tax (Subtotal == Total)', () => {
+  const cappuccino = store.getMenuItems().find(i => i.name === 'Cappuccino' && i.price === 219);
+  const fries = store.getMenuItems().find(i => i.name === 'Peri Peri Fries');
+
+  const order = store.createOrderAtomic({
+    table_number: 2,
+    items: [
+      { menu_item_id: cappuccino.id, quantity: 2 },
+      { menu_item_id: fries.id, quantity: 1 }
+    ]
+  });
+
+  assert.strictEqual(order.subtotal, 598, 'Subtotal should be 598');
+  assert.strictEqual(order.discount_percent, 0, 'Default discount_percent must be 0');
+  assert.strictEqual(order.discount_amount, 0, 'Default discount_amount must be 0');
+  assert.strictEqual(order.total, 598, 'Total must equal subtotal when discount is 0%');
+});
+
+runTest('Configurable Discount (e.g. 10%) Accurately Recalculates Net Total & Split Payment', () => {
+  const cappuccino = store.getMenuItems().find(i => i.name === 'Cappuccino' && i.price === 219);
+  const fries = store.getMenuItems().find(i => i.name === 'Peri Peri Fries');
+
+  // Subtotal = 2*219 + 160 = 598
+  // 10% discount = 59.80 -> Net Total = 538.20
+  const order = store.createOrderAtomic({
+    table_number: 5,
+    items: [
+      { menu_item_id: cappuccino.id, quantity: 2 },
+      { menu_item_id: fries.id, quantity: 1 }
+    ],
+    discount_percent: 10
+  });
+
+  assert.strictEqual(order.subtotal, 598, 'Subtotal should be 598');
+  assert.strictEqual(order.discount_percent, 10, 'discount_percent must be 10');
+  assert.strictEqual(order.discount_amount, 59.8, 'discount_amount must be 59.80');
+  assert.strictEqual(order.total, 538.2, 'total must be 538.20');
+
+  // Complete with discount and split payment
+  const completed = store.updateOrderStatus(order.id, 'COMPLETED', {
+    discount_percent: 10,
+    discount_amount: 59.8,
+    total: 538.2,
+    payment_mode: 'SPLIT',
+    cash_amount: 200,
+    online_amount: 338.2
+  });
+
+  assert.strictEqual(completed.status, 'COMPLETED');
+  assert.strictEqual(completed.total, 538.2);
+  assert.strictEqual(completed.cash_amount, 200);
+  assert.strictEqual(completed.online_amount, 338.2);
+  assert(Math.abs((completed.cash_amount + completed.online_amount) - completed.total) < 0.01, 'Cash + Online must equal net discounted total');
+});
+
 console.log('\n============================================================');
 console.log(`📊 TEST RESULTS: ${testsPassed} PASSED, ${testsFailed} FAILED`);
 console.log('============================================================\n');

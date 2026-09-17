@@ -275,15 +275,30 @@ module.exports = {
             nextOrderNumber = Math.max(1, (localStore.orderSequence || 0) + 1);
           }
 
+          const subtotal = calculatedSubtotal;
+          const discPct = Math.min(100, Math.max(0, Number(params.discount_percent) || 0));
+          let discAmt = Number(params.discount_amount) || 0;
+          if (discPct > 0 && discAmt === 0) {
+            discAmt = Math.round((subtotal * discPct / 100) * 100) / 100;
+          }
+          discAmt = Math.min(subtotal, Math.max(0, discAmt));
+          const finalTotal = Math.max(0, Math.round((subtotal - discAmt) * 100) / 100);
+
+          let orderNotes = params.notes ? String(params.notes).replace(/<[^>]*>?/gm, '').trim() : null;
+          if (discPct > 0) {
+            const discTag = `Discount: ${discPct}% (-₹${discAmt})`;
+            orderNotes = orderNotes ? `${orderNotes} | ${discTag}` : discTag;
+          }
+
           const orderPayload = {
             order_number: nextOrderNumber,
             table_number: Number(params.table_number),
             waiter_id: validatedWaiterId,
             waiter_name_snapshot: params.waiter_name ? String(params.waiter_name).replace(/<[^>]*>?/gm, '').trim() : 'Staff',
             status: params.status || 'CONFIRMED',
-            subtotal: calculatedSubtotal,
-            total: calculatedSubtotal, // Zero Tax, Zero GST, Zero Service Charges
-            notes: params.notes ? String(params.notes).replace(/<[^>]*>?/gm, '').trim() : null,
+            subtotal: subtotal,
+            total: finalTotal, // Subtotal minus discount (No GST, No Tax)
+            notes: orderNotes,
             idempotency_key: params.idempotency_key || null
           };
 
@@ -332,6 +347,10 @@ module.exports = {
 
             insertedOrder.items = itemSnapshots;
             insertedOrder.order_items = itemSnapshots;
+            insertedOrder.subtotal = subtotal;
+            insertedOrder.discount_percent = discPct;
+            insertedOrder.discount_amount = discAmt;
+            insertedOrder.total = finalTotal;
             localStore.orderSequence = Math.max(localStore.orderSequence || 0, Number(insertedOrder.order_number) || 0);
             const fullOrder = localStore.recordOrderSnapshot(insertedOrder, itemSnapshots);
             return fullOrder;
@@ -994,6 +1013,9 @@ module.exports = {
       const updatePayload = { status, updated_at: new Date().toISOString() };
       
       if (mergedPaymentData && typeof mergedPaymentData === 'object') {
+        if (mergedPaymentData.total != null) updatePayload.total = Number(mergedPaymentData.total);
+        if (mergedPaymentData.discount_percent != null) updatePayload.discount_percent = Number(mergedPaymentData.discount_percent);
+        if (mergedPaymentData.discount_amount != null) updatePayload.discount_amount = Number(mergedPaymentData.discount_amount);
         if (mergedPaymentData.payment_mode) updatePayload.payment_mode = String(mergedPaymentData.payment_mode).toUpperCase();
         if (mergedPaymentData.cash_amount != null) updatePayload.cash_amount = Number(mergedPaymentData.cash_amount) || 0;
         if (mergedPaymentData.online_amount != null) updatePayload.online_amount = Number(mergedPaymentData.online_amount) || 0;
@@ -1008,23 +1030,38 @@ module.exports = {
       }
       let { data, error } = await query.select().maybeSingle();
 
-      // If remote table is missing the payment columns, fallback to status + notes
+      // If remote table is missing the payment/discount columns, fallback to status, total + notes
       if (error && (error.message.includes('column') || error.code === 'PGRST204')) {
         let existingNotes = '';
         const localO = localStore.getOrderById(id);
         if (localO && localO.notes) existingNotes = localO.notes;
 
-        const cleanNotes = (existingNotes || '').replace(/\s*\|?\s*Payment:\s*[A-Z]+\s*\([^)]*\)/gi, '').replace(/\s*\|?\s*Payment:\s*[A-Z]+/gi, '').trim();
+        const cleanNotes = (existingNotes || '')
+          .replace(/\s*\|?\s*Payment:\s*[A-Z]+\s*\([^)]*\)/gi, '')
+          .replace(/\s*\|?\s*Payment:\s*[A-Z]+/gi, '')
+          .replace(/\s*\|?\s*Discount:\s*[0-9]+(?:\.[0-9]+)?%\s*\([^)]*\)/gi, '')
+          .trim();
+
         const paymentMeta = mergedPaymentData.payment_mode 
           ? `Payment: ${mergedPaymentData.payment_mode} (Cash: ₹${mergedPaymentData.cash_amount || 0}, Online: ₹${mergedPaymentData.online_amount || 0})` 
           : (status === 'CANCELLED' ? 'Status: CANCELLED' : '');
-        const updatedNotes = cleanNotes && paymentMeta ? `${cleanNotes} | ${paymentMeta}` : (paymentMeta || cleanNotes || null);
+        const discountMeta = (mergedPaymentData.discount_percent > 0)
+          ? `Discount: ${mergedPaymentData.discount_percent}% (-₹${mergedPaymentData.discount_amount || 0})`
+          : '';
 
-        let fallbackQuery = supabase.from('orders').update({
+        let updatedNotes = cleanNotes;
+        if (discountMeta) updatedNotes = updatedNotes ? `${updatedNotes} | ${discountMeta}` : discountMeta;
+        if (paymentMeta) updatedNotes = updatedNotes ? `${updatedNotes} | ${paymentMeta}` : paymentMeta;
+        if (!updatedNotes) updatedNotes = null;
+
+        const fallbackPayload = {
           status,
           updated_at: new Date().toISOString(),
           notes: updatedNotes
-        });
+        };
+        if (mergedPaymentData.total != null) fallbackPayload.total = Number(mergedPaymentData.total);
+
+        let fallbackQuery = supabase.from('orders').update(fallbackPayload);
         if (isUUID) fallbackQuery = fallbackQuery.eq('id', id);
         else fallbackQuery = fallbackQuery.eq('order_number', Number(id));
         const fb = await fallbackQuery.select().maybeSingle();
@@ -1039,6 +1076,10 @@ module.exports = {
         const p = localStore.parsePaymentDetails(data, mergedPaymentData);
         return {
           ...data,
+          subtotal: data.subtotal != null ? data.subtotal : (mergedPaymentData.subtotal || (localO ? localO.subtotal : undefined)),
+          discount_percent: mergedPaymentData.discount_percent != null ? mergedPaymentData.discount_percent : (data.discount_percent || 0),
+          discount_amount: mergedPaymentData.discount_amount != null ? mergedPaymentData.discount_amount : (data.discount_amount || 0),
+          total: mergedPaymentData.total != null ? mergedPaymentData.total : data.total,
           payment_mode: p.payment_mode,
           payment_status: p.payment_status,
           cash_amount: p.cash_amount,

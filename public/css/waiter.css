@@ -1222,6 +1222,30 @@
   transform: translateY(0);
 }
 
+/* Discount Selection Chips */
+.discount-chip {
+  background: #ffffff;
+  border: 1.5px solid #fed7aa;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-weight: 700;
+  color: #9a3412;
+}
+
+.discount-chip:hover {
+  background: #ffedd5;
+  border-color: #f97316;
+  transform: translateY(-1px);
+}
+
+.discount-chip.active {
+  background: #ea580c !important;
+  color: #ffffff !important;
+  border-color: #c2410c !important;
+  box-shadow: 0 2px 4px rgba(234, 88, 12, 0.25);
+}
+
 /* Receipt Modal Action Buttons */
 .receipt-actions-row {
   display: flex;

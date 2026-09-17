@@ -535,6 +535,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const adminModalStatus = document.getElementById('adminModalStatus');
   const adminModalItemsTbody = document.getElementById('adminModalItemsTbody');
   const adminModalTotal = document.getElementById('adminModalTotal');
+  const adminModalSubtotal = document.getElementById('adminModalSubtotal');
+  const adminModalDiscountLabel = document.getElementById('adminModalDiscountLabel');
+  const adminModalDiscountAmount = document.getElementById('adminModalDiscountAmount');
   const adminPrintBillBtn = document.getElementById('adminPrintBillBtn');
   const adminCompleteBillBtn = document.getElementById('adminCompleteBillBtn');
   const closeAdminOrderModalBtn = document.getElementById('closeAdminOrderModalBtn');
@@ -629,7 +632,34 @@ document.addEventListener('DOMContentLoaded', async () => {
       };
     }
 
-    adminModalTotal.textContent = SpiceClient.formatCurrency(order.total);
+    const subtotal = Number(order.subtotal != null ? order.subtotal : (order.total || 0));
+    let discPct = Number(order.discount_percent || 0);
+    let discAmt = Number(order.discount_amount || 0);
+
+    if (discPct === 0 && order.notes) {
+      const match = String(order.notes).match(/Discount:\s*([0-9]+(?:\.[0-9]+)?)%\s*(?:\(-?(?:₹|Rs\.?)?([0-9]+(?:\.[0-9]+)?)\))?/i);
+      if (match) {
+        discPct = parseFloat(match[1]) || 0;
+        if (match[2]) discAmt = parseFloat(match[2]) || 0;
+      }
+    }
+
+    if (discPct > 0 && discAmt === 0) {
+      discAmt = Math.round((subtotal * discPct / 100) * 100) / 100;
+    }
+    const finalTotal = Number(order.total != null ? order.total : Math.max(0, subtotal - discAmt));
+
+    if (adminModalSubtotal) adminModalSubtotal.textContent = SpiceClient.formatCurrency(subtotal);
+    if (adminModalDiscountLabel) adminModalDiscountLabel.textContent = `Discount (${discPct}%):`;
+    if (adminModalDiscountAmount) {
+      adminModalDiscountAmount.textContent = discAmt > 0 ? `-${SpiceClient.formatCurrency(discAmt)}` : '₹0';
+      if (discAmt > 0) {
+        adminModalDiscountAmount.style.color = '#15803d';
+      } else {
+        adminModalDiscountAmount.style.color = 'var(--text-secondary)';
+      }
+    }
+    adminModalTotal.textContent = SpiceClient.formatCurrency(finalTotal);
 
     adminModalItemsTbody.innerHTML = '';
     const items = (order.items && order.items.length > 0) ? order.items : (order.order_items && order.order_items.length > 0 ? order.order_items : []);

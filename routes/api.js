@@ -476,7 +476,9 @@ router.post('/orders', requireAuth(['WAITER', 'ADMIN']), async (req, res) => {
       waiter_name: waiter_name || req.user?.username || req.user?.display_name || 'waiter',
       payment_mode: req.body.payment_mode,
       cash_amount: req.body.cash_amount,
-      online_amount: req.body.online_amount
+      online_amount: req.body.online_amount,
+      discount_percent: req.body.discount_percent || 0,
+      discount_amount: req.body.discount_amount || 0
     });
 
     res.status(201).json({
@@ -541,7 +543,7 @@ router.put('/orders/:id', requireAuth(['WAITER', 'ADMIN']), async (req, res) => 
   }
 });
 
-// POST /api/orders/:id/complete - Complete order & finalize bill with payment breakdown
+// POST /api/orders/:id/complete - Complete order & finalize bill with payment breakdown and optional discount
 router.post('/orders/:id/complete', requireAuth(['WAITER', 'ADMIN']), async (req, res) => {
   try {
     const existingOrder = await dbService.getOrderById(req.params.id);
@@ -549,7 +551,23 @@ router.post('/orders/:id/complete', requireAuth(['WAITER', 'ADMIN']), async (req
       return res.status(404).json({ success: false, error: 'Order not found.' });
     }
 
-    const orderTotal = Number(existingOrder.total || 0);
+    const subtotal = Number(existingOrder.subtotal != null ? existingOrder.subtotal : (existingOrder.total || 0));
+    let discountPercent = existingOrder.discount_percent != null ? Number(existingOrder.discount_percent) : 0;
+    let discountAmount = existingOrder.discount_amount != null ? Number(existingOrder.discount_amount) : 0;
+
+    if (req.body.discount_percent !== undefined && req.body.discount_percent !== null) {
+      const rawPct = Number(req.body.discount_percent);
+      discountPercent = isNaN(rawPct) ? 0 : Math.min(100, Math.max(0, rawPct));
+      discountAmount = Math.round((subtotal * discountPercent / 100) * 100) / 100;
+    }
+    if (req.body.discount_amount !== undefined && req.body.discount_amount !== null) {
+      const rawAmt = Number(req.body.discount_amount);
+      if (!isNaN(rawAmt) && rawAmt >= 0) {
+        discountAmount = Math.min(subtotal, Math.round(rawAmt * 100) / 100);
+      }
+    }
+
+    const orderTotal = Math.max(0, Math.round((subtotal - discountAmount) * 100) / 100);
     let payment_mode = req.body.payment_mode ? String(req.body.payment_mode).toUpperCase() : 'ONLINE';
     let cash_amount = 0;
     let online_amount = 0;
@@ -619,6 +637,10 @@ router.post('/orders/:id/complete', requireAuth(['WAITER', 'ADMIN']), async (req
     }
 
     const paymentData = {
+      subtotal,
+      discount_percent: discountPercent,
+      discount_amount: discountAmount,
+      total: orderTotal,
       payment_mode,
       cash_amount,
       online_amount,

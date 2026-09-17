@@ -190,11 +190,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   const editBillBtn = document.getElementById('editBillBtn');
   const printBillBtn = document.getElementById('printBillBtn');
   const newOrderBtn = document.getElementById('newOrderBtn');
+  const billSubtotalRow = document.getElementById('billSubtotalRow');
+  const billSubtotalText = document.getElementById('billSubtotalText');
+  const billDiscountRow = document.getElementById('billDiscountRow');
+  const billDiscountLabelText = document.getElementById('billDiscountLabelText');
+  const billDiscountAmountText = document.getElementById('billDiscountAmountText');
 
   // Payment Mode Modal Elements
   const paymentModal = document.getElementById('paymentModal');
   const paymentModalSubtitle = document.getElementById('paymentModalSubtitle');
   const paymentTotalAmount = document.getElementById('paymentTotalAmount');
+  const paymentSubtotalAmount = document.getElementById('paymentSubtotalAmount');
+  const paymentDiscountRow = document.getElementById('paymentDiscountRow');
+  const paymentDiscountLabel = document.getElementById('paymentDiscountLabel');
+  const paymentDiscountAmount = document.getElementById('paymentDiscountAmount');
+  const billDiscountBadge = document.getElementById('billDiscountBadge');
+  const quickDiscountChips = document.getElementById('quickDiscountChips');
+  const billDiscountInput = document.getElementById('billDiscountInput');
   const payModeCashBtn = document.getElementById('payModeCashBtn');
   const payModeOnlineBtn = document.getElementById('payModeOnlineBtn');
   const payModeSplitBtn = document.getElementById('payModeSplitBtn');
@@ -666,7 +678,66 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // --- PAYMENT MODE & MANUAL CASH MODAL LOGIC ---
   let currentPaymentMode = 'CASH'; // 'CASH' | 'ONLINE' | 'SPLIT'
+  let currentDiscountPercent = 0;
+  let currentDiscountAmount = 0;
+  let currentSubtotalForPayment = 0;
   let orderTotalForPayment = 0;
+
+  function updateDiscountChipsUI(pct) {
+    if (!quickDiscountChips) return;
+    const chips = quickDiscountChips.querySelectorAll('.discount-chip');
+    chips.forEach(chip => {
+      const chipPct = parseFloat(chip.dataset.pct);
+      if (Math.abs(chipPct - pct) < 0.01) {
+        chip.classList.add('active');
+      } else {
+        chip.classList.remove('active');
+      }
+    });
+  }
+
+  function applyDiscountCalculation() {
+    const subtotal = currentSubtotalForPayment;
+    let pct = Number(currentDiscountPercent) || 0;
+    if (isNaN(pct) || pct < 0) pct = 0;
+    if (pct > 100) pct = 100;
+    currentDiscountPercent = pct;
+
+    currentDiscountAmount = Math.round((subtotal * pct / 100) * 100) / 100;
+    orderTotalForPayment = Math.max(0, Math.round((subtotal - currentDiscountAmount) * 100) / 100);
+
+    if (billDiscountBadge) {
+      if (pct > 0) {
+        billDiscountBadge.textContent = `${pct}% (${SpiceClient.formatCurrency(currentDiscountAmount)} discount)`;
+        billDiscountBadge.style.background = '#dcfce7';
+        billDiscountBadge.style.color = '#15803d';
+        billDiscountBadge.style.borderColor = '#86efac';
+      } else {
+        billDiscountBadge.textContent = '0% (₹0 discount)';
+        billDiscountBadge.style.background = '#ffedd5';
+        billDiscountBadge.style.color = '#c2410c';
+        billDiscountBadge.style.borderColor = '#fdba74';
+      }
+    }
+
+    if (paymentSubtotalAmount) {
+      paymentSubtotalAmount.textContent = SpiceClient.formatCurrency(subtotal);
+    }
+    if (paymentDiscountLabel) {
+      paymentDiscountLabel.textContent = `Discount (${pct}%):`;
+    }
+    if (paymentDiscountAmount) {
+      paymentDiscountAmount.textContent = `-${SpiceClient.formatCurrency(currentDiscountAmount)}`;
+    }
+    if (paymentTotalAmount) {
+      paymentTotalAmount.textContent = SpiceClient.formatCurrency(orderTotalForPayment);
+    }
+    if (breakdownTotalText) {
+      breakdownTotalText.textContent = SpiceClient.formatCurrency(orderTotalForPayment);
+    }
+
+    updateCashCalculation();
+  }
 
   function openPaymentModal() {
     const order = getCurrentOrderItems();
@@ -675,16 +746,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    orderTotalForPayment = order.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
+    currentSubtotalForPayment = order.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
+    currentDiscountPercent = 0;
+    currentDiscountAmount = 0;
 
-    if (paymentTotalAmount) {
-      paymentTotalAmount.textContent = SpiceClient.formatCurrency(orderTotalForPayment);
+    if (billDiscountInput) {
+      billDiscountInput.value = 0;
     }
+    updateDiscountChipsUI(0);
+    applyDiscountCalculation();
+
     if (paymentModalSubtitle) {
-      paymentModalSubtitle.textContent = `Table ${activeTable} • ${order.length} item(s) • Total: ${SpiceClient.formatCurrency(orderTotalForPayment)}`;
-    }
-    if (breakdownTotalText) {
-      breakdownTotalText.textContent = SpiceClient.formatCurrency(orderTotalForPayment);
+      paymentModalSubtitle.textContent = `Table ${activeTable} • ${order.length} item(s) • Subtotal: ${SpiceClient.formatCurrency(currentSubtotalForPayment)}`;
     }
 
     // Default to Full UPI (can easily opt for Partial Cash or Full Cash)
@@ -866,6 +939,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  if (quickDiscountChips) {
+    quickDiscountChips.addEventListener('click', (e) => {
+      const chip = e.target.closest('.discount-chip');
+      if (!chip) return;
+      const pct = parseFloat(chip.dataset.pct) || 0;
+      currentDiscountPercent = pct;
+      if (billDiscountInput) billDiscountInput.value = pct;
+      updateDiscountChipsUI(pct);
+      applyDiscountCalculation();
+    });
+  }
+
+  if (billDiscountInput) {
+    billDiscountInput.addEventListener('input', () => {
+      let rawVal = parseFloat(billDiscountInput.value);
+      if (isNaN(rawVal)) rawVal = 0;
+      if (rawVal < 0) rawVal = 0;
+      if (rawVal > 100) rawVal = 100;
+      currentDiscountPercent = rawVal;
+      updateDiscountChipsUI(rawVal);
+      applyDiscountCalculation();
+    });
+  }
+
   if (confirmPaymentBtn) {
     confirmPaymentBtn.addEventListener('click', () => {
       let cashAmount = parseFloat(splitCashInput ? splitCashInput.value : 0) || 0;
@@ -892,7 +989,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       handleGenerateBill({
         payment_mode: finalMode,
         cash_amount: cashAmount,
-        online_amount: onlineAmount
+        online_amount: onlineAmount,
+        discount_percent: currentDiscountPercent,
+        discount_amount: currentDiscountAmount
       });
     });
   }
@@ -1579,6 +1678,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           payment_mode: paymentDetails.payment_mode || 'CASH',
           cash_amount: paymentDetails.cash_amount,
           online_amount: paymentDetails.online_amount,
+          discount_percent: paymentDetails.discount_percent || 0,
+          discount_amount: paymentDetails.discount_amount || 0,
           items: order.map(i => ({
             menu_item_id: i.menu_item_id,
             variant_id: i.variant_id || null,
@@ -1604,13 +1705,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         body: JSON.stringify({
           payment_mode: paymentDetails.payment_mode || 'CASH',
           cash_amount: paymentDetails.cash_amount,
-          online_amount: paymentDetails.online_amount
+          online_amount: paymentDetails.online_amount,
+          discount_percent: paymentDetails.discount_percent || 0,
+          discount_amount: paymentDetails.discount_amount || 0
         })
       });
       const completeJson = await completeRes.json();
       if (!completeJson.success) throw new Error(completeJson.error || 'Failed to finalize bill.');
 
       const finalizedOrder = completeJson.data;
+      if (finalizedOrder.discount_percent === undefined) {
+        finalizedOrder.discount_percent = paymentDetails.discount_percent || 0;
+      }
+      if (finalizedOrder.discount_amount === undefined) {
+        finalizedOrder.discount_amount = paymentDetails.discount_amount || 0;
+      }
+      if (finalizedOrder.subtotal === undefined) {
+        finalizedOrder.subtotal = currentSubtotalForPayment || finalizedOrder.total;
+      }
       if (!finalizedOrder.items || finalizedOrder.items.length === 0) {
         finalizedOrder.items = (finalizedOrder.order_items && finalizedOrder.order_items.length > 0)
           ? finalizedOrder.order_items
@@ -1706,7 +1818,35 @@ document.addEventListener('DOMContentLoaded', async () => {
       billStatusText.textContent = `Status: ${order.status || 'COMPLETED'}`;
       billStatusText.style.color = (order.status === 'COMPLETED') ? '#16a34a' : 'var(--spice-gold)';
     }
-    billTotalText.textContent = SpiceClient.formatCurrency(order.total);
+    const subtotal = Number(order.subtotal != null ? order.subtotal : (order.total || 0));
+    let discPct = Number(order.discount_percent || 0);
+    let discAmt = Number(order.discount_amount || 0);
+
+    // If discount was stored in notes, parse it: e.g. Discount: 10% (-₹60)
+    if (discPct === 0 && order.notes) {
+      const match = String(order.notes).match(/Discount:\s*([0-9]+(?:\.[0-9]+)?)%\s*(?:\(-?(?:₹|Rs\.?)?([0-9]+(?:\.[0-9]+)?)\))?/i);
+      if (match) {
+        discPct = parseFloat(match[1]) || 0;
+        if (match[2]) discAmt = parseFloat(match[2]) || 0;
+      }
+    }
+
+    if (discPct > 0 && discAmt === 0) {
+      discAmt = Math.round((subtotal * discPct / 100) * 100) / 100;
+    }
+    const finalTotal = Number(order.total != null ? order.total : Math.max(0, subtotal - discAmt));
+
+    if (billSubtotalText) billSubtotalText.textContent = SpiceClient.formatCurrency(subtotal);
+    if (billDiscountLabelText) billDiscountLabelText.textContent = `Discount (${discPct}%):`;
+    if (billDiscountAmountText) {
+      billDiscountAmountText.textContent = discAmt > 0 ? `-${SpiceClient.formatCurrency(discAmt)}` : '₹0';
+      if (discAmt > 0) {
+        billDiscountAmountText.style.color = '#15803d';
+      } else {
+        billDiscountAmountText.style.color = 'var(--text-secondary)';
+      }
+    }
+    billTotalText.textContent = SpiceClient.formatCurrency(finalTotal);
 
     // Payment breakdown in bill
     if (billPaymentBox) {

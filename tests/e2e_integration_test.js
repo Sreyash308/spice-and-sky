@@ -266,6 +266,49 @@ async function testAll() {
   assert.strictEqual(t6Final.length, t6InitialCount, 'Table 6 must return to initialCount active orders after both complete');
   console.log('  ✅ Both test orders on Table 6 completed cleanly.');
 
+  // 8. Testing Waiter Bill Discount Option (10% Discount on Table 7)
+  console.log('\n8. Testing Waiter Bill Discount Option (10% Discount on Table 7)...');
+  const cappuccinoItem = menuData.data.items.find(i => i.name === 'Cappuccino' && i.price === 219);
+  assert(cappuccinoItem, 'Cappuccino must exist for discount test');
+
+  const order7Res = await fetch(`${BASE_URL}/api/orders`, {
+    method: 'POST',
+    headers: waiterHeaders,
+    body: JSON.stringify({
+      table_number: 7,
+      idempotency_key: `test-e2e-discount-${Date.now()}`,
+      items: [{ menu_item_id: cappuccinoItem.id, quantity: 2 }] // 2 * 219 = 438
+    })
+  });
+  const order7Json = await order7Res.json();
+  assert(order7Json.success, 'Order on Table 7 must succeed');
+  const order7 = order7Json.data;
+  assert.strictEqual(order7.subtotal, 438, 'Initial subtotal must be 438');
+  assert.strictEqual(order7.discount_percent, 0, 'Default discount must be 0%');
+
+  // Finalize bill with 10% discount: 10% of 438 = 43.80, Total = 394.20
+  const comp7Res = await fetch(`${BASE_URL}/api/orders/${order7.id}/complete`, {
+    method: 'POST',
+    headers: waiterHeaders,
+    body: JSON.stringify({
+      discount_percent: 10,
+      payment_mode: 'SPLIT',
+      cash_amount: 100,
+      online_amount: 294.20
+    })
+  });
+  const comp7Json = await comp7Res.json();
+  assert(comp7Json.success, 'Completing order with 10% discount must succeed');
+  const finalized7 = comp7Json.data;
+
+  assert.strictEqual(finalized7.subtotal, 438, 'Finalized subtotal must be 438');
+  assert.strictEqual(finalized7.discount_percent, 10, 'Finalized discount_percent must be 10');
+  assert.strictEqual(finalized7.discount_amount, 43.8, 'Finalized discount_amount must be 43.80');
+  assert.strictEqual(finalized7.total, 394.2, 'Finalized total must be 394.20');
+  assert.strictEqual(finalized7.cash_amount, 100, 'Cash amount must be 100');
+  assert.strictEqual(finalized7.online_amount, 294.2, 'Online amount must be 294.20');
+  console.log('  ✅ 10% Discount applied and verified: Subtotal ₹438 - Discount ₹43.80 = Net Total ₹394.20.');
+
   console.log('\n============================================================');
   console.log('🎉 ALL END-TO-END INTEGRATION TESTS PASSED 100%!');
   console.log('============================================================\n');

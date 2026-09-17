@@ -217,6 +217,21 @@
     font-weight: 700 !important;
   }
 
+  .receipt-subtotal-row td {
+    font-size: 8.5pt !important;
+    color: #000000 !important;
+    padding: 1mm 0 !important;
+    font-weight: 600 !important;
+    border-top: 1px dashed #000000 !important;
+  }
+
+  .receipt-discount-row td {
+    font-size: 8.5pt !important;
+    color: #000000 !important;
+    padding: 1mm 0 !important;
+    font-weight: 700 !important;
+  }
+
   .receipt-total-row td {
     border-top: 1.5px solid #000000 !important;
     border-bottom: 1.5px solid #000000 !important;

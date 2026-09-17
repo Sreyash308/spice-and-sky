@@ -472,7 +472,7 @@ class CafeStore extends EventEmitter {
   }
 
   // --- ATOMIC ORDER CREATION ---
-  createOrderAtomic({ table_number, items, notes, idempotency_key, waiter_id, waiter_name, status, payment_mode, cash_amount, online_amount }) {
+  createOrderAtomic({ table_number, items, notes, idempotency_key, waiter_id, waiter_name, status, payment_mode, cash_amount, online_amount, discount_percent = 0, discount_amount = 0 }) {
     const tableNum = Number(table_number);
     if (!tableNum || tableNum < 1 || tableNum > 9) {
       throw new Error(`Invalid table number: ${table_number}. Must be between 1 and 9.`);
@@ -576,8 +576,17 @@ class CafeStore extends EventEmitter {
     const orderId = crypto.randomUUID();
     this.orderSequence += 1;
 
+    const subtotal = calculatedTotal;
+    const discPct = Math.min(100, Math.max(0, Number(discount_percent) || 0));
+    let discAmt = Number(discount_amount) || 0;
+    if (discPct > 0 && discAmt === 0) {
+      discAmt = Math.round((subtotal * discPct / 100) * 100) / 100;
+    }
+    discAmt = Math.min(subtotal, Math.max(0, discAmt));
+    const finalTotal = Math.max(0, Math.round((subtotal - discAmt) * 100) / 100);
+
     const initialPayment = parsePaymentDetails({
-      total: calculatedTotal,
+      total: finalTotal,
       notes,
       payment_mode,
       cash_amount,
@@ -592,8 +601,10 @@ class CafeStore extends EventEmitter {
       waiter_id: waiter_id || null,
       waiter_name_snapshot: waiter_name ? String(waiter_name).replace(/<[^>]*>?/gm, '').trim() : 'Staff',
       status: status || 'CONFIRMED',
-      subtotal: calculatedTotal,
-      total: calculatedTotal, // STRICT: NO TAX, NO GST, NO SERVICE CHARGE
+      subtotal: subtotal,
+      discount_percent: discPct,
+      discount_amount: discAmt,
+      total: finalTotal, // Subtotal minus discount (NO TAX, NO GST)
       notes: notes ? String(notes).replace(/<[^>]*>?/gm, '').trim() : null,
       idempotency_key: idempotency_key || null,
       payment_mode: initialPayment.payment_mode,
@@ -707,7 +718,13 @@ class CafeStore extends EventEmitter {
 
     const order = this.orders[orderIndex];
     order.subtotal = calculatedTotal;
-    order.total = calculatedTotal;
+    const discPct = order.discount_percent || 0;
+    let discAmt = order.discount_amount || 0;
+    if (discPct > 0) {
+      discAmt = Math.round((calculatedTotal * discPct / 100) * 100) / 100;
+      order.discount_amount = discAmt;
+    }
+    order.total = Math.max(0, Math.round((calculatedTotal - discAmt) * 100) / 100);
     if (notes !== undefined) order.notes = notes ? String(notes).replace(/<[^>]*>?/gm, '').trim() : null;
     if (waiter_id) order.waiter_id = waiter_id;
     if (waiter_name) order.waiter_name_snapshot = String(waiter_name).replace(/<[^>]*>?/gm, '').trim();
@@ -844,6 +861,16 @@ class CafeStore extends EventEmitter {
       this.orderSequence = orderNum;
     }
 
+    let discPct = Number(orderData.discount_percent !== undefined ? orderData.discount_percent : (existing ? existing.discount_percent : 0)) || 0;
+    let discAmt = Number(orderData.discount_amount !== undefined ? orderData.discount_amount : (existing ? existing.discount_amount : 0)) || 0;
+    if (discPct === 0 && orderData.notes) {
+      const match = String(orderData.notes).match(/Discount:\s*([0-9]+(?:\.[0-9]+)?)%\s*(?:\(-?(?:₹|Rs\.?)?([0-9]+(?:\.[0-9]+)?)\))?/i);
+      if (match) {
+        discPct = parseFloat(match[1]) || 0;
+        if (match[2]) discAmt = parseFloat(match[2]) || 0;
+      }
+    }
+
     const order = {
       id: orderId,
       order_number: Number(orderData.order_number),
@@ -852,6 +879,8 @@ class CafeStore extends EventEmitter {
       waiter_name_snapshot: orderData.waiter_name || orderData.waiter_name_snapshot || 'Staff',
       status: orderData.status || 'CONFIRMED',
       subtotal: Number(orderData.subtotal !== undefined ? orderData.subtotal : orderData.total),
+      discount_percent: discPct,
+      discount_amount: discAmt,
       total: Number(orderData.total),
       notes: orderData.notes || null,
       idempotency_key: orderData.idempotency_key || null,
@@ -1080,6 +1109,20 @@ class CafeStore extends EventEmitter {
     }
 
     if (paymentData && typeof paymentData === 'object') {
+      if (paymentData.discount_percent !== undefined && paymentData.discount_percent !== null) {
+        order.discount_percent = Math.min(100, Math.max(0, Number(paymentData.discount_percent) || 0));
+      }
+      if (paymentData.discount_amount !== undefined && paymentData.discount_amount !== null) {
+        order.discount_amount = Number(paymentData.discount_amount) || 0;
+      }
+      if (paymentData.total !== undefined && paymentData.total !== null) {
+        order.total = Number(paymentData.total) || 0;
+      } else if (order.discount_percent !== undefined && order.discount_percent > 0) {
+        const sub = Number(order.subtotal || order.total || 0);
+        order.discount_amount = Math.round((sub * order.discount_percent / 100) * 100) / 100;
+        order.total = Math.max(0, Math.round((sub - order.discount_amount) * 100) / 100);
+      }
+
       if (paymentData.payment_mode) {
         order.payment_mode = String(paymentData.payment_mode).toUpperCase();
       }
