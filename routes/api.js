@@ -308,19 +308,14 @@ router.post('/auth/logout', (req, res) => {
   if (auth?.user?.jti) tokensToRevoke.push(auth.user.jti);
   if (tokenFromBody) tokensToRevoke.push(tokenFromBody);
 
-  if (portal === 'waiter' || auth?.user?.role === 'WAITER') {
-    if (req.cookies?.spice_waiter_token) tokensToRevoke.push(req.cookies.spice_waiter_token);
-  } else if (portal === 'admin' || auth?.user?.role === 'ADMIN') {
-    if (req.cookies?.spice_admin_token) tokensToRevoke.push(req.cookies.spice_admin_token);
-  } else {
-    if (req.cookies?.spice_token) tokensToRevoke.push(req.cookies.spice_token);
-    if (req.cookies?.spice_session_id) tokensToRevoke.push(req.cookies.spice_session_id);
-    if (req.cookies?.spice_waiter_token) tokensToRevoke.push(req.cookies.spice_waiter_token);
-    if (req.cookies?.spice_admin_token) tokensToRevoke.push(req.cookies.spice_admin_token);
-  }
-
-  for (const t of tokensToRevoke) {
-    if (t) localStore.revokeToken(t);
+  function getTokenRole(tok) {
+    if (!tok) return null;
+    try {
+      const dec = jwt.decode(tok);
+      return dec?.role || null;
+    } catch (e) {
+      return null;
+    }
   }
 
   const clearCookieOptions = {
@@ -330,14 +325,40 @@ router.post('/auth/logout', (req, res) => {
   };
 
   if (portal === 'waiter' || auth?.user?.role === 'WAITER') {
+    if (req.cookies?.spice_waiter_token) tokensToRevoke.push(req.cookies.spice_waiter_token);
+    if (getTokenRole(req.cookies?.spice_token) === 'WAITER') {
+      tokensToRevoke.push(req.cookies.spice_token);
+      res.clearCookie('spice_token', clearCookieOptions);
+    }
+    if (getTokenRole(req.cookies?.spice_session_id) === 'WAITER') {
+      tokensToRevoke.push(req.cookies.spice_session_id);
+      res.clearCookie('spice_session_id', clearCookieOptions);
+    }
     res.clearCookie('spice_waiter_token', clearCookieOptions);
   } else if (portal === 'admin' || auth?.user?.role === 'ADMIN') {
+    if (req.cookies?.spice_admin_token) tokensToRevoke.push(req.cookies.spice_admin_token);
+    if (getTokenRole(req.cookies?.spice_token) === 'ADMIN') {
+      tokensToRevoke.push(req.cookies.spice_token);
+      res.clearCookie('spice_token', clearCookieOptions);
+    }
+    if (getTokenRole(req.cookies?.spice_session_id) === 'ADMIN') {
+      tokensToRevoke.push(req.cookies.spice_session_id);
+      res.clearCookie('spice_session_id', clearCookieOptions);
+    }
     res.clearCookie('spice_admin_token', clearCookieOptions);
   } else {
+    if (req.cookies?.spice_token) tokensToRevoke.push(req.cookies.spice_token);
+    if (req.cookies?.spice_session_id) tokensToRevoke.push(req.cookies.spice_session_id);
+    if (req.cookies?.spice_waiter_token) tokensToRevoke.push(req.cookies.spice_waiter_token);
+    if (req.cookies?.spice_admin_token) tokensToRevoke.push(req.cookies.spice_admin_token);
     res.clearCookie('spice_waiter_token', clearCookieOptions);
     res.clearCookie('spice_admin_token', clearCookieOptions);
     res.clearCookie('spice_token', clearCookieOptions);
     res.clearCookie('spice_session_id', clearCookieOptions);
+  }
+
+  for (const t of tokensToRevoke) {
+    if (t) localStore.revokeToken(t);
   }
 
   res.json({

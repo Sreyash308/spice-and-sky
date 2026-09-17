@@ -114,7 +114,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (waiterSignOutBtn) {
     waiterSignOutBtn.addEventListener('click', async (e) => {
       e.preventDefault();
-      await SpiceClient.signOut('WAITER');
+      waiterSignOutBtn.disabled = true;
+      waiterSignOutBtn.textContent = 'Signing out...';
+      try {
+        await SpiceClient.signOut('WAITER');
+      } catch (err) {}
       window.location.replace('/waiter/login');
     });
   }

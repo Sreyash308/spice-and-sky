@@ -68,19 +68,30 @@
   </style>
   <script>
     // Only clear waiter-specific keys when login page is visited (never touch admin keys!)
-    try {
-      localStorage.removeItem('spice_waiter_user');
-      localStorage.removeItem('spice_waiter_token');
-      localStorage.removeItem('spice_waiter_session_id');
-    } catch (e) {}
+    function purgeWaiterSession() {
+      try {
+        localStorage.removeItem('spice_waiter_user');
+        localStorage.removeItem('spice_waiter_token');
+        localStorage.removeItem('spice_waiter_session_id');
+        var rawAuth = localStorage.getItem('spice_auth_user');
+        if (rawAuth) {
+          var parsed = JSON.parse(rawAuth);
+          if (parsed && parsed.role === 'WAITER') {
+            localStorage.removeItem('spice_auth_user');
+            localStorage.removeItem('spice_token');
+            localStorage.removeItem('spice_session_id');
+          }
+        }
+        var expiredCookie = '; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0';
+        document.cookie = 'spice_waiter_token=' + expiredCookie;
+      } catch (e) {}
+    }
+
+    purgeWaiterSession();
 
     window.addEventListener('pageshow', function(e) {
       if (e.persisted) {
-        try {
-          localStorage.removeItem('spice_waiter_user');
-          localStorage.removeItem('spice_waiter_token');
-          localStorage.removeItem('spice_waiter_session_id');
-        } catch (err) {}
+        purgeWaiterSession();
       }
     });
 
@@ -139,7 +150,7 @@
     </form>
   </div>
 
-  <script src="/js/supabase-client.js?v=20260914-6"></script>
-  <script src="/js/waiter-login.js?v=20260914-6"></script>
+  <script src="/js/supabase-client.js?v=20260917-1"></script>
+  <script src="/js/waiter-login.js?v=20260917-1"></script>
 </body>
 </html>

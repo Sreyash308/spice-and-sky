@@ -14,8 +14,8 @@
       function enforceWaiterAuth() {
         try {
           var ALLOWED = ['shan', 'yawar', 'nawaz'];
-          var raw = localStorage.getItem('spice_waiter_user') || localStorage.getItem('spice_auth_user');
-          var tok = localStorage.getItem('spice_waiter_token') || localStorage.getItem('spice_waiter_session_id') || localStorage.getItem('spice_token') || localStorage.getItem('spice_session_id');
+          var raw = localStorage.getItem('spice_waiter_user');
+          var tok = localStorage.getItem('spice_waiter_token') || localStorage.getItem('spice_waiter_session_id');
           if (!raw || !tok) {
             throw new Error('Unauthenticated');
           }
@@ -406,8 +406,8 @@
   </div>
 
   <!-- Scripts -->
-  <script src="/js/supabase-client.js?v=20260914-8"></script>
-  <script src="/js/waiter.js?v=20260914-8"></script>
+  <script src="/js/supabase-client.js?v=20260917-1"></script>
+  <script src="/js/waiter.js?v=20260917-1"></script>
   <script>
     (function() {
       function syncWaiterProfile() {
@@ -445,28 +445,6 @@
           syncWaiterProfile();
         }
       });
-
-      // Mobile & Desktop instant sign out handler
-      async function triggerInstantSignOut(e) {
-        if (e) { e.preventDefault(); e.stopPropagation(); }
-        try {
-          if (window.SpiceClient && window.SpiceClient.signOut) {
-            await window.SpiceClient.signOut('WAITER');
-          } else {
-            localStorage.removeItem('spice_waiter_user');
-            localStorage.removeItem('spice_waiter_token');
-            localStorage.removeItem('spice_waiter_session_id');
-            localStorage.removeItem('spice_auth_user');
-            localStorage.removeItem('spice_token');
-          }
-        } catch (err) {}
-        window.location.replace('/waiter/login');
-      }
-
-      const signoutBtn = document.getElementById('waiterSignOutBtn');
-      if (signoutBtn) {
-        signoutBtn.addEventListener('click', triggerInstantSignOut);
-      }
     })();
   </script>
 </body>
