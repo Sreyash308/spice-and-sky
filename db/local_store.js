@@ -224,7 +224,7 @@ class CafeStore extends EventEmitter {
     addItem('main-course-veg', 'Paneer Popcorn', 229, 'VEG', 'Crunchy bite-sized vegetarian snack featuring cubes of paneer coated in spiced batter and breadcrumbs.');
     addItem('main-course-veg', 'Paneer 65', 299, 'VEG', 'Spicy, crispy and flavorful paneer appetizer made by deep-frying paneer and tossing it with curry leaves, ginger, garlic and tangy spices.');
     addItem('main-course-veg', 'Loaded Fries', 299, 'VEG', 'French fries, paneer, jalapeño and peri peri dip.');
-    addItem('main-course-veg', 'Broccoli Cheesey Stick', 299, 'NEEDS_CONFIRMATION', 'Chopped broccoli with shredded chicken.', {
+    addItem('main-course-veg', 'Broccoli Cheesey Stick', 300, 'NEEDS_CONFIRMATION', 'Chopped broccoli with shredded chicken.', {
       verification_note: 'IMPORTANT OWNER VERIFICATION: Menu listed under Veg Main Course but description specifies shredded chicken. Owner confirmation required.'
     });
 
@@ -548,12 +548,13 @@ class CafeStore extends EventEmitter {
         }
         unitPrice = Number(matchedVariant.price);
         variantName = matchedVariant.name;
-      } else if (reqItem.price !== undefined || reqItem.unit_price_snapshot !== undefined) {
-        const explicitPrice = Number(reqItem.price !== undefined ? reqItem.price : reqItem.unit_price_snapshot);
-        if (!isNaN(explicitPrice) && explicitPrice > 0) {
-          unitPrice = explicitPrice;
-        }
-        variantName = reqItem.variant_name || reqItem.variant_name_snapshot || null;
+      } else if (variants.length > 0) {
+        unitPrice = Number(variants[0].price);
+        variantName = variants[0].name;
+        matchedVariant = variants[0];
+      } else {
+        unitPrice = Number(dbItem.price);
+        variantName = null;
       }
 
       const lineTotal = unitPrice * qty;
@@ -690,12 +691,13 @@ class CafeStore extends EventEmitter {
         }
         unitPrice = Number(matchedVariant.price);
         variantName = matchedVariant.name;
-      } else if (reqItem.price !== undefined || reqItem.unit_price_snapshot !== undefined) {
-        const explicitPrice = Number(reqItem.price !== undefined ? reqItem.price : reqItem.unit_price_snapshot);
-        if (!isNaN(explicitPrice) && explicitPrice > 0) {
-          unitPrice = explicitPrice;
-        }
-        variantName = reqItem.variant_name || reqItem.variant_name_snapshot || null;
+      } else if (variants.length > 0) {
+        unitPrice = Number(variants[0].price);
+        variantName = variants[0].name;
+        matchedVariant = variants[0];
+      } else {
+        unitPrice = Number(dbItem.price);
+        variantName = null;
       }
 
       const lineTotal = unitPrice * qty;

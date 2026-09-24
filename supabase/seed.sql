@@ -175,7 +175,7 @@ BEGIN
   WHERE NOT EXISTS (SELECT 1 FROM public.menu_items WHERE category_id = v_cat_starters_veg AND name = 'Loaded Fries');
 
   INSERT INTO public.menu_items (category_id, name, description, price, food_type, verification_note, display_order)
-  SELECT v_cat_starters_veg, 'Broccoli Cheesey Stick', 'Chopped broccoli with shredded chicken.', 299, 'NEEDS_CONFIRMATION', 'IMPORTANT: Original physical menu listed under Veg but description specifies shredded chicken. Owner confirmation required.', 7
+  SELECT v_cat_starters_veg, 'Broccoli Cheesey Stick', 'Chopped broccoli with shredded chicken.', 300, 'NEEDS_CONFIRMATION', 'IMPORTANT: Original physical menu listed under Veg but description specifies shredded chicken. Owner confirmation required.', 7
   WHERE NOT EXISTS (SELECT 1 FROM public.menu_items WHERE category_id = v_cat_starters_veg AND name = 'Broccoli Cheesey Stick');
 
   -- ----------------------------------------------------------

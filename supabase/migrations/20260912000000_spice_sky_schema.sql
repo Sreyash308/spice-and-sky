@@ -258,6 +258,38 @@ CREATE POLICY "Staff can insert order items"
   WITH CHECK (public.is_staff());
 
 -- ------------------------------------------------------------
+-- EXPLICIT TABLE & DATA API ACCESS GRANTS
+-- ------------------------------------------------------------
+-- Supabase Data API (PostgREST) requires explicit grants for public tables.
+-- Grants work in conjunction with Row Level Security (RLS) policies.
+
+-- Menu tables: Public readable by anon & authenticated, modifiable by authenticated staff/admin
+GRANT SELECT ON TABLE public.menu_categories TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.menu_categories TO authenticated;
+GRANT ALL ON TABLE public.menu_categories TO service_role;
+
+GRANT SELECT ON TABLE public.menu_items TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.menu_items TO authenticated;
+GRANT ALL ON TABLE public.menu_items TO service_role;
+
+GRANT SELECT ON TABLE public.menu_item_variants TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.menu_item_variants TO authenticated;
+GRANT ALL ON TABLE public.menu_item_variants TO service_role;
+
+-- Protected internal operational tables: restricted to authenticated staff and backend service_role
+GRANT SELECT, UPDATE ON TABLE public.profiles TO authenticated;
+GRANT ALL ON TABLE public.profiles TO service_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.orders TO authenticated;
+GRANT ALL ON TABLE public.orders TO service_role;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.order_items TO authenticated;
+GRANT ALL ON TABLE public.order_items TO service_role;
+
+-- Sequences for serial IDs
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated, service_role;
+
+-- ------------------------------------------------------------
 -- ATOMIC ORDER CREATION RPC (create_order_atomic)
 -- ------------------------------------------------------------
 -- This function executes server-side, validates table number (1..9),
@@ -440,3 +472,5 @@ BEGIN
   RETURN v_result;
 END;
 $$;
+
+GRANT EXECUTE ON FUNCTION public.create_order_atomic TO authenticated, service_role;

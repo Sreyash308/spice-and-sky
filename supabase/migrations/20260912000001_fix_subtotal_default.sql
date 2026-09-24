@@ -182,3 +182,5 @@ BEGIN
   RETURN v_result;
 END;
 $$;
+
+GRANT EXECUTE ON FUNCTION public.create_order_atomic TO authenticated, service_role;

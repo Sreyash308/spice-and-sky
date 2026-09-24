@@ -109,7 +109,7 @@ async function runTest() {
     throw new Error(`Failed to get active orders: ${JSON.stringify(activeRes)}`);
   }
   const ordersList = Array.isArray(activeRes.data) ? activeRes.data : (activeRes.data.data || []);
-  const order5 = ordersList.find(o => o.order_number === 5 || o.id === '9c90d1fd-2b0e-4b7e-bc2e-d21d0f6327e8');
+  const order5 = ordersList.find(o => o.id === '9c90d1fd-2b0e-4b7e-bc2e-d21d0f6327e8');
   if (!order5) {
     console.warn('⚠️ Order #5 not found in active list (might already be completed or id differs).');
   } else {

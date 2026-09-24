@@ -217,14 +217,8 @@ module.exports = {
           }
         }
 
-        let unitPrice = variant ? Number(variant.price) : Number(item.price);
-        if (!variant && (oi.price !== undefined || oi.unit_price_snapshot !== undefined)) {
-          const explicitPrice = Number(oi.price !== undefined ? oi.price : oi.unit_price_snapshot);
-          if (!isNaN(explicitPrice) && explicitPrice > 0) {
-            unitPrice = explicitPrice;
-          }
-        }
-        const variantName = variant ? variant.name : (oi.variant_name || oi.variant_name_snapshot || null);
+        let unitPrice = variant ? Number(variant.price) : (variants.length > 0 ? Number(variants[0].price) : Number(item.price));
+        const variantName = variant ? variant.name : (variants.length > 0 ? variants[0].name : null);
         const lineTotal = unitPrice * numQty;
         calculatedSubtotal += lineTotal;
         return {
@@ -452,14 +446,8 @@ module.exports = {
             }
           }
 
-          let unitPrice = variant ? Number(variant.price) : Number(item.price);
-          if (!variant && (oi.price !== undefined || oi.unit_price_snapshot !== undefined)) {
-            const explicitPrice = Number(oi.price !== undefined ? oi.price : oi.unit_price_snapshot);
-            if (!isNaN(explicitPrice) && explicitPrice > 0) {
-              unitPrice = explicitPrice;
-            }
-          }
-          const variantName = variant ? variant.name : (oi.variant_name || oi.variant_name_snapshot || null);
+          let unitPrice = variant ? Number(variant.price) : (variants.length > 0 ? Number(variants[0].price) : Number(item.price));
+          const variantName = variant ? variant.name : (variants.length > 0 ? variants[0].name : null);
           const lineTotal = unitPrice * numQty;
           calculatedSubtotal += lineTotal;
           return {
