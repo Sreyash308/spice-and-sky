@@ -17,7 +17,7 @@ const apiRouter = require('./routes/api');
 const app = express();
 const PORT = process.env.PORT || 8000;
 
-// Security Headers with Helmet tailored for Supabase API, Realtime WSS & Google Fonts
+// Security Headers with Helmet tailored for Supabase API, Realtime WSS, Google Fonts & Vercel Analytics
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -49,6 +49,8 @@ app.use(
           "'self'",
           "https://*.supabase.co",
           "wss://*.supabase.co",
+          "https://vitals.vercel-insights.com",
+          "https://*.vercel-insights.com",
           "ws:",
           "wss:"
         ],
