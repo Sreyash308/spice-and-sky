@@ -25,8 +25,10 @@ app.use(
         defaultSrc: ["'self'"],
         scriptSrc: [
           "'self'",
+          "'unsafe-inline'",
           "https://cdn.jsdelivr.net",
-          "https://unpkg.com"
+          "https://unpkg.com",
+          "https://va.vercel-scripts.com"
         ],
         styleSrc: [
           "'self'",
@@ -50,7 +52,8 @@ app.use(
           "https://*.supabase.co",
           "wss://*.supabase.co",
           "ws:",
-          "wss:"
+          "wss:",
+          "https://vitals.vercel-insights.com"
         ],
         objectSrc: ["'none'"],
         baseUri: ["'self'"],
